@@ -223,6 +223,56 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
         }
 
 
+        # Loop through all trunks and calculate total surface area, surface loss and weighted angles
+        # Get all trees that die during time step
+        DeadSegments <- TrunksBegin$treeID[!is.element(TrunksBegin$treeID, TrunksEnd$treeID)]
+        DeadSegments1 <- is.element(DeadSegments, TrunksBegin$treeID)
+        locDeadSegments <- match(DeadSegments, TrunksBegin$treeID)  # nomatch=0?
+        CounterDead <- 1
+        TotalDead <- length(locDeadSegments)
+
+        for (j in 1:nrow(TrunksBegin)) {
+            X <- ceiling(TrunksBegin$x[j])  # X voxel of tree
+            Y <- ceiling(TrunksBegin$y[j])  # Y voxel of tree
+            Height <- TrunksBegin$height[j]  # Height of tree
+            Diameter <- TrunksBegin$diameter[j]  # Diameter of tree
+
+            SurfaceAreaTotal <- 0
+
+            for (Z in rev(1:ceiling(Height))) {
+
+                # Calculate new total surface area per voxel (for trunks)
+                if (TotalSurfaceAreaOpt == 1) {
+                    hCone <- Height - Z + 1  # height of cylinder from top to bottom of voxel
+                    # rCone <- (hCone / Height) * (Diameter / 2)  # radius of cylinder at bottom of voxel
+                    rCone <- Diameter / 2  # radius of cylinder at bottom of voxel
+
+                    # Calculate total surface area in voxel and save it in matrix
+                    SurfaceAreaInVoxel <- pi * rCone * sqrt((rCone^2) + (hCone^2)) - SurfaceAreaTotal
+                    Mat_surface_per_cell[X, Y, Z] <- Mat_surface_per_cell[X, Y, Z] + SurfaceAreaInVoxel
+
+                    # Update total surface area of cylinder so far (to use in next step)
+                    SurfaceAreaTotal <- SurfaceAreaInVoxel + SurfaceAreaTotal
+                }
+
+                # If trunk is lost during this time step, add it to lost surface
+                if (SurfaceAreaLossOpt == 1) {
+                    if (j == locDeadSegments[CounterDead]) {
+                        CounterDead <- min(TotalDead, CounterDead + 1)
+                        Mat_surfaceloss_per_cell[X, Y, Z] <- Mat_surfaceloss_per_cell[X, Y, Z] + SurfaceAreaInVoxel
+                    }
+                }
+
+                # Update weighted angle for the voxel
+                if (AverageWeightedAngles == 1) {
+                    tmp1 <- (Mat_surface_per_cell[X, Y, Z] - SurfaceAreaInVoxel) / Mat_surface_per_cell[X, Y, Z] * Mat_weighted_angle_per_cell[X, Y, Z]
+                    tmp2 <- SurfaceAreaInVoxel / Mat_surface_per_cell[X, Y, Z] * 90  # upright 90 degrees angle assumed
+                    Mat_weighted_angle_per_cell[X, Y, Z] <- tmp1 + tmp2
+                }
+            }
+        }
+
+
         end_time <- Sys.time()
         print(end_time - start_time)
     }
