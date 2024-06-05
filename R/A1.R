@@ -63,3 +63,20 @@ results_dir_name <- "Results"
 forest_global_param_name <- "Forest_param_global.txt"
 forest_pass_param_name <- paste("Forest_param_pass", ReplicateForest, ".txt", sep="")
 
+
+# The following parameters are generated automatically
+# Load dimensions of forest patch from global forest file
+if (MicrohabitatType == 1 || MicrohabitatType == 2) {
+    path_to_forest_global <- file.path(DirectoryGroIMP, model_dir_name, forest_global_param_name)
+    GlobalForest <- read.table(path_to_forest_global, sep="\t", row.names=1)
+
+    MaxX <- GlobalForest["MaxX", 1]
+    MaxY <- GlobalForest["MaxY", 1]
+    MaxZ <- GlobalForest["MaxZ", 1]
+    dimPlot <- c(MaxX, MaxY, MaxZ)
+    corridor <- GlobalForest["WidthCorridor", 1]
+    dimX <- MaxX + 2 * corridor  # MaxX+2*Corridor
+    dimY <- MaxY + 2 * corridor  # MaxY+2*Corridor
+    dimZ <- MaxZ  # MaxZ
+}
+
