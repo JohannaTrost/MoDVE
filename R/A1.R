@@ -273,6 +273,38 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
         }
 
 
+        # Calculate light conditions in voxels (relative light conditions)
+        if (LightConditionsOpt == 1) {
+
+            # Load file containing information about leaf area per voxel
+            voxelsFileName <- paste(voxelFile, i, ".txt", sep="")
+            # Voxels <- read.table(file.path(src_dir, voxelsFileName), sep="\t", header=TRUE, skip=1)  # Use this if we fix the trailing tab
+            colnames <- as.character(read.table(file.path(src_dir, voxelsFileName), sep="\t", skip=1, nrows=1))
+            Voxels <- read.table(file.path(src_dir, voxelsFileName), sep="\t", header=FALSE, skip=2, col.names=append(colnames, "empty_column"))
+            Voxels <- Voxels[colnames]
+
+            # Voxel file start with x=y=z=0 => synchronize with matrices used here
+            Voxels$x <- Voxels$x + 1
+            Voxels$y <- Voxels$y + 1
+            Voxels$z <- Voxels$z + 1
+
+            # Store information on leaf area in matrix
+            for (j in 1:nrow(Voxels)) {
+                Mat_leafArea_per_cell[Voxels$x[j], Voxels$y[j], Voxels$z[j]] <- Voxels$leafarea[j]
+            }
+
+            # Calculate single column light conditions based on leaf area distribution
+            for (x in 1:dimX) {
+                for (y in 1:dimY) {
+                    for (z in 1:dimZ) {
+                        Mat_light_per_cell[x, y, z] <- exp(-kL * (sum(Mat_leafArea_per_cell[x, y, z:dimZ]) / 10000))
+                    }
+                }
+            }
+
+        }
+
+
         end_time <- Sys.time()
         print(end_time - start_time)
     }
