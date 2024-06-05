@@ -154,6 +154,75 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
         Mat_surfaceloss_per_cell <- array(rep(0, dimX * dimY * dimZ), dim=c(dimX, dimY, dimZ))
         Mat_leafArea_per_cell <- array(rep(0, dimX * dimY * dimZ), dim=c(dimX, dimY, dimZ))
 
+        # Get all branch segments that die during time step
+        DeadSegments <- ShootsBegin$shootID[!is.element(ShootsBegin$shootID, ShootsEnd$shootID)]
+        DeadSegments1 <- is.element(DeadSegments, ShootsBegin$shootID)
+        locDeadSegments <- match(DeadSegments, ShootsBegin$shootID)  # nomatch=0?
+        CounterDead <- 1
+        TotalDead <- length(locDeadSegments)
+
+        # Loop through all shoots and calculate total surface area, surface loss and weighted angles
+        for (j in 1:nrow(ShootsBegin)) {
+
+            # Get voxel the shoot is intersecting with
+            # Here, we are using a simple approach because the shoots are
+            # usually small only intersect with maximum two voxels
+            UniqueX <- c(ceiling(ShootsBegin$xbegin[j]), ceiling(ShootsBegin$xend[j]))
+            UniqueY <- c(ceiling(ShootsBegin$ybegin[j]), ceiling(ShootsBegin$yend[j]))
+            UniqueZ <- c(ceiling(ShootsBegin$zbegin[j]), ceiling(ShootsBegin$zend[j]))
+
+            numX <- sum((UniqueX[2] - UniqueX[1]) > 0, na.rm=TRUE) + 1
+            numY <- sum((UniqueY[2] - UniqueY[1]) > 0, na.rm=TRUE) + 1
+            numZ <- sum((UniqueZ[2] - UniqueZ[1]) > 0, na.rm=TRUE) + 1
+
+            for (x in 1:numX) {
+                xid <- UniqueX[x]
+
+                for (y in 1:numY) {
+                    yid <- UniqueY[y]
+
+                    for (z in 1:numZ) {
+                        zid <- UniqueZ[z]
+
+                        # Calculate new total surface area per voxel
+                        if (TotalSurfaceAreaOpt == 1) {
+                            # Surface of single branch within voxel
+                            voxel_branch_surface <- (ShootsBegin$length[j] / (numX*numY*numZ)) * ShootsBegin$diameter[j] * pi/2
+
+                            Mat_surface_per_cell[xid, yid, zid] <- Mat_surface_per_cell[xid, yid, zid] + voxel_branch_surface
+                        }
+
+                        # If branch is lost during this time step, add it to lost surface
+                        if (SurfaceAreaLossOpt == 1) {
+                            if (j == locDeadSegments[CounterDead]) {
+                                CounterDead <- min(TotalDead, CounterDead + 1)
+
+                                lost_surface <- (ShootsBegin$length[j] / (numX*numY*numZ)) * ShootsBegin$diameter[j] * pi/2
+                                Mat_surfaceloss_per_cell[xid, yid, zid] <- Mat_surfaceloss_per_cell[xid, yid, zid] + lost_surface
+                            }
+                        }
+
+                        # Calculate weighted angles per voxel
+                        if (AverageWeightedAngles == 1) {
+                            # Calculate angle for the shoot relative to the plane x and y
+                            position1 <- c(ShootsBegin$xbegin[j], ShootsBegin$ybegin[j], ShootsBegin$zbegin[j])
+                            position2 <- c(ShootsBegin$xend[j], ShootsBegin$yend[j], ShootsBegin$zend[j])
+                            V <- position2 - position1
+                            alpha <- sum(C*V) / (sqrt(V[1]^2 + V[2]^2 + V[3]^2) * sqrt(C[1]^2 + C[2]^2 + C[3]^2))
+                            ShootAngle <- abs(90 - (acos(alpha) / pi*180))  # Angle for shoot
+
+                            # Calculate weighted angle for the voxel
+                            tmp1 <- (Mat_surface_per_cell[xid, yid, zid] - ((ShootsBegin$length[j] / (numX*numY*numZ)) * ShootsBegin$diameter[j] * pi/2)) / Mat_surface_per_cell[xid, yid, zid] * Mat_weighted_angle_per_cell[xid, yid, zid]
+                            tmp2 <- (((ShootsBegin$length[j] / (numX*numY*numZ)) * ShootsBegin$diameter[j] * pi/2)) / Mat_surface_per_cell[xid, yid, zid] * ShootAngle
+                            Mat_weighted_angle_per_cell[xid, yid, zid] <- tmp1 + tmp2
+                        }
+
+                    }
+                }
+            }
+        }
+
+
         end_time <- Sys.time()
         print(end_time - start_time)
     }
