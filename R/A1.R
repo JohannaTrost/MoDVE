@@ -106,3 +106,55 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
     file.copy(file.path(DirectoryGroIMP, model_dir_name, forest_pass_param_name), DirectoryMatrices, overwrite=FALSE)
 }
 
+
+# Generation of microhabitat matrix of static or dynamic forest (MicrohabitatType=1 or MicrohabitatType=2)
+# Here, the choosen parameter (total surface, surface loss, light conditions,average angle) are calculated for each voxel in each timestep
+
+if (MicrohabitatType == 1 || MicrohabitatType == 2) {
+
+    # In a static forest, only the initial forest at time step timeStepStart is of interest
+    if (MicrohabitatType == 2) {
+        timeStepEnd <- timeStepStart + 1
+    }
+
+    for (i in timeStepStart:(timeStepEnd-1)) {
+        print(paste("Time step", i))
+        start_time <- Sys.time()
+
+        # Load shoot and trunk files of actual and next timestep: Shoots at begin of year
+        # and at the end of year/begin of next year
+        src_dir <- file.path(DirectoryGroIMP, results_dir_name)
+
+        shootFileNameOld <- paste(shootFile, i, ".txt", sep="")
+        shootFileNameNew <- paste(shootFile, i+1, ".txt", sep="")
+
+        trunkFileNameOld <- paste(trunkFile, i, ".txt", sep="")
+        trunkFileNameNew <- paste(trunkFile, i+1, ".txt", sep="")
+
+        if (i != timeStepStart) {
+            ShootsBegin <- ShootsEnd
+            ShootsEnd <- read.table(file.path(src_dir, shootFileNameNew), sep="\t", header=TRUE, skip=1)
+            # ShootsEnd <- readr::read_tsv(file.path(src_dir, shootFileNameNew), skip=1, show_col_types=FALSE)
+
+            TrunksBegin <- TrunksEnd
+            TrunksEnd <- read.table(file.path(src_dir, trunkFileNameNew), sep="\t", header=TRUE, skip=8)
+            # TrunksEnd <- readr::read_tsv(file.path(src_dir, trunkFileNameNew), skip=8, show_col_types=FALSE)
+        } else {
+            ShootsBegin <- read.table(file.path(src_dir, shootFileNameOld), sep="\t", header=TRUE, skip=1)
+            ShootsEnd <- read.table(file.path(src_dir, shootFileNameNew), sep="\t", header=TRUE, skip=1)
+
+            TrunksBegin <- read.table(file.path(src_dir, trunkFileNameOld), sep="\t", header=TRUE, skip=8)
+            TrunksEnd <- read.table(file.path(src_dir, trunkFileNameNew), sep="\t", header=TRUE, skip=8)
+        }
+
+        # inititalize all matrices
+        Mat_surface_per_cell <- array(rep(0, dimX * dimY * dimZ), dim=c(dimX, dimY, dimZ))
+        Mat_weighted_angle_per_cell <- array(rep(0, dimX * dimY * dimZ), dim=c(dimX, dimY, dimZ))
+        Mat_light_per_cell <- array(rep(0, dimX * dimY * dimZ), dim=c(dimX, dimY, dimZ))
+        Mat_surfaceloss_per_cell <- array(rep(0, dimX * dimY * dimZ), dim=c(dimX, dimY, dimZ))
+        Mat_leafArea_per_cell <- array(rep(0, dimX * dimY * dimZ), dim=c(dimX, dimY, dimZ))
+
+        end_time <- Sys.time()
+        print(end_time - start_time)
+    }
+}
