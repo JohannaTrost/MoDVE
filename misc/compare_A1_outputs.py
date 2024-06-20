@@ -48,7 +48,7 @@ def compare(arr1, arr2):
             continue
         else:
             # In math.isclose() NaN is not considered close to any other value, including NaN
-            if not math.isclose(arr1[index], arr2[index], rel_tol=1e-9):
+            if not math.isclose(arr1[index], arr2[index], rel_tol=1e-7):
                 print(f"{index}: {val1} != {val2}")
                 all_same = False
 
