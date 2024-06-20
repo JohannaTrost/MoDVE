@@ -8,20 +8,24 @@ import math
 from pathlib import Path
 
 import numpy as np
+import rpy2.robjects as robjects
+from rpy2.robjects import pandas2ri
 import scipy.io as sio
 
 
-def get_ndarrays(path1, path2, filename, array_name):
-    filepath1 = path1 / filename
-    filepath2 = path2 / filename
+def get_ndarray_from_mat(filepath, array_name):
+    f1 = sio.loadmat(filepath)
+    arr = f1[array_name]
 
-    f1 = sio.loadmat(filepath1)
-    f2 = sio.loadmat(filepath2)
+    return arr
 
-    Microhabitat1 = f1[array_name]
-    Microhabitat2 = f2[array_name]
 
-    return Microhabitat1, Microhabitat2
+def get_ndarray_from_rds(filepath):
+    pandas2ri.activate()
+    readRDS = robjects.r["readRDS"]
+    arr = readRDS(str(filepath))
+
+    return arr
 
 
 def compare(arr1, arr2):
@@ -58,8 +62,13 @@ def main():
     end = 40
 
     for N in range(start, end):
-        filename = f"MicrohabitatMatrix{N}.mat"
-        Microhabitat1, Microhabitat2 = get_ndarrays(path1, path2, filename, array_name)
+        filename = f"MicrohabitatMatrix{N}"
+        filename_mat = f"{filename}.mat"
+        filename_rds = f"{filename}.rds"
+
+        Microhabitat1 = get_ndarray_from_mat(path1 / filename_mat, array_name)
+        Microhabitat2 = get_ndarray_from_rds(path2 / filename_rds)
+
         allsame = compare(Microhabitat1, Microhabitat2)
 
         print(f"{filename} All same" if allsame else f"{filename} NOT SAME!!!")
