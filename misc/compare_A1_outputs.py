@@ -1,9 +1,11 @@
 # Compare the output produced by different runs of the A1 script.
-# This output is the "MicrohabitatMatrix*.mat" files and they must
-# be in version <7.3 (No HDF5-based format).
+# This output is the "MicrohabitatMatrix*.[mat|rds]" files.
+# For `.mat` files they must be in version <7.3 (No HDF5-based format).
 # Before running this script, edit the `path1` and `path2` variables,
 # to provide the paths to the corresponding output and, if needed,
 # edit the `array_name`, `start` and `end` variables too.
+#
+# Requirements: numpy, scipy, pandas, rpy2
 import math
 from pathlib import Path
 
