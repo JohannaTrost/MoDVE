@@ -362,5 +362,11 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 
         end_time <- Sys.time()
         print(end_time - start_time)
+
+        # flush.console()
+        # stop("stop")
     }
+
+    # Save dimensions of plot in seperate file
+    saveRDS(dimPlot, file.path(DirectoryMatrices, "dimPlot.rds"))
 }
