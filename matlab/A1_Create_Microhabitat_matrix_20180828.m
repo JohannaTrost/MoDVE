@@ -35,7 +35,7 @@ NameForest='ForestModel_Best';
 ReplicateForest=4;
 
 %start and end timestep
-timeStepStart=1; 
+timeStepStart=1;
 timeStepEnd=1000;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -68,7 +68,7 @@ end
 %MicrohabitatType=1: 'Microhabitat_NameOfForestModel_SpatialExtent_timeSteps'
 %MicrohabitatType=2: 'Microhabitat_NameOfForestModel_SpatialExtent_timeStep'
 %MicrohabitatType=3: 'Microhabitat_BAI_LAI_kL'
-if MicrohabitatType==1 
+if MicrohabitatType==1
     NameMicrohabitatMatrix=strcat('Microhabitat_',NameForest,'_',num2str(dimPlot(1)),'x',num2str(dimPlot(2)),'x',num2str(dimPlot(3)),'_Rep',num2str(ReplicateForest));
     DirectoryMatrices=strcat(DirectorySaveMain,'\DynamicForests\',DirectorySaveFolder,'\',NameMicrohabitatMatrix);
 elseif MicrohabitatType==2
@@ -103,12 +103,12 @@ MatrixDimension=sum([TotalSurfaceAreaOpt SurfaceAreaLossOpt LightConditionsOpt A
 % Here, the choosen parameter (total surface, surface loss, light conditions,average angle) are calculated for each voxel in each timestep
 
 if MicrohabitatType==1 || MicrohabitatType==2
-    
+
     %In a staic forest, only the initial forest at time step timeStepStart is of interest
     if MicrohabitatType==2
         timeStepEnd=timeStepStart+1;
     end
-    
+
     for i=timeStepStart:timeStepEnd-1
         fprintf('Time step %d \n', i);
         tic
@@ -133,7 +133,7 @@ if MicrohabitatType==1 || MicrohabitatType==2
         Mat_light_per_cell=zeros(dimX,dimY,dimZ);
         Mat_surfaceloss_per_cell=zeros(dimX,dimY,dimZ);
         Mat_leafArea_per_cell=zeros(dimX,dimY,dimZ);
-        
+
         %Get all branch segments that die during time step
         DeadSegments=ShootsBegin(~ismember(ShootsBegin(:,1),ShootsEnd(:,1)),1);
         [DeadSegments1, locDeadSegments]=ismember(DeadSegments,ShootsBegin(:,1));
@@ -175,7 +175,7 @@ if MicrohabitatType==1 || MicrohabitatType==2
             for x=1:numX
                 for y=1:numY
                     for z=1:numZ
-                        
+
                         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                         % Calculate new total surface area per voxel
                         if TotalSurfaceAreaOpt==1
@@ -183,7 +183,7 @@ if MicrohabitatType==1 || MicrohabitatType==2
                                 Mat_surface_per_cell(UniqueX(x),UniqueY(y),UniqueZ(z))+...
                                 ((ShootsBegin(j,5)/(numX*numY*numZ))*ShootsBegin(j,6)*pi/2); %Surface of single branch within voxel
                         end
-                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
                         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                         % If branch is lost during this time step, add it
@@ -225,7 +225,7 @@ if MicrohabitatType==1 || MicrohabitatType==2
                                 ShootAngle);
                         end
                         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                        
+
                     end
                 end
             end
@@ -234,7 +234,7 @@ if MicrohabitatType==1 || MicrohabitatType==2
 
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %Loop through all trunks and calculate total surface area, surface loss and weighted angles
-        
+
         %Get all trees that die during time step
         DeadSegments=TrunksBegin(~ismember(TrunksBegin(:,1),TrunksEnd(:,1)),1);
         [DeadSegments1, locDeadSegments]=ismember(DeadSegments,TrunksBegin(:,1));
@@ -267,7 +267,7 @@ if MicrohabitatType==1 || MicrohabitatType==2
                     SurfaceAreaTotal=SurfaceAreaInVoxel+SurfaceAreaTotal;
                 end
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                
+
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                 % If trunk is lost during this time step, add it
                 % to lost surface
@@ -286,18 +286,18 @@ if MicrohabitatType==1 || MicrohabitatType==2
                     Mat_weighted_angle_per_cell(X,Y,Z)= ...
                         ( (Mat_surface_per_cell(X,Y,Z)-SurfaceAreaInVoxel)/...
                         Mat_surface_per_cell(X,Y,Z)*Mat_weighted_angle_per_cell(X,Y,Z))...
-                        +((SurfaceAreaInVoxel/Mat_surface_per_cell(X,Y,Z)*90)); % upright 90° angle assumed
+                        +((SurfaceAreaInVoxel/Mat_surface_per_cell(X,Y,Z)*90)); % upright 90ï¿½ angle assumed
                 end
-                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%         
+                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
             end
         end
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %Calculate light conditions in voxels (relative light conditions)
         if LightConditionsOpt==1
-        
+
             %Load file containing information about leaf area per voxel
             Voxels=dlmread(strcat(DirectoryGroIMP,'\Results\',voxelFile,num2str(i),'.txt'),'\t',2,0);
             Voxels(:,1:3)=Voxels(:,1:3)+1; %Voxel file start with x=y=z=0 => synchronize with matrices used here
@@ -346,47 +346,47 @@ if MicrohabitatType==1 || MicrohabitatType==2
                 end
             end
         end
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-        
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %Store information in Microhabitat matrix and save matrix for this
         %timestep
         Microhabitat=zeros(dimPlot(1),dimPlot(2),dimPlot(3),MatrixDimension,'single');%eventuell nur 5 dimensionen um platz zu sparen
-        
+
         if TotalSurfaceAreaOpt==1
             Microhabitat(:,:,:,1)=Mat_surface_per_cell(corridor+1:dimX-corridor,corridor+1:dimY-corridor,1:dimZ);
         end
-        
+
         if SurfaceAreaLossOpt==1
             if MicrohabitatType==1
                 Microhabitat(:,:,:,2)=Mat_surfaceloss_per_cell(corridor+1:dimX-corridor,corridor+1:dimY-corridor,1:dimZ)./Mat_surface_per_cell(corridor+1:dimX-corridor,corridor+1:dimY-corridor,1:dimZ);
             end
-            
+
             if MicrohabitatType==2
                 Microhabitat(:,:,:,2)=0;
             end
         end
-        
+
         if LightConditionsOpt==1
             Microhabitat(:,:,:,3)=Mat_light_per_cell(corridor+1:dimX-corridor,corridor+1:dimY-corridor,1:dimZ);
         end
-        
+
         if AverageWeightedAngles==1
             Microhabitat(:,:,:,4)=Mat_weighted_angle_per_cell(corridor+1:dimX-corridor,corridor+1:dimY-corridor,1:dimZ);
         end
-               
+
         MicrohabitatMatSave=strcat(DirectoryMatrices,'\MicrohabitatMatrix',num2str(i),'.mat');
         save(MicrohabitatMatSave,'Microhabitat')
-        toc 
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+        toc
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     end
-    
+
     %Save the directory of the GroIMP file
     dlmwrite(strcat(DirectoryMatrices,'\DirectoryForestModelGroIMP.txt'),DirectoryGroIMP,'') %Save associated directory of species pools
 
     %Save dimensions of plot in seperate file
     save(strcat(DirectoryMatrices,'\dimPlot.mat'),'dimPlot')
-    
+
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

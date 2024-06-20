@@ -1,5 +1,5 @@
 %Create species matrices
-clear all 
+clear all
 close all
 clc
 
@@ -89,25 +89,25 @@ for Num=1:numSpeciesPools
     SpeciesPoolRand=SpeciesPoolSelected(RandomSpecies,1:ColMax);
     SpeciesPoolRandDetailed(:,1)=1:NumberOfSpecies;
     SpeciesPoolRand(:,1)=1:NumberOfSpecies;
-    
+
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Save species pools/trait matrices
     %Create dataset from table (including headers)
     SpeciesTable=dataset({SpeciesPoolRand,ColumnHeadersSpeciesPool{1:ColMax}});
     SpeciesTableDetailed=dataset({SpeciesPoolRandDetailed,ColumnHeadersSpeciesPool});
-    
+
     %Save species pools/trait matrix
     SaveFile=strcat(SaveDirectory,'\SpeciesPool',num2str(Num),'.csv');
     dlmwrite(SaveFile,SpeciesPoolRand,'\t');
 
     SaveFileDataset=strcat(SaveDirectory,'\SpeciesPoolHeader',num2str(Num),'.txt');
     export(SpeciesTable,'file',SaveFileDataset)
-    
+
     SaveFileDatasetDetailed=strcat(SaveDirectory,'\SpeciesPoolDetailedHeader',num2str(Num),'.txt');
     export(SpeciesTableDetailed,'file',SaveFileDatasetDetailed)
-    
+
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    
+
 end
 
 %Save ColumnHeader for further use

@@ -1,5 +1,5 @@
 %Create species matrices
-clear all 
+clear all
 close all
 clc
 
@@ -17,7 +17,7 @@ NumberOfSpecies=100;
 CorrelationMassAgeOfMaturity=1; %Correlation between the mass and the age of maturity (this also influences the growth rate)
 CorrelationMassRecruitment=1; %Correlation between the mass and the recruitment
 
-InterceptAgeMaturity=2; 
+InterceptAgeMaturity=2;
 ScalingAgeMaturity=0.25; %Scaling factor according to metabolic theory
 AgeMaturityMetabolic=@(InterceptAgeMaturity,ScalingAgeMaturity,Mass) (InterceptAgeMaturity*(Mass^ScalingAgeMaturity));
 
@@ -35,7 +35,7 @@ RecruitmentInvestmentRelMeanCorr=0.1; %Anual investment in reproduction in relat
 RecruitmentInvestmentRelDevCorr=0.25; %The relative deviation from the mean recruitment
 RecruitmentIncMaxCorr=0;
 
-%Parameters of light model (needed to convert the height nicht and the light niche, these values do not have to 
+%Parameters of light model (needed to convert the height nicht and the light niche, these values do not have to
 %be the same as used in the microhabitat matrices)
 kL=0.6; %light extinction coefficient
 Imax=900; %maximum light intensity
@@ -51,30 +51,30 @@ RecruitmentNormalizeAtSize1Random=[1 20]; %This parameter regulates the range of
 RecruitmentInvestmentRelMeanRandom=[0.07 0.12]; %Not that the effective recruitment is RecruitmentNormalizeAtSize1Random*RecruitmentInvestmentRelMeanRandom
 RecruitmentIncRandom=[0 0];
 MassAtMaturityRelativeRandom=[0.5 0.7]; %Relative mass in relation to maximum Size
-HeightBreadthRandom=[0.15 0.7]; %Relative height 
+HeightBreadthRandom=[0.15 0.7]; %Relative height
 DispersalKernelRandom=[0.03 0.5]; %The higher this values, the more local is the dispersal
 DispersalKernelAsymmetryRandom=[0.5 0.95]; %The trait describes the relative proportion of seed dispersed below the mother (i.e. 0.5=> symmetric dispersal kernel)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%Define which trait is varied if a sequential species pool(SpeciesPoolType=1) is choose. 
+%Define which trait is varied if a sequential species pool(SpeciesPoolType=1) is choose.
 %For proper results, only one of the following traits should be defined as sequence, while for the other traits, invariable trait values should to be specified.
 %If no correlations between traits are choosen (CorrelationMassAgeOfMaturity=0 || CorrelationMassRecruitment=0),the following traits are used
 MaxMassSeq=[2 3000]; %maximum mass of species/functional types (g)
 MaxMassLogScaleSeq=1; %define if the mass is choosen based on the log scale (MaxMassLogScale=1) or on the normal scale (MaxMassLogScale=0)
-AgeAtMaturitySeq=2; %if no correlation is defined, this value is used 
+AgeAtMaturitySeq=2; %if no correlation is defined, this value is used
 RecruitmentNormalizeAtSize1Seq=20; %This parameter regulates the range of recruitment in thise cases
 RecruitmentInvestmentRelMeanSeq=0.1; %anual investment in reproduction in relation to vegetative biomass
 RecruitmentIncSeq=0; %Increase in realtive reproductive allocation with mass 0: no increase; 1: doubling
 MassAtMaturityRelativeSeq=0.5; %Relative mass in relation to maximum Size
-HeightBreadthSeq=1; %Relative height 
-MeanHeightSeq=0.5; 
+HeightBreadthSeq=1; %Relative height
+MeanHeightSeq=0.5;
 DispersalKernelSeq=0; %The higher this values, the more local is the dispersal
 DispersalKernelAsymmetrySeq=0.5; %The trait describes the relative proportion of seed dispersed below the mother (i.e. 0.5=> symmetric dispersal kernel)
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %Define traits if neutral species pool(SpeciesPoolType=2) is choose
-%The traits are the same for all species and have to be specified below. If correlations between traits are choosen, 
+%The traits are the same for all species and have to be specified below. If correlations between traits are choosen,
 %the age at maturity and the recruitment are based on the correlations defined above instead of the one defined below
 MaxMassNeutral=100; %maximum mass of species/functional types (g)
 AgeAtMaturityNeutral=3; %age at which maturity is reaches (years)
@@ -82,7 +82,7 @@ RecruitmentNormalizeAtSize1Neutral=15; %If no correlation is choose, this value 
 RecruitmentInvestmentRelMeanNeutral=0.1;
 RecruitmentIncNeutral=0; %Increase in realtive reproductive allocation with mass 0: no increase; 1: doubling
 MassAtMaturityRelativeNeutral=0.5; %Relative mass in relation to maximum Size
-HeightBreadthNeutral=0.5; %Relative height 
+HeightBreadthNeutral=0.5; %Relative height
 MeanHeightNeutral=0.5;  %Mean height
 DispersalKernelNeutral=1.5; %The higher this values, the more local is the dispersal
 DispersalKernelAsymmetryNeutral=0.5; %The trait describes the relative proportion of seed dispersed below the mother (i.e. 0.5=> symmetric dispersal kernel)
@@ -94,20 +94,20 @@ if SpeciesPoolType==0
     if CorrelationMassAgeOfMaturity==1 || CorrelationMassRecruitment==1
         FullNameSpeciesPool=strcat('SP_Random_',NameSpeciesPool,'_TraitCorrOn');
     else
-        FullNameSpeciesPool=strcat('SP_Random_',NameSpeciesPool,'_TraitCorrOff');    
-    end     
+        FullNameSpeciesPool=strcat('SP_Random_',NameSpeciesPool,'_TraitCorrOff');
+    end
 elseif SpeciesPoolType==1
     if CorrelationMassAgeOfMaturity==1 || CorrelationMassRecruitment==1
         FullNameSpeciesPool=strcat('SP_Sequential_',NameSpeciesPool,'_TraitCorrOn');
     else
-        FullNameSpeciesPool=strcat('SP_Sequential_',NameSpeciesPool,'_TraitCorrOff');    
-    end     
+        FullNameSpeciesPool=strcat('SP_Sequential_',NameSpeciesPool,'_TraitCorrOff');
+    end
 elseif SpeciesPoolType==2
     if CorrelationMassAgeOfMaturity==1 || CorrelationMassRecruitment==1
         FullNameSpeciesPool=strcat('SP_Neutral_',NameSpeciesPool,'_TraitCorrOn');
     else
-        FullNameSpeciesPool=strcat('SP_Neutral_',NameSpeciesPool,'_TraitCorrOff');    
-    end     
+        FullNameSpeciesPool=strcat('SP_Neutral_',NameSpeciesPool,'_TraitCorrOff');
+    end
 end
 
 SaveDirectory=strcat('\\OMNISCIENTIA\Members\Gunnar\EpiphyteModels\SpeciesPools','\',FullNameSpeciesPool);
@@ -122,10 +122,10 @@ newfile=strcat(SaveDirectory,'\',FileName);
 copyfile(currentfile,newfile);
 
 ColumnHeaders={'SpeciesID','MaximumMass','MassAtMaturity','GrowthRate',...
-        'DispersalKernel','DispersalKernelAsymmetry','RecruitmentInvestmentRel','RecruitmentInc','MinLight','MaxLight','OptimumLight','LightBreadth',...            
+        'DispersalKernel','DispersalKernelAsymmetry','RecruitmentInvestmentRel','RecruitmentInc','MinLight','MaxLight','OptimumLight','LightBreadth',...
         'LightResponseA','LightResponseB','LightResponseC','MinHeightRel','MaxHeightRel',...
         'MeanHeightRel','HeightBreadth','MaxRecruitsAtMaxMass','MaxRecruitsAtMassAtMaturity','AgeAtMaturity'};
-    
+
 %Save ColumnHeader for further use
 xlswrite(strcat(SaveDirectory,'\ColumnHeaders.xls'),ColumnHeaders);
 
@@ -144,7 +144,7 @@ save(strcat(SaveDirectory,'\CorrelationMassRecruitment.mat'),'CorrelationMassRec
 %Main loop (for random generation of species pool)
 for Num=1:numSpeciesPools
 
-    %Trait matrix where the trait information of each species is saved    
+    %Trait matrix where the trait information of each species is saved
     SpeciesTraitMatrix=zeros(NumberOfSpecies,16);
 
     for NumSpecies=1:NumberOfSpecies
@@ -154,14 +154,14 @@ for Num=1:numSpeciesPools
         % choosing from log scale because usually, there are more smaller species than larger ones)
         if MaxMassLogScaleRandom==1
             MaxMassLog=random('unif',log10(MaxMassRandom(1)),log10(MaxMassRandom(2)));
-            MaxMass=10^MaxMassLog;     
+            MaxMass=10^MaxMassLog;
         elseif MaxMassLogScaleRandom==0
             MaxMass=random('unif',MaxMassRandom(1),MaxMassRandom(2));
         end
 
         %The age at maturity is the given by
         AgeAtMaturity=AgeMaturityMetabolic(InterceptAgeMaturity,ScalingAgeMaturity,MaxMass);
-        AgeAtMaturity=AgeAtMaturity*random('unif',1-AgeAtMaturityDevCorr,1+AgeAtMaturityDevCorr); %Add stochasticity: 
+        AgeAtMaturity=AgeAtMaturity*random('unif',1-AgeAtMaturityDevCorr,1+AgeAtMaturityDevCorr); %Add stochasticity:
 
         %We assume that the mass at maturity is a function of the maximum size
         MassAtMaturity=random('unif',MassAtMaturityRelativeRandom(1),MassAtMaturityRelativeRandom(2))*MaxMass;
@@ -170,20 +170,20 @@ for Num=1:numSpeciesPools
         %SizeFunctionOfAge=@(MaxMass,K,Age) (MaxMass*(1-exp(-K*(Age))));
         %By assuming that the Betalanffy growth curve crosses the point AgeAtMaturity/Size MaturityMassAtMaturity,
         %the growth rate K of this function can be calculated:
-        K=-(log(1)+log(1-(MassAtMaturity/MaxMass)))/AgeAtMaturity;     
+        K=-(log(1)+log(1-(MassAtMaturity/MaxMass)))/AgeAtMaturity;
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % Recruitment traits
-        
+
         %2. Correlations if CorrelationMassRecruitment=1
         RecruitmentNormalizeAtSize1Corr=70; %Factor converting the reproductive biomass to potential recruits
         SlopeRecruitmentCorr=0*RecruitmentNormalizeAtSize1Corr; %Slope of the correlation between mass and recruitment
         RecruitmentInvestmentRelMeanCorr=0.1; %Anual investment in reproduction in relation to vegetative biomass (decrease due to correlation with mass)
         RecruitmentInvestmentRelDevCorr=0.25; %The relative deviation from the mean recruitment
         RecruitmentIncMaxCorr=0;
-                
+
         if CorrelationMassRecruitment==1
             RecruitmentInvestmentRel=random('unif',RecruitmentInvestmentRelMeanCorr*(1-RecruitmentInvestmentRelDevCorr),RecruitmentInvestmentRelMeanCorr*(1+RecruitmentInvestmentRelDevCorr));
             RecruitmentNormalizeAtSize1=RecruitmentNormalizeAtSize1Corr; %Factor converting the reproductive biomass to potential recruits
@@ -191,7 +191,7 @@ for Num=1:numSpeciesPools
             InterceptRecruitment=RecruitmentNormalizeAtSize1; %
             RecruitmentInc=0;
         elseif CorrelationMassRecruitment==0
-            RecruitmentInvestmentRel=random('unif',RecruitmentInvestmentRelMeanRandom(1),RecruitmentInvestmentRelMeanRandom(2)); 
+            RecruitmentInvestmentRel=random('unif',RecruitmentInvestmentRelMeanRandom(1),RecruitmentInvestmentRelMeanRandom(2));
             RecruitmentNormalizeAtSize1=random('unif',RecruitmentNormalizeAtSize1Random(1),RecruitmentNormalizeAtSize1Random(2));
             SlopeRecruitment=0; %No slope if no correlation is choosen
             InterceptRecruitment=RecruitmentNormalizeAtSize1-SlopeRecruitment;
@@ -234,8 +234,8 @@ for Num=1:numSpeciesPools
         y2=0;
         y3=1;
 
-        a = (x1*(y2-y3)+x2*(y3-y1)+x3*(y1-y2))/((x1-x2)*(x1-x3)*(x3-x2));	 	
-        b = (x1^2*(y2-y3)+x2^2*(y3-y1)+x3^2*(y1-y2))/((x1-x2)*(x1-x3)*(x2-x3));	
+        a = (x1*(y2-y3)+x2*(y3-y1)+x3*(y1-y2))/((x1-x2)*(x1-x3)*(x3-x2));
+        b = (x1^2*(y2-y3)+x2^2*(y3-y1)+x3^2*(y1-y2))/((x1-x2)*(x1-x3)*(x2-x3));
         c = (x1^2*(x2*y3-x3*y2)+x1*(x3^2*y2-x2^2*y3)+x2*x3*y1*(x2-x3))/((x1-x2)*(x1-x3)*(x2-x3));
         %In the model, based on these parameters the light response for each species can be calculated:
         %Parabol=@(a,b,c,x) a*x^2+b*x+c;
@@ -286,14 +286,14 @@ for Num=1:numSpeciesPools
     % Save trait ranges used to generate the species pool
     TraitRanges=zeros(20,2);
     TraitRanges(1,:)=SlopeRecruitment;
-    TraitRanges(2,:)=InterceptRecruitment; 
-    TraitRanges(3,:)=MaxMassRangeCorr(1:length(MaxMassRangeCorr)); 
+    TraitRanges(2,:)=InterceptRecruitment;
+    TraitRanges(3,:)=MaxMassRangeCorr(1:length(MaxMassRangeCorr));
     %%TraitRanges(4,:)=AgeAtMaturityRangeCorr(1:length(AgeAtMaturityRangeCorr));  #Comment2019 => should not ne needed, delete
-    TraitRanges(5,:)=AgeAtMaturityDevCorr(1:length(AgeAtMaturityDevCorr)); 
-    TraitRanges(6,:)=RecruitmentNormalizeAtSize1Corr(1:length(RecruitmentNormalizeAtSize1Corr)); 
-    TraitRanges(7,:)=SlopeRecruitmentCorr(1:length(SlopeRecruitmentCorr)); 
-    TraitRanges(8,:)=RecruitmentInvestmentRelMeanCorr(1:length(RecruitmentInvestmentRelMeanCorr)); 
-    TraitRanges(9,:)=RecruitmentInvestmentRelDevCorr(1:length(RecruitmentInvestmentRelDevCorr)); 
+    TraitRanges(5,:)=AgeAtMaturityDevCorr(1:length(AgeAtMaturityDevCorr));
+    TraitRanges(6,:)=RecruitmentNormalizeAtSize1Corr(1:length(RecruitmentNormalizeAtSize1Corr));
+    TraitRanges(7,:)=SlopeRecruitmentCorr(1:length(SlopeRecruitmentCorr));
+    TraitRanges(8,:)=RecruitmentInvestmentRelMeanCorr(1:length(RecruitmentInvestmentRelMeanCorr));
+    TraitRanges(9,:)=RecruitmentInvestmentRelDevCorr(1:length(RecruitmentInvestmentRelDevCorr));
     TraitRanges(10,:)=RecruitmentIncMaxCorr(1:length(RecruitmentIncMaxCorr));
     TraitRanges(11,:)=MaxMassRandom(1:length(MaxMassRandom));
     TraitRanges(12,:)=AgeAtMaturityRandom(1:length(AgeAtMaturityRandom));
@@ -307,5 +307,3 @@ for Num=1:numSpeciesPools
     TraitRanges(20,:)=MaxMassLogScaleRandom(1:length(MaxMassLogScaleRandom));
     dlmwrite(strcat(SaveDirectory,'\TraitRanges.csv'),TraitRanges,'\t');
 end
-
-
