@@ -302,6 +302,31 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
                 }
             }
 
+            # Copy light conditions
+            Mat_light_per_cell_Copy <- Mat_light_per_cell
+
+            # Calculate final light conditions by accounting for the light
+            # conditions in adjacent voxels
+            for (x in corridor:(dimX-corridor)) {
+                for (y in corridor:(dimY-corridor)) {
+                    for (z in 1:dimZ) {
+                        TotalContribution <- 0
+
+                        # loop over ring surrounding the focal voxel
+                        for (xx in (x-DistVoxToConsider):(x+DistVoxToConsider)) {
+                            for (yy in (y-DistVoxToConsider):(y+DistVoxToConsider)) {
+                                Ring <- max(abs(xx - x), abs(yy - y))
+                                Contribution <- (1 / (DistVoxToConsider + 1)) * (1 / max(1, (Ring * 8))) * Mat_light_per_cell_Copy[xx, yy, z]
+                                TotalContribution <- TotalContribution + Contribution
+                            }
+                        }
+
+                        Mat_light_per_cell[x, y, z] <- TotalContribution
+
+                    }
+                }
+            }
+
         }
 
 
