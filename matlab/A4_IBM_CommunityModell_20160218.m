@@ -241,7 +241,7 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
             NumberOfSpecies=size(SpeciesPool,1); %number of species per 25X25m plot
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            %Erzeugen der Distanzmatrix und der Wahrscheinlichkeitsmatrix f�r jede Art
+            %Erzeugen der Distanzmatrix und der Wahrscheinlichkeitsmatrix für jede Art
             %Dimensionen der Dispersal matrix
             dimX=dimPlot(1)*2+1;
             dimY=dimPlot(2)*2+1;
