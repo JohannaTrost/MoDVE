@@ -5,11 +5,11 @@ clc
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %Parameters that need to be specified/checked before running this script
 
-%Name of epiphyte model 
+%Name of epiphyte model
 %FolderEpiphyteModel='EM_20160213'; %I should think about naming
 SingleSpeciesModel=0; %1: Single species model, 0: Community model
 
-%Name of species pool 
+%Name of species pool
 FolderSpeciesPools='SP_Random_IA_2_IR_60_TimeS_200';
 
 %Name of specific species pool
@@ -22,7 +22,7 @@ DirectoryModelMain='C:\Gunnar\EpiphyteModels\EpiphyteModels';
 DirectoryMicrohabitatMain='C:\Gunnar\EpiphyteModels\MicrohabitatMatrices';
 DirectorySpeciesPoolsMain='\\OMNISCIENTIA\Members\Gunnar\EpiphyteModels\SpeciesPools';
 
-%Name of microhabitat matrix 
+%Name of microhabitat matrix
 %FolderMicrohabitat='Microhabitat_ForestModel_20160113_50x50x80_timesteps_200-1000';
 FolderMicrohabitat='ForestModel_Dynamic_50x50';
 Replicate=0;
@@ -42,11 +42,11 @@ MethodVoxel=0;
 %This variable defines if the NumberSpecies are total numbers irrespective
 %of the model area (ScalingPerHa=0), or if the NumberSpecies or given per
 %hectar and are scaled to the model area (ScalingPerHa=1)
-ScalingPerHa=0; 
+ScalingPerHa=0;
 IndividualsPerSpecies=100;
 PercentageMaturePerSpecies=50;
 
-%This parameter set the scaling between the 
+%This parameter set the scaling between the
 SurfaceBiomassScaling=10000*0.01; %cm^2 per m^2
 Imax=900;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -155,8 +155,8 @@ AgeFunctionOfMass=@(MaxMass,Mass,K) (-log(1-(Mass/MaxMass))/K);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %Main loop for Single Species Model
 if SingleSpeciesModel==1
-    
-    AvailableSurfaceAreaForSpecies=zeros(dimPlot(1),dimPlot(2),dimPlot(3),NumberSpecies,'single');  
+
+    AvailableSurfaceAreaForSpecies=zeros(dimPlot(1),dimPlot(2),dimPlot(3),NumberSpecies,'single');
     PotentialVoxelsForSpecies=zeros(dimPlot(1)*dimPlot(2)*dimPlot(3),3,NumberSpecies,'int8');
     PotentialVoxelsForIndividual=zeros(dimPlot(1)*dimPlot(2)*dimPlot(3),3,'int8');
 
@@ -168,14 +168,14 @@ if SingleSpeciesModel==1
         SpeciesPool=dlmread(Input_file,'\t');
 
         SizeSpeciesPool=size(SpeciesPool);
-        
+
 
         for numReplicates=1:replicatePerSpeciesPool
-            
+
             fprintf('Number replicate: %d \n', numReplicates);
             %Initialize epiphyte matrix
             IntitalEpiphyteMatrix=zeros(TotalIndividuals,(size(SpeciesPool,2)+7));
-            
+
             %Initialize Available surfavce area
             AvailableSurfaceArea=Microhabitat(:,:,:,1); %Matrix to trace the still available surface area per voxel
 
@@ -197,14 +197,14 @@ if SingleSpeciesModel==1
                     %Store initial size of individual
                     IntitalEpiphyteMatrix(((numSpecies-1)*IndividualsPerSpecies)+numIndividual,SizeSpeciesPool(2)+4)=...
                         SizeOfIndividual;
-                    
+
                     %store initial age of individual (age when it would have grown under optimal conditions)
                     IntitalEpiphyteMatrix(((numSpecies-1)*IndividualsPerSpecies)+numIndividual,SizeSpeciesPool(2)+8)=...
                         round(AgeFunctionOfMass(SpeciesPool(numSpecies,2),SizeOfIndividual,SpeciesPool(numSpecies,4)));
 
                 end
             end
-            
+
             %Store individual ID for each individual
             IntitalEpiphyteMatrix(1:TotalIndividuals,(SizeSpeciesPool(2)+6))=1:TotalIndividuals;
 
@@ -215,10 +215,10 @@ if SingleSpeciesModel==1
 
             %loop over all species
             for numSpecies=1:NumberSpecies
-            
+
                 %Get subset of indiduals for each species
                 IntitalEpiphyteMatrixSub=IntitalEpiphyteMatrix(IntitalEpiphyteMatrix(:,1)==numSpecies,:);
-                
+
                 %loop through all individuals, beginning with the largest (competition)
                 %sort IntitalEpiphyteMatrixSub by size
                 IntitalEpiphyteMatrixSub=sortrows(IntitalEpiphyteMatrixSub,-(SizeSpeciesPool(2)+4));
@@ -247,7 +247,7 @@ if SingleSpeciesModel==1
 
                             AvailableSurfaceArea(x(randNumbers(PotVoxels)),y(randNumbers(PotVoxels)),z(randNumbers(PotVoxels)))=...
                                 AvailableSurfaceArea(x(randNumbers(PotVoxels)),y(randNumbers(PotVoxels)),z(randNumbers(PotVoxels)))-...
-                                (IntitalEpiphyteMatrixSub(i,(SizeSpeciesPool(2)+7)));         
+                                (IntitalEpiphyteMatrixSub(i,(SizeSpeciesPool(2)+7)));
 
                             break;
                         end
@@ -260,9 +260,9 @@ if SingleSpeciesModel==1
                 IntitalEpiphyteMatrixSub(IntitalEpiphyteMatrixSub(:,SizeSpeciesPool(2)+1)==0,SizeSpeciesPool(2)+1)=1;
                 IntitalEpiphyteMatrixSub(IntitalEpiphyteMatrixSub(:,SizeSpeciesPool(2)+2)==0,SizeSpeciesPool(2)+2)=1;
                 IntitalEpiphyteMatrixSub(IntitalEpiphyteMatrixSub(:,SizeSpeciesPool(2)+3)==0,SizeSpeciesPool(2)+3)=1;
-                
+
                 IntitalEpiphyteMatrix(((numSpecies-1)*IndividualsPerSpecies)+1:(numSpecies*IndividualsPerSpecies),:)=IntitalEpiphyteMatrixSub;
-                
+
             end
 
             %Save Inital Epiphyte Matrix
@@ -294,7 +294,7 @@ if SingleSpeciesModel==0
             fprintf('Number replicate: %d \n', numReplicates);
             %Initialize epiphyte matrix
             IntitalEpiphyteMatrix=zeros(TotalIndividuals,(size(SpeciesPool,2)+7));
-            
+
             %Initialize Available surfavce area
             AvailableSurfaceArea=Microhabitat(:,:,:,1); %Matrix to trace the still available surface area per voxel
 
@@ -316,14 +316,14 @@ if SingleSpeciesModel==0
                     %Store initial size of individual
                     IntitalEpiphyteMatrix(((numSpecies-1)*IndividualsPerSpecies)+numIndividual,SizeSpeciesPool(2)+4)=...
                         SizeOfIndividual;
-                    
+
                     %store initial age of individual (age when it would have grown under optimal conditions)
                     IntitalEpiphyteMatrix(((numSpecies-1)*IndividualsPerSpecies)+numIndividual,SizeSpeciesPool(2)+8)=...
                         round(AgeFunctionOfMass(SpeciesPool(numSpecies,2),SizeOfIndividual,SpeciesPool(numSpecies,4)));
 
                 end
             end
-            
+
             %Store individual ID for each individual
             IntitalEpiphyteMatrix(1:TotalIndividuals,(SizeSpeciesPool(2)+6))=1:TotalIndividuals;
 
@@ -337,21 +337,21 @@ if SingleSpeciesModel==0
             %(MethodVoxel=0)
             MethodVoxel=0;
             RandNumInd=randsample(TotalIndividuals,TotalIndividuals);
-             
+
             for i=1:TotalIndividuals
-               
+
                 disp(['Individual number ', num2str(i)]);
                 NumIndRand=RandNumInd(i);
-                
+
                 %Find all suitable voxels for this individual
                 MinLightInd=IntitalEpiphyteMatrix(NumIndRand,ColMinLight);
                 MaxLightInd=IntitalEpiphyteMatrix(NumIndRand,ColMaxLight);
                 AreaNeededInd=IntitalEpiphyteMatrix(NumIndRand,(SizeSpeciesPool(2)+7));
-             
+
                 %1. Get the postions of all voxels fullfilling the
                 %requirements of the individual (light+area)
                 SuitableVoxels=find(AvailableSurfaceArea(:,:,:)>AreaNeededInd ...
-                    &  Microhabitat(:,:,:,3)>=MinLightInd  & Microhabitat(:,:,:,3)<=MaxLightInd);  
+                    &  Microhabitat(:,:,:,3)>=MinLightInd  & Microhabitat(:,:,:,3)<=MaxLightInd);
 
                  %Choose one of the suitable voxels based on the specified
                 %Method (if suitable voxels are available)
@@ -374,22 +374,22 @@ if SingleSpeciesModel==0
 
                     %Set status of individual: status=1 => alive
                     IntitalEpiphyteMatrix(NumIndRand,SizeSpeciesPool(2)+5)=1;
-                
+
                 else
-                    
+
                     %Set status of individual: status=2 =>> dead
                     IntitalEpiphyteMatrix(NumIndRand,SizeSpeciesPool(2)+5)=2;
-                    
+
                     %Set coordinates to 1 (might cause problems in later model if not)
                     IntitalEpiphyteMatrix(NumIndRand,SizeSpeciesPool(2)+1)=1;
                     IntitalEpiphyteMatrix(NumIndRand,SizeSpeciesPool(2)+2)=1;
                     IntitalEpiphyteMatrix(NumIndRand,SizeSpeciesPool(2)+3)=1;
                 end
             end
-            
+
             %Summary
             IndividualsWithoutVoxels=size(find(IntitalEpiphyteMatrix(:,SizeSpeciesPool(2)+5)==2),1)
-            
+
             %Save Inital Epiphyte Matrix
             SaveFile=strcat(DirectoryIntitalDistribution,'\ID_SpeciesP_',num2str(numPool),'_Rep_',num2str(numReplicates),'.csv');
             dlmwrite(SaveFile,IntitalEpiphyteMatrix,'\t')

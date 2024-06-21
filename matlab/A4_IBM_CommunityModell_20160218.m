@@ -25,7 +25,7 @@ DirectoryModelMain='C:\Gunnar\EpiphyteModels\EpiphyteModels';
 %Model parameters
 timeSteps=100; %Model for timeSteps beginning at the time step given by the initial distribution
 
-%Density of individuals per ha at which to stop the simulationof the community and 
+%Density of individuals per ha at which to stop the simulationof the community and
 %move to the next replicate (to prevent exploding communities)
 StopCriterionHa=3000000; %Individuals per ha
 
@@ -34,14 +34,14 @@ numSpeciesPools=[91,100]; %Start and end number of  species pools (if the specie
 replicatePerSpeciesPool=5; %Number of replicates per species pool  (if the replicates do not exist, they are automatically skipped)
 
 SurfaceBiomassScaling=10000*0.01; %cm^2 per m^2
-Imax=900; %maximum light above canopy 
+Imax=900; %maximum light above canopy
 
 %Competition Methods; defines which individuals are removed in voxels which
 %are entirely filled. 1:size (small individuals are outcompetet by larger ones); 2:random competition
 CompetitionMethod=1;
 
 %Mortality method (complete random or scaling with mass according to metabolic theory);
-MortalityMethod=1; %0: random mortality; 1: scaling with mass to the exponent -1/4 
+MortalityMethod=1; %0: random mortality; 1: scaling with mass to the exponent -1/4
 MortRateRandom=0.1;
 MortRateMass=0.1;
 MortRateMassScaling=-0.25; %widely used scaling fator
@@ -53,17 +53,17 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
     for InititalDistNumber=1:length(FolderInitialDistributions);
 
         %Epiphyte model
-        FolderEpiphyteModel=char(FolderEpiphyteModels{MicrohabitatNumber}); 
+        FolderEpiphyteModel=char(FolderEpiphyteModels{MicrohabitatNumber});
 
         %Initial distribution
-        FolderInitialDistribution=char(FolderInitialDistributions{InititalDistNumber}); 
-        
+        FolderInitialDistribution=char(FolderInitialDistributions{InititalDistNumber});
+
         %Get initial time step
         FolderInitialDistributionsTemp=char(FolderInitialDistributions(InititalDistNumber));
         PosUnderscores=regexp(FolderInitialDistributionsTemp, '_');
         InitialTimeStepTemp=FolderInitialDistributionsTemp((PosUnderscores(7)+1):length(FolderInitialDistributionsTemp));
         InitialTimeStep=str2double(InitialTimeStepTemp);
-        
+
         if MicrohabitatType==1
            FolderEpiphyteModelMain='DynamicForests';
         elseif MicrohabitatType==2
@@ -71,13 +71,13 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
         elseif MicrohabitatType==3
            FolderEpiphyteModelMain='UniformForests';
         end
-        
+
         if SingleSpeciesModel==1
             FolderModelType='SingleSpeciesModels';
         elseif SingleSpeciesModel==0
             FolderModelType='CommunityModels';
         end
-           
+
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %Get main model folder and folder where initial distribution is saved
         DirectoryEpiphyteModel=strcat(DirectoryModelMain,'\',FolderModelType,'\',FolderEpiphyteModelMain,'\',FolderEpiphyteModel);
@@ -93,7 +93,7 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
         SpePool = textscan(fid, '%s','Delimiter','\t');
         DirectorySpeciesPools=char(SpePool{1});
         fclose(fid);
-        
+
         %Create folder to save the model results
         DirectoryModelResults=strcat(DirectoryEpiphyteModel,'\ModelResults\',FolderInitialDistribution);
         mkdir(DirectoryModelResults)
@@ -102,13 +102,13 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
         load(strcat(DirectoryMicrohabitat,'\dimPlot.mat'))
 
         %Set StopCriterion for this simulation
-        StopCriterion=StopCriterionHa*(dimPlot(1)*dimPlot(2)*0.0001);        
-        
+        StopCriterion=StopCriterionHa*(dimPlot(1)*dimPlot(2)*0.0001);
+
         %Load TraitRanges (ranges used to create the species pool)
         FileTraitRanges=strcat(DirectorySpeciesPools,'\TraitRanges.csv');
         TraitRanges=dlmread(FileTraitRanges, '\t');
 
-        %Get information if random, sequential or neutral  species pool was created (this affects the way how to 
+        %Get information if random, sequential or neutral  species pool was created (this affects the way how to
         %get the information from the trait ranges (see below)
         load(strcat(DirectorySpeciesPools,'\SpeciesPoolType.mat'));
 
@@ -122,7 +122,7 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
             SlopeRecruitment=TraitRanges(1,1);
             InterceptRecruitment=TraitRanges(2,1);
         end
-        
+
           %Load column header and assign them accordingly
         [Test, ColumnHeaders]=xlsread(strcat(DirectoryIntitalDistribution,'\ColumnHeaders.xls'));
         [Test, ColumnHeadersSpeciesPool]=xlsread(strcat(DirectorySpeciesPools,'\ColumnHeaders.xls'));
@@ -158,8 +158,8 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
 
         %The following information are saved for each individual (the traits can be accessed via the SpeciesID)
         ColumsToSave=[ColSpeciesID,ColIndividualID,ColStatus,ColMass,ColAge,ColX,ColY,ColZ,...
-            ColTotalSurfaceInVoxel,ColSurfaceLossInVoxel,ColLightInVoxel];     
-        %Headers of this matrix 
+            ColTotalSurfaceInVoxel,ColSurfaceLossInVoxel,ColLightInVoxel];
+        %Headers of this matrix
         SummaryMatrixIndividualsHeaders={'SpeciesID','IndividualID','Status','Mass','Age',...
             'X','Y','Z','TotalSurfaceInVoxel','SurfaceLossInVoxel','LightInVoxel'};
 
@@ -183,7 +183,7 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
         ColSNumberPopulationGrowthRate=11;
         ColSNumberPopulationGrowthRateLog=12;
         ColSNumberBirthRate=13;
-        ColSNumberDeathRate=14;    
+        ColSNumberDeathRate=14;
         ColSAverageSize=15;
         ColSAverageAge=16;
         ColSMinLight=17;
@@ -194,7 +194,7 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
         ColSMeanHeight=22;
         TotalColsSpeciesMatrix=ColSMeanHeight;
 
-        %Headers of matrix 
+        %Headers of matrix
         SummaryMatrixSpeciesHeaders={'TimeStep','SpeciesID','NumberIndividualsBeginning','NumberIndividualsEnd','NumberMatureIndividuals',...
             'NumberRecruits','NumberRecruitsPotential','NumberMortalityBranchFall','NumberMortalityLight',...
             'NumberMortalityCompetition','NumberMortalityNatural',...
@@ -207,7 +207,7 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
             return
         end
 
-        %Headers of matrix 
+        %Headers of matrix
         SummaryMatrixCommunityHeaders={'timeStep','NumberSpeciesBeginning','NumberSpeciesEnd','NumberIndividualsBeginning',...
             'NumberIndividualsEnd','Recruits','MortalityBranchFall','MortalityLight',...
             'MortalityCompetition','MortalityNatural','BranchSurfaceIndex','EpiphyteFilling'};
@@ -224,7 +224,7 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
 
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %Main loop for the community model
- 
+
         SummaryMatrixIndividualsHeaders={'TimeStep' SummaryMatrixIndividualsHeaders{:}};
 
         for numPool=numSpeciesPools(1):numSpeciesPools(2)
@@ -234,20 +234,20 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
             if exist(FileNameInitalDistributionPool, 'file')==0
                 break;
             end
-            
+
             %First step: create probability matrices for each species
             %Load species pool
             SpeciesPool=dlmread(strcat(DirectorySpeciesPools,'\SpeciesPool',num2str(numPool),'.csv'),'\t');
             NumberOfSpecies=size(SpeciesPool,1); %number of species per 25X25m plot
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            %Erzeugen der Distanzmatrix und der Wahrscheinlichkeitsmatrix für jede Art
+            %Erzeugen der Distanzmatrix und der Wahrscheinlichkeitsmatrix fÃ¼r jede Art
             %Dimensionen der Dispersal matrix
             dimX=dimPlot(1)*2+1;
             dimY=dimPlot(2)*2+1;
             dimZ=dimPlot(3)*2+1;
 
-            %Erzeugen der Distanzmatrix mit allen Distanzen zum 
+            %Erzeugen der Distanzmatrix mit allen Distanzen zum
             centralPoint=[floor(dimX/2)+1, floor(dimY/2)+1, floor(dimZ/2)+1 ];
             DistanceMatrix=zeros(dimX,dimY,dimZ);
 
@@ -259,7 +259,7 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
                 end
             end
 
-            %Erzeugen der Wahrschienlichkeitsmatrix anhand der Distanzmatrix und dem 
+            %Erzeugen der Wahrschienlichkeitsmatrix anhand der Distanzmatrix und dem
             %artspezischien Wert bb aus der Epiphytenmatrix
             negExp = @(distance,bb) exp(-distance.*bb); %Negative Exponential function
             ProbabilityMatrix=zeros(dimX,dimY,dimZ,NumberOfSpecies);
@@ -287,7 +287,7 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
                 if exist(FileNameInitalDistribution, 'file')==0
                     break;
                 end
-                
+
                 %Create Save-Directory for each each replicate/initialDistribution
                 DirectoryModelResultsRun=strcat(DirectoryModelResults,'\ID_SpeciesP_',num2str(numPool),'_Rep_',num2str(r));
                 mkdir(DirectoryModelResultsRun)
@@ -297,9 +297,9 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
 
                 %Add column to E for additional information
                 E=[E zeros(size(E,1),4)];
-                
+
                 MaxIndividualID=size(E,1); %to trace individual IDs
-                
+
                 %Initialize Matrix where community parameters are save
                 SummaryMatrixCommunity=zeros(timeSteps,length(SummaryMatrixCommunityHeaders));
 
@@ -308,7 +308,7 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
                     load(strcat(DirectoryMicrohabitat,'\MicrohabitatMatrix1.mat'))
                     Microhabitat(:,:,:,3)=Microhabitat(:,:,:,3)*Imax; %In the microhabitat matrix, the realtive light extinction is stored: convert to light values in ?mol*m-2*s-1
                     pot_habitat=zeros(size(Microhabitat,1),size(Microhabitat,2),size(Microhabitat,3));
-                end      
+                end
 
                 %Initialize matrices where the aggregated information on species level are saved
                 SummaryMatrixSpeciesSave=zeros(timeSteps*NumberOfSpecies,TotalColsSpeciesMatrix);
@@ -316,7 +316,7 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
                 %Save directory where species pool is stored
                 dlmwrite(strcat(DirectoryModelResultsRun,'\DirectorySpeciesPool.txt'),DirectorySpeciesPools,''); %Save associated directory of species pools
 
-                
+
                 %Save Column header for further use
                 fid = fopen(strcat(DirectoryModelResultsRun,'\HeadersCommunitySummary.csv'),'w');
                 fprintf(fid,[ repmat('%s,',1,size(SummaryMatrixCommunityHeaders,2)-1),'%s\n'],SummaryMatrixCommunityHeaders{1,:});
@@ -329,17 +329,17 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
                 fid = fopen(strcat(DirectoryModelResultsRun,'\HeadersIndividualMatrix.csv'),'w');
                 fprintf(fid,[ repmat('%s,',1,size(SummaryMatrixIndividualsHeaders,2)-1),'%s\n'],SummaryMatrixIndividualsHeaders{1,:});
                 fclose(fid);
-                
+
                 %Initialize Matrix where speceies parameters are save
                 SummaryMatrixSpecies=zeros(timeSteps*NumberOfSpecies,TotalColsSpeciesMatrix);
 
                 for t=InitialTimeStep:(InitialTimeStep+timeSteps)
-                   
+
                    %Check if the stop criterion is met
                    if size(E(E(:,ColStatus)==1),1)>StopCriterion
                         break;
                    end
-                    
+
                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                     %1. Dispersal
 
@@ -348,16 +348,16 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
                         load(strcat(DirectoryMicrohabitat,'\MicrohabitatMatrix',num2str(t),'.mat'))
                         Microhabitat(:,:,:,3)=Microhabitat(:,:,:,3)*Imax; %In the microhabitat matrix, the realtive light extinction is stored: convert to light values in ?mol*m-2*s-1
                         pot_habitat=zeros(size(Microhabitat,1),size(Microhabitat,2),size(Microhabitat,3));
-                    end      
+                    end
 
                     %Store number of individuals at beginning of time step
                     for g=1:NumberOfSpecies
                         IntialNumberIndividuals(g)=size(E(E(:,ColSpeciesID)==g & E(:,ColStatus)==1 ,:),1);
                     end
                     IntialNumberIndividualsTotal=size(E(E(:,ColStatus)==1 ,:),1);
-                    InitialNumberSpecies=length(unique(E(E(:,ColStatus)==1,ColSpeciesID))); 
+                    InitialNumberSpecies=length(unique(E(E(:,ColStatus)==1,ColSpeciesID)));
                     NumberRecruitsPerSpecies=zeros(1,NumberOfSpecies);
-     
+
                     %Calculate free surface area per voxel
                     AvailableSurfaceArea=Microhabitat(:,:,:,1);
                     for i=1:size(E,1)
@@ -367,24 +367,24 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
                     end
 
                     if ~isempty(E) %Check if there are species left
-                        
+
                         unique_species=unique(E(:,1)); %list with species IDs of all present species
 
                         %loop over all species
                         for i=1:length(unique_species) %Number of species
-                            
+
                             %Generate initially empty matrix to store the probabilities for recruitment
                             ProbabilityMatrixPerSpecies=zeros(dimPlot(1),dimPlot(2),dimPlot(3));
 
                             %Matrix containing all mature individuals of one species
-                            MatureIndividulsPerSpecies=E(E(:,ColSpeciesID)==unique_species(i) & E(:,ColMass)>=E(:,ColMassAtMaturity) ,1:ColAge); 
+                            MatureIndividulsPerSpecies=E(E(:,ColSpeciesID)==unique_species(i) & E(:,ColMass)>=E(:,ColMassAtMaturity) ,1:ColAge);
 
                             if ~isempty(MatureIndividulsPerSpecies)
 
                                 %Probability matrix for each species: Depending on the position of each mature individual, the total
-                                %probability for the species is calculated. 
-                                %The second part of the equation accounts for the actual size of the individual 
-                                %in relation to the maximum size for which the recruitment per individual is defined 
+                                %probability for the species is calculated.
+                                %The second part of the equation accounts for the actual size of the individual
+                                %in relation to the maximum size for which the recruitment per individual is defined
                                 for j=1:size(MatureIndividulsPerSpecies,1) %Number of mature individuals per species
                                     ProbabilityMatrixPerSpecies=ProbabilityMatrixPerSpecies+...
                                     ProbabilityMatrixNormalized(centralPoint(1)-MatureIndividulsPerSpecies(j,ColX)+...
@@ -402,7 +402,7 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
 
                                 %Store potential normalized number of recruits in SummaryMatrixSpecies
                                 SummaryMatrixSpecies(((i-1)*timeSteps)+t,ColSNumberRecruitsPotential)=...
-                                    sum(sum(sum(ProbabilityMatrixPerSpecies))); %potential recruitment          
+                                    sum(sum(sum(ProbabilityMatrixPerSpecies))); %potential recruitment
 
                                 %Matix containing all voxel for which the light requirements are fulfilled
                                 pot_habitat(:,:,:)=Microhabitat(:,:,:,3)>=...
@@ -441,12 +441,12 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
                                     E(vec_recruits,ColMass)=0; %Initial size
                                     E(vec_recruits,ColStatus)=1; %status 1:alive
                                     E(vec_recruits,ColIndividualID)=(MaxIndividualID+1):((MaxIndividualID)+length(xInd)); %individual ID
-                                    MaxIndividualID=MaxIndividualID+length(xInd);                        
+                                    MaxIndividualID=MaxIndividualID+length(xInd);
                                  end
                             end
                        end
                     end
-                    
+
                     NumberRecruits=size(E(E(:,ColStatus)==1 ,:),1)-IntialNumberIndividualsTotal;
                     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -478,9 +478,9 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
                             if rand<Microhabitat(E(i,ColX),E(i,ColY),E(i,ColZ),2)
                                 E(i,ColStatus)=3;
 
-                            %Mortality due to changing light conditions    
+                            %Mortality due to changing light conditions
                             elseif  Microhabitat(E(i,ColX),E(i,ColY),E(i,ColZ),3)<E(i,ColMinLight) ||...
-                                    Microhabitat(E(i,ColX),E(i,ColY),E(i,ColZ),3)>E(i,ColMaxLight) 
+                                    Microhabitat(E(i,ColX),E(i,ColY),E(i,ColZ),3)>E(i,ColMaxLight)
                                 E(i,ColStatus)=4;
 
                             %Natural mortality rate
@@ -513,9 +513,9 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
                             & E(:,ColZ)==IndZ(i) & E(:,ColStatus)==1 ,:);
 
                         %Sort them by size (CompetitionMethod=1) or randomly (CompetitionMethod=2)
-                        if CompetitionMethod==1 
+                        if CompetitionMethod==1
                              EpisInVoxel=sortrows(EpisInVoxel,-ColSurfaceAreaOccupied);
-                        elseif CompetitionMethod==2 
+                        elseif CompetitionMethod==2
                              EpisInVoxel=EpisInVoxel(randperm(size(EpisInVoxel,1)),:);
                         end
 
@@ -529,7 +529,7 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
                     end
                     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-                    %Increase age 
+                    %Increase age
                     E(:,ColAge)=E(:,ColAge)+1;
 
                     %Save number of mortality event
@@ -550,7 +550,7 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
                         SummaryMatrixSpecies(((numSpecies-1)*timeSteps)+t,ColSNumberMortalityLight)=sum(E(:,ColStatus)==4 & E(:,ColSpeciesID)==numSpecies);
                         SummaryMatrixSpecies(((numSpecies-1)*timeSteps)+t,ColSNumberMortalityCompetition)=sum(E(:,ColStatus)==2 & E(:,ColSpeciesID)==numSpecies);
                         SummaryMatrixSpecies(((numSpecies-1)*timeSteps)+t,ColSNumberMortalityNatural)=sum(E(:,ColStatus)==5 & E(:,ColSpeciesID)==numSpecies);
-                        if sum(E(:,ColStatus)==1 & E(:,ColSpeciesID)==numSpecies)&& IntialNumberIndividuals(numSpecies)>0                 
+                        if sum(E(:,ColStatus)==1 & E(:,ColSpeciesID)==numSpecies)&& IntialNumberIndividuals(numSpecies)>0
                             SummaryMatrixSpecies(((numSpecies-1)*timeSteps)+t,ColSNumberPopulationGrowthRate)=SummaryMatrixSpecies(((numSpecies-1)*timeSteps)+t,ColSNumberIndividualsEnd)/SummaryMatrixSpecies(((numSpecies-1)*timeSteps)+t,ColSNumberIndividualsBeginning);
                             SummaryMatrixSpecies(((numSpecies-1)*timeSteps)+t,ColSNumberPopulationGrowthRateLog)=log(SummaryMatrixSpecies(((numSpecies-1)*timeSteps)+t,ColSNumberPopulationGrowthRate));
                             SummaryMatrixSpecies(((numSpecies-1)*timeSteps)+t,ColSNumberBirthRate)=NumberRecruitsPerSpecies(numSpecies)/IntialNumberIndividuals(numSpecies);
@@ -577,15 +577,15 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
                             SummaryMatrixSpecies(((numSpecies-1)*timeSteps)+t,ColSMaxHeight)=NaN;
                             SummaryMatrixSpecies(((numSpecies-1)*timeSteps)+t,ColSMeanHeight)=NaN;
                         end
-                        
+
                         SummaryMatrixSpeciesSave(((numSpecies-1)*timeSteps)+t,1)=t;
                     	SummaryMatrixSpeciesSave(((numSpecies-1)*timeSteps)+t,2:TotalColsSpeciesMatrix+1)=SummaryMatrixSpecies(((numSpecies-1)*timeSteps)+t,:);
                     end
-                    
+
                     %SummaryMatrixSpeciesSave((NumberOfSpecies*(t-1))+1:(NumberOfSpecies*t),1)=t;
                     %SummaryMatrixSpeciesSave((NumberOfSpecies*(t-1))+1:(NumberOfSpecies*t),2:TotalColsSpeciesMatrix+1)=SummaryMatrixSpecies;
                     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    
+
                     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
                     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -603,7 +603,7 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
                     SummaryMatrixCommunity(t,11)=sum(sum(sum(Microhabitat(:,:,:,1))))/(dimPlot(1)*dimPlot(2)); %BranchSurfaceIndex
                     SummaryMatrixCommunity(t,12)=(sum(E(:,ColMass).^(2/3))/SurfaceBiomassScaling)/(sum(sum(sum(Microhabitat(:,:,:,1))))); %EpiphyteFilling
                     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    
+
                     %Command window information
                     fprintf('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% \n');
                     fprintf('Time step %d \n', t);
@@ -627,12 +627,12 @@ for MicrohabitatNumber=1:length(FolderEpiphyteModels);
                     %Save SummaryMatrixSpecies for every time step
                     SummaryMatrixSpeciesCSV=strcat(DirectoryModelResultsRun,'\SpeciesSummary.csv');
                     dlmwrite(SummaryMatrixSpeciesCSV, SummaryMatrixSpeciesSave,'delimiter', '\t')
-                    
+
                     %Save SummaryMatrixCommunity for every time step (overwrite old one)
                     SummaryMatrixCommunityCSV=strcat(DirectoryModelResultsRun,'\CommunitySummary.csv');
                     dlmwrite(SummaryMatrixCommunityCSV, SummaryMatrixCommunity,'delimiter', '\t')
                     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    
+
                     %Remove dead individuals from Epimatrix
                     E(E(:,ColStatus)>1,:)=[];
                 end
