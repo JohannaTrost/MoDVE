@@ -302,10 +302,71 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
                 }
             }
 
+            # Copy light conditions
+            Mat_light_per_cell_Copy <- Mat_light_per_cell
+
+            # Calculate final light conditions by accounting for the light
+            # conditions in adjacent voxels
+            for (x in corridor:(dimX-corridor)) {
+                for (y in corridor:(dimY-corridor)) {
+                    for (z in 1:dimZ) {
+                        TotalContribution <- 0
+
+                        # loop over ring surrounding the focal voxel
+                        for (xx in (x-DistVoxToConsider):(x+DistVoxToConsider)) {
+                            for (yy in (y-DistVoxToConsider):(y+DistVoxToConsider)) {
+                                Ring <- max(abs(xx - x), abs(yy - y))
+                                Contribution <- (1 / (DistVoxToConsider + 1)) * (1 / max(1, (Ring * 8))) * Mat_light_per_cell_Copy[xx, yy, z]
+                                TotalContribution <- TotalContribution + Contribution
+                            }
+                        }
+
+                        Mat_light_per_cell[x, y, z] <- TotalContribution
+
+                    }
+                }
+            }
+
         }
 
 
+        # Store information in Microhabitat matrix and save matrix for this
+        # timestep
+        # possibly only 5 dimensions to save space
+        Microhabitat <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * MatrixDimension), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], MatrixDimension))
+
+        if (TotalSurfaceAreaOpt == 1) {
+            Microhabitat[ , , , 1] <- Mat_surface_per_cell[(corridor+1):(dimX-corridor), (corridor+1):(dimY-corridor), 1:dimZ]
+        }
+
+        if (SurfaceAreaLossOpt == 1) {
+            if (MicrohabitatType == 1) {
+                Microhabitat[ , , , 2] <- Mat_surfaceloss_per_cell[(corridor+1):(dimX-corridor), (corridor+1):(dimY-corridor), 1:dimZ] / Mat_surface_per_cell[(corridor+1):(dimX-corridor), (corridor+1):(dimY-corridor), 1:dimZ]
+            }
+
+            if (MicrohabitatType == 2) {
+                Microhabitat[ , , , 2] <- 0
+            }
+        }
+
+        if (LightConditionsOpt == 1) {
+            Microhabitat[ , , , 3] <- Mat_light_per_cell[(corridor+1):(dimX-corridor), (corridor+1):(dimY-corridor), 1:dimZ]
+        }
+
+        if (AverageWeightedAngles == 1) {
+            Microhabitat[ , , , 4] <- Mat_weighted_angle_per_cell[(corridor+1):(dimX-corridor), (corridor+1):(dimY-corridor), 1:dimZ]
+        }
+
+        MicrohabitatMatSave <- paste("MicrohabitatMatrix", i, ".rds", sep="")
+        saveRDS(Microhabitat, file.path(DirectoryMatrices, MicrohabitatMatSave))
+
         end_time <- Sys.time()
         print(end_time - start_time)
+
+        # flush.console()
+        # stop("stop")
     }
+
+    # Save dimensions of plot in seperate file
+    saveRDS(dimPlot, file.path(DirectoryMatrices, "dimPlot.rds"))
 }
