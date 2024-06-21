@@ -1,27 +1,33 @@
 # Compare the output produced by different runs of the A1 script.
-# This output is the "MicrohabitatMatrix*.mat" files and they must
-# be in version <7.3 (No HDF5-based format).
+# This output is the "MicrohabitatMatrix*.[mat|rds]" files.
+# For `.mat` files they must be in version <7.3 (No HDF5-based format).
 # Before running this script, edit the `path1` and `path2` variables,
 # to provide the paths to the corresponding output and, if needed,
 # edit the `array_name`, `start` and `end` variables too.
+#
+# Requirements: numpy, scipy, pandas, rpy2
 import math
 from pathlib import Path
 
 import numpy as np
+import rpy2.robjects as robjects
+from rpy2.robjects import pandas2ri
 import scipy.io as sio
 
 
-def get_ndarrays(path1, path2, filename, array_name):
-    filepath1 = path1 / filename
-    filepath2 = path2 / filename
+def get_ndarray_from_mat(filepath, array_name):
+    f1 = sio.loadmat(filepath)
+    arr = f1[array_name]
 
-    f1 = sio.loadmat(filepath1)
-    f2 = sio.loadmat(filepath2)
+    return arr
 
-    Microhabitat1 = f1[array_name]
-    Microhabitat2 = f2[array_name]
 
-    return Microhabitat1, Microhabitat2
+def get_ndarray_from_rds(filepath):
+    pandas2ri.activate()
+    readRDS = robjects.r["readRDS"]
+    arr = readRDS(str(filepath))
+
+    return arr
 
 
 def compare(arr1, arr2):
@@ -44,7 +50,7 @@ def compare(arr1, arr2):
             continue
         else:
             # In math.isclose() NaN is not considered close to any other value, including NaN
-            if not math.isclose(arr1[index], arr2[index], rel_tol=1e-9):
+            if not math.isclose(arr1[index], arr2[index], rel_tol=1e-7):
                 print(f"{index}: {val1} != {val2}")
                 all_same = False
 
@@ -58,8 +64,13 @@ def main():
     end = 40
 
     for N in range(start, end):
-        filename = f"MicrohabitatMatrix{N}.mat"
-        Microhabitat1, Microhabitat2 = get_ndarrays(path1, path2, filename, array_name)
+        filename = f"MicrohabitatMatrix{N}"
+        filename_mat = f"{filename}.mat"
+        filename_rds = f"{filename}.rds"
+
+        Microhabitat1 = get_ndarray_from_mat(path1 / filename_mat, array_name)
+        Microhabitat2 = get_ndarray_from_rds(path2 / filename_rds)
+
         allsame = compare(Microhabitat1, Microhabitat2)
 
         print(f"{filename} All same" if allsame else f"{filename} NOT SAME!!!")
