@@ -1,5 +1,9 @@
 # Create species matrices
 
+AgeMaturityMetabolic <- function(InterceptAgeMaturity, ScalingAgeMaturity, Mass) {
+    return(InterceptAgeMaturity * (Mass^ScalingAgeMaturity))
+}
+
 # ============================================================================
 # Parameters that need to be specified/checked before running this script
 MainOutputDirectory <- "/PATH/TO/OUTPUT"
@@ -118,3 +122,38 @@ ColumnHeaders <- c("SpeciesID", "MaximumMass", "MassAtMaturity", "GrowthRate",
                    "MaxHeightRel", "MeanHeightRel", "HeightBreadth", "MaxRecruitsAtMaxMass",
                    "MaxRecruitsAtMassAtMaturity", "AgeAtMaturity")
 
+# Main loop (for random generation of species pool)
+for (Num in 1:numSpeciesPools) {
+
+    # Trait matrix where the trait information of each species is saved
+    SpeciesTraitMatrix <- array(rep(0, NumberOfSpecies * 16), dim=c(NumberOfSpecies, 16))
+
+    for (NumSpecies in 1:NumberOfSpecies) {
+
+        # ============================================================================
+        # Maximum Size, size at maturity and growth rate (here, we are
+        # choosing from log scale because usually, there are more smaller species than larger ones)
+        if (MaxMassLogScaleRandom == 1) {
+            MaxMassLog <- runif(1, min=log10(MaxMassRandom[1]), max=log10(MaxMassRandom[2]))
+            MaxMass <- 10^MaxMassLog
+        } else if (MaxMassLogScaleRandom == 0) {
+            MaxMass <- runif(1, min=MaxMassRandom[1], max=MaxMassRandom[2])
+        }
+
+        # The age at maturity is the given by
+        AgeAtMaturity <- AgeMaturityMetabolic(InterceptAgeMaturity, ScalingAgeMaturity, MaxMass)
+        AgeAtMaturity <- AgeAtMaturity * runif(1, min=1-AgeAtMaturityDevCorr, max=1+AgeAtMaturityDevCorr)  # Add stochasticity
+
+        # We assume that the mass at maturity is a function of the maximum size
+        MassAtMaturity <- MaxMass * runif(1, min=MassAtMaturityRelativeRandom[1], max=MassAtMaturityRelativeRandom[2])
+
+        # In the model, we are approximating growth by a Betalanffy growth curve, which generall is as follows
+        # SizeFunctionOfAge=@(MaxMass,K,Age) (MaxMass*(1-exp(-K*(Age))));
+        # By assuming that the Betalanffy growth curve crosses the point AgeAtMaturity/Size MaturityMassAtMaturity,
+        # the growth rate K of this function can be calculated:
+        K <- -(log(1) + log(1 - (MassAtMaturity / MaxMass))) / AgeAtMaturity
+
+        # ============================================================================
+        # Recruitment traits
+    }
+}
