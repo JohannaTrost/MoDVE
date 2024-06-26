@@ -85,3 +85,29 @@ MeanHeightNeutral <- 0.5  # Mean height
 DispersalKernelNeutral <- 1.5  # The higher this values, the more local is the dispersal
 DispersalKernelAsymmetryNeutral <- 0.5  # The trait describes the relative proportion of seed dispersed below the mother (i.e. 0.5=> symmetric dispersal kernel)
 
+# ============================================================================
+# Create folder to save species trait matrices
+if (SpeciesPoolType == 0) {
+    if (CorrelationMassAgeOfMaturity == 1 || CorrelationMassRecruitment == 1) {
+        FullNameSpeciesPool <- paste("SP_Random_", NameSpeciesPool, "_TraitCorrOn", sep="")
+    } else {
+        FullNameSpeciesPool <- paste("SP_Random_", NameSpeciesPool, "_TraitCorrOff", sep="")
+    }
+} else if (SpeciesPoolType == 1) {
+    if (CorrelationMassAgeOfMaturity == 1 || CorrelationMassRecruitment == 1) {
+        FullNameSpeciesPool <- paste("SP_Sequential_", NameSpeciesPool, "_TraitCorrOn", sep="")
+    } else {
+        FullNameSpeciesPool <- paste("SP_Sequential_", NameSpeciesPool, "_TraitCorrOff", sep="")
+    }
+} else if (SpeciesPoolType == 2) {
+    if (CorrelationMassAgeOfMaturity == 1 || CorrelationMassRecruitment == 1) {
+        FullNameSpeciesPool <- paste("SP_Neutral_", NameSpeciesPool, "_TraitCorrOn", sep="")
+    } else {
+        FullNameSpeciesPool <- paste("SP_Neutral_", NameSpeciesPool, "_TraitCorrOff", sep="")
+    }
+}
+
+# where to save
+SaveDirectory <- file.path(MainOutputDirectory, FullNameSpeciesPool)
+dir.create(SaveDirectory, recursive=TRUE)
+
