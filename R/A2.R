@@ -111,3 +111,10 @@ if (SpeciesPoolType == 0) {
 SaveDirectory <- file.path(MainOutputDirectory, FullNameSpeciesPool)
 dir.create(SaveDirectory, recursive=TRUE)
 
+ColumnHeaders <- c("SpeciesID", "MaximumMass", "MassAtMaturity", "GrowthRate",
+                   "DispersalKernel", "DispersalKernelAsymmetry", "RecruitmentInvestmentRel",
+                   "RecruitmentInc", "MinLight", "MaxLight", "OptimumLight", "LightBreadth",
+                   "LightResponseA", "LightResponseB", "LightResponseC", "MinHeightRel",
+                   "MaxHeightRel", "MeanHeightRel", "HeightBreadth", "MaxRecruitsAtMaxMass",
+                   "MaxRecruitsAtMassAtMaturity", "AgeAtMaturity")
+
