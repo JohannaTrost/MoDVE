@@ -126,7 +126,7 @@ ColumnHeaders <- c("SpeciesID", "MaximumMass", "MassAtMaturity", "GrowthRate",
 for (Num in 1:numSpeciesPools) {
 
     # Trait matrix where the trait information of each species is saved
-    SpeciesTraitMatrix <- array(rep(0, NumberOfSpecies * length(ColumnHeaders)), dim=c(NumberOfSpecies, length(ColumnHeaders)))
+    SpeciesTraitMatrix <- matrix(0, NumberOfSpecies, length(ColumnHeaders))
 
     for (NumSpecies in 1:NumberOfSpecies) {
 
