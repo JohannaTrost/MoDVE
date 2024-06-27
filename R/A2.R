@@ -155,5 +155,67 @@ for (Num in 1:numSpeciesPools) {
 
         # ============================================================================
         # Recruitment traits
-    }
+
+        # 2. Correlations if CorrelationMassRecruitment=1
+        RecruitmentNormalizeAtSize1Corr <- 70  # Factor converting the reproductive biomass to potential recruits
+        SlopeRecruitmentCorr <- 0 * RecruitmentNormalizeAtSize1Corr  # Slope of the correlation between mass and recruitment
+        RecruitmentInvestmentRelMeanCorr <- 0.1  # Anual investment in reproduction in relation to vegetative biomass (decrease due to correlation with mass)
+        RecruitmentInvestmentRelDevCorr <- 0.25  # The relative deviation from the mean recruitment
+        RecruitmentIncMaxCorr <- 0
+
+        if (CorrelationMassRecruitment == 1) {
+            RecruitmentInvestmentRel <- runif(1, min=RecruitmentInvestmentRelMeanCorr * (1 - RecruitmentInvestmentRelDevCorr), max=RecruitmentInvestmentRelMeanCorr * (1 + RecruitmentInvestmentRelDevCorr))
+            RecruitmentNormalizeAtSize1 <- RecruitmentNormalizeAtSize1Corr  # Factor converting the reproductive biomass to potential recruits
+            SlopeRecruitment <- 0  # Slope of the correlation between mass and recruitment
+            InterceptRecruitment <- RecruitmentNormalizeAtSize1
+            RecruitmentInc <- 0
+        } else if (CorrelationMassRecruitment == 0) {
+            RecruitmentInvestmentRel <- runif(1, min=RecruitmentInvestmentRelMeanRandom[1], max=RecruitmentInvestmentRelMeanRandom[2])
+            RecruitmentNormalizeAtSize1 <- runif(1, min=RecruitmentNormalizeAtSize1Random[1], max=RecruitmentNormalizeAtSize1Random[2])
+            SlopeRecruitment <- 0  # No slope if no correlation is choosen
+            InterceptRecruitment <- RecruitmentNormalizeAtSize1 - SlopeRecruitment
+            RecruitmentInc <- runif(1, min=RecruitmentIncRandom[1], max=RecruitmentIncRandom[2])  # Not meaningful if no correlation
+        }
+
+        DispersalKernel <- runif(1, min=DispersalKernelRandom[1], max=DispersalKernelRandom[2])
+        DispersalKernelAsymmetry <- runif(1, min=DispersalKernelAsymmetryRandom[1], max=DispersalKernelAsymmetryRandom[2])
+
+        # ============================================================================
+        # Traits of ecologcial niche
+        # 1. Randomly choose mean height and height breadth
+        MeanHeight <- runif(1, min=0, max=1)  # realtive height in relation to canopy height
+        HeightBreadthTheoretical <- runif(1, min=HeightBreadthRandom[1], max=HeightBreadthRandom[2])
+
+        # Minimum and maximum height under which the species is
+        # able to survive
+        MinHeight <- max(c(0, MeanHeight - (HeightBreadthTheoretical / 2)))
+        MaxHeight <- min(c(1, MeanHeight + (HeightBreadthTheoretical / 2)))
+        HeightBreadth <- MaxHeight - MinHeight
+
+        # 2. Convert heigth ranges to light ranges
+        # For this, a standard forest with the following parameters is
+        # assumed
+        MinLight <- Imax * exp(-kL * LAI * (1 - MinHeight))
+        MaxLight <- Imax * exp(-kL * LAI * (1 - MaxHeight))
+        OptimumLight <- (MaxLight + MinLight) / 2
+        LightBreadth <- MaxLight - MinLight
+
+        # 3. Calculate parameters of parabolic response curve y=ax^2+bx+c
+        # We assume that the function is a paraboloid which goes trough
+        # three points (MinLight/0) (MaxLight/0) (OptimumLight/1)
+
+        x1 <- MinLight
+        x2 <- MaxLight
+        x3 <- OptimumLight
+
+        y1 <- 0
+        y2 <- 0
+        y3 <- 1
+
+        a <- (x1*(y2-y3) + x2*(y3-y1) + x3*(y1-y2)) / ((x1-x2) * (x1-x3) * (x3-x2))
+        b <- (x1^2*(y2-y3) + x2^2*(y3-y1) + x3^2*(y1-y2)) / ((x1-x2) * (x1-x3) * (x2-x3))
+        c <- (x1^2*(x2*y3 - x3*y2) + x1*(x3^2*y2 - x2^2*y3) + x2*x3*y1*(x2-x3)) / ((x1-x2) * (x1-x3) * (x2-x3))
+        # In the model, based on these parameters the light response for each species can be calculated:
+        # Parabol=@(a,b,c,x) a*x^2+b*x+c;
+
 }
