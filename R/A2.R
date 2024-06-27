@@ -256,4 +256,37 @@ for (Num in 1:numSpeciesPools) {
     SpeciesPoolFileName <- paste("SpeciesPool", Num, ".csv", sep="")
     write.csv(SpeciesTraitMatrix_df, file.path(SaveDirectory, SpeciesPoolFileName), row.names=FALSE)
 
+    # ============================================================================
+    # Save trait ranges used to generate the species pool
+    TraitRanges <- matrix(0, 20, 2)
+
+    TraitRanges[1, ] <- SlopeRecruitment
+    TraitRanges[2, ] <- InterceptRecruitment
+    TraitRanges[3, ] <- MaxMassRangeCorr
+    # TraitRanges[4, ] <- AgeAtMaturityRangeCorr  # Comment2019 => should not ne needed, delete
+    TraitRanges[5, ] <- AgeAtMaturityDevCorr
+    TraitRanges[6, ] <- RecruitmentNormalizeAtSize1Corr
+    TraitRanges[7, ] <- SlopeRecruitmentCorr
+    TraitRanges[8, ] <- RecruitmentInvestmentRelMeanCorr
+    TraitRanges[9, ] <- RecruitmentInvestmentRelDevCorr
+    TraitRanges[10, ] <- RecruitmentIncMaxCorr
+    TraitRanges[11, ] <- MaxMassRandom
+    TraitRanges[12, ] <- AgeAtMaturityRandom
+    TraitRanges[13, ] <- RecruitmentNormalizeAtSize1Random
+    TraitRanges[14, ] <- RecruitmentInvestmentRelMeanRandom
+    TraitRanges[15, ] <- RecruitmentIncRandom
+    TraitRanges[16, ] <- MassAtMaturityRelativeRandom
+    TraitRanges[17, ] <- HeightBreadthRandom
+    TraitRanges[18, ] <- DispersalKernelRandom
+    TraitRanges[19, ] <- DispersalKernelAsymmetryRandom
+    TraitRanges[20, ] <- MaxMassLogScaleRandom
+
+    write.table(
+        TraitRanges,
+        file=file.path(SaveDirectory, "TraitRanges.csv"),
+        sep=",",
+        row.names=FALSE,
+        col.names=FALSE,
+    )
+
 }
