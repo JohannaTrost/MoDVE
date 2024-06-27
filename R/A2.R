@@ -126,7 +126,7 @@ ColumnHeaders <- c("SpeciesID", "MaximumMass", "MassAtMaturity", "GrowthRate",
 for (Num in 1:numSpeciesPools) {
 
     # Trait matrix where the trait information of each species is saved
-    SpeciesTraitMatrix <- array(rep(0, NumberOfSpecies * 16), dim=c(NumberOfSpecies, 16))
+    SpeciesTraitMatrix <- array(rep(0, NumberOfSpecies * length(ColumnHeaders)), dim=c(NumberOfSpecies, length(ColumnHeaders)))
 
     for (NumSpecies in 1:NumberOfSpecies) {
 
@@ -217,5 +217,43 @@ for (Num in 1:numSpeciesPools) {
         c <- (x1^2*(x2*y3 - x3*y2) + x1*(x3^2*y2 - x2^2*y3) + x2*x3*y1*(x2-x3)) / ((x1-x2) * (x1-x3) * (x2-x3))
         # In the model, based on these parameters the light response for each species can be calculated:
         # Parabol=@(a,b,c,x) a*x^2+b*x+c;
+
+        # ============================================================================
+        # Assign trait values for each species
+        SpeciesTraitMatrix[NumSpecies, 1] <- NumSpecies  # Species or functional type
+        SpeciesTraitMatrix[NumSpecies, 2] <- MaxMass  # Maximum mass
+        SpeciesTraitMatrix[NumSpecies, 3] <- MassAtMaturity  # Mass at maturity
+        SpeciesTraitMatrix[NumSpecies, 4] <- K  # Species-specfic growth rate
+        SpeciesTraitMatrix[NumSpecies, 5] <- DispersalKernel  # Dispersal: factor b in negative exp funtion
+        SpeciesTraitMatrix[NumSpecies, 6] <- DispersalKernelAsymmetry  # Dispersal: factor b in negative exp funtion
+        SpeciesTraitMatrix[NumSpecies, 7] <- RecruitmentInvestmentRel  # anual reproductive allocation in relation to vegetative biomass
+        SpeciesTraitMatrix[NumSpecies, 8] <- RecruitmentInc  # Increase in realtive reproductive allocation with mass 0: no increase; 1: doubling
+        SpeciesTraitMatrix[NumSpecies, 9] <- MinLight  # Min Light conditions
+        SpeciesTraitMatrix[NumSpecies, 10] <- MaxLight  # Max Light conditions
+        SpeciesTraitMatrix[NumSpecies, 11] <- OptimumLight  # Optimum Light conditions
+        SpeciesTraitMatrix[NumSpecies, 12] <- LightBreadth  # Realised Light breadth
+        SpeciesTraitMatrix[NumSpecies, 13] <- a  # Factor a of light response function
+        SpeciesTraitMatrix[NumSpecies, 14] <- b  # Factor b of light response function
+        SpeciesTraitMatrix[NumSpecies, 15] <- c  # Factor c of light response function
+        SpeciesTraitMatrix[NumSpecies, 16] <- MinHeight  # Relative minimum height in a uniform standard forest
+        SpeciesTraitMatrix[NumSpecies, 17] <- MaxHeight  # Relative maximum height in a uniform standard forest
+        SpeciesTraitMatrix[NumSpecies, 18] <- MeanHeight  # Relative optimum height in a uniform standard forest
+        SpeciesTraitMatrix[NumSpecies, 19] <- HeightBreadth  # Niche Breadth Height
+        SpeciesTraitMatrix[NumSpecies, 20] <- (InterceptRecruitment)*RecruitmentInvestmentRel  # Potential maximum number of recruits at maximum mass
+        SpeciesTraitMatrix[NumSpecies, 21] <- (InterceptRecruitment+SlopeRecruitment*MassAtMaturity)*RecruitmentInvestmentRel  # Potential maximum number of recruits at mass at maturity
+        SpeciesTraitMatrix[NumSpecies, 22] <- AgeAtMaturity  # Average age at maturity under optimal conditions
+
+    }
+
+    # ============================================================================
+    # Save trait matrices
+
+    # Create dataframe from matrix (including headers)
+    SpeciesTraitMatrix_df <- as.data.frame(SpeciesTraitMatrix)
+    names(SpeciesTraitMatrix_df) <- ColumnHeaders
+
+    # Save trait dataframe
+    SpeciesPoolFileName <- paste("SpeciesPool", Num, ".csv", sep="")
+    write.csv(SpeciesTraitMatrix_df, file.path(SaveDirectory, SpeciesPoolFileName), row.names=FALSE)
 
 }
