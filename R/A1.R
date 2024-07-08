@@ -86,7 +86,7 @@ TotalVoxels <- (DistVoxToConsider * 2 + 1) ^ 2  # Total number of adjacent voxel
 MatrixDimension <- sum(c(TotalSurfaceAreaOpt, SurfaceAreaLossOpt, LightConditionsOpt, AverageWeightedAngles))
 
 # Other parameters created during porting to R
-# Those are needed because of GroIMPs ourput dir structure
+# Those are needed because of GroIMPs output dir structure
 model_dir_name <- "Model"
 results_dir_name <- "Results"
 forest_global_param_name <- "Forest_param_global.txt"
