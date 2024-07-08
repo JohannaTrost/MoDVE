@@ -1,5 +1,19 @@
 # Create microhabitat matrices
 
+library("optparse")
+
+
+# Parse command line arguments
+parser <- OptionParser()
+parser <- add_option(parser,
+    c("-i", "--input"),
+    type="character",
+    default=NA,
+    metavar="PATH_TO_TOML",
+    help="Path to TOML formatted input file")
+opt <- parse_args(parser)
+
+
 # ------------------- Parameters ----------------------- #
 # Parameters that need to be specified/checked before running this script
 
