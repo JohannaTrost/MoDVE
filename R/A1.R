@@ -13,6 +13,13 @@ parser <- add_option(parser,
     help="Path to TOML formatted input file")
 opt <- parse_args(parser)
 
+# Check that input file is provided
+if (is.na(opt$input)) {
+    stop("Input parameter must be provided. See script usage (--help)")
+} else {
+    filepath <- file.path(opt$input)
+}
+
 
 # ------------------- Parameters ----------------------- #
 # Parameters that need to be specified/checked before running this script
