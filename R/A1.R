@@ -55,13 +55,9 @@ AverageWeightedAngles <- config$AverageWeightedAngles
 # Directory of GroIMP files (this directory is stored in the Microhabitat folder so that the
 # connection to the input GroIMP files is always clear)
 DirectoryGroIMP <- config$DirectoryGroIMP
+# Directory to save results
 DirectorySaveMain <- config$DirectorySaveMain
-DirectorySaveFolder <- config$DirectorySaveFolder
 
-# Name under which the microhabitat matrices are saved (The name of the folder under
-# which the microhabitat matrices are saved is standarized and only the name
-# of the forest is required here, and only if MicrohabitatType=1 or MicrohabitatType=2)
-NameForest <- config$NameForest
 ReplicateForest <- config$ReplicateForest
 
 # start and end timestep
@@ -115,22 +111,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 
 
 # Create folder to save the microhabitat matrices
-# The names of the folders are standadized:
-# MicrohabitatType=1: 'Microhabitat_NameOfForestModel_SpatialExtent_timeSteps'
-# MicrohabitatType=2: 'Microhabitat_NameOfForestModel_SpatialExtent_timeStep'
-# MicrohabitatType=3: 'Microhabitat_BAI_LAI_kL'
-if (MicrohabitatType == 1) {
-    NameMicrohabitatMatrix <- paste("Microhabitat_", NameForest, "_", dimPlot[1], "x", dimPlot[2], "x", dimPlot[3], "_Rep", ReplicateForest, sep="")
-    forest_type_str <- "DynamicForests"
-} else if (MicrohabitatType == 2) {
-    NameMicrohabitatMatrix <- paste("Microhabitat_", NameForest, "_", dimPlot[1], "x", dimPlot[2], "x", dimPlot[3], "_Rep", ReplicateForest, sep="")
-    forest_type_str <- "StaticForests"
-} else if (MicrohabitatType==3) {
-    NameMicrohabitatMatrix <- paste("Microhabitat_BAI", BAI, "_LAI", LAI, "_kL", kL, sep="")
-    forest_type_str <- "UniformForests"
-}
-
-DirectoryMatrices <- file.path(DirectorySaveMain, forest_type_str, DirectorySaveFolder, NameMicrohabitatMatrix)
+DirectoryMatrices <- file.path(DirectorySaveMain)
 dir.create(DirectoryMatrices, recursive=TRUE)
 
 # Copy global and pass forest file to microhabitat folder
