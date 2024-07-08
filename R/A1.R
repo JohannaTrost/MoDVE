@@ -41,11 +41,11 @@ timeStepEnd <- 40
 # Parameters that need to be specified if MicrohabitatType=3
 # The following parameters are only needed if MicrohabitatType=3
 # Dimensions of the theoretical forest
-ForestHeight <- 40
-dimXTheoretical <- 50
-dimyTheoretical <- 50
-BAI <- 3  # branch area index for the static, theoretical forest
-LAI <- 6  # leaf are index
+# ForestHeight <- 40
+# dimXTheoretical <- 50
+# dimyTheoretical <- 50
+# BAI <- 3  # branch area index for the static, theoretical forest
+# LAI <- 6  # leaf are index
 
 # Additional parameters
 # Names of essential GroIMP files
