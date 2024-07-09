@@ -1,51 +1,79 @@
 # Create microhabitat matrices
 
+library("optparse")
+library("configr")
+
+
+# Parse command line arguments
+parser <- OptionParser()
+parser <- add_option(parser,
+    c("-i", "--input"),
+    type="character",
+    default=NA,
+    metavar="PATH_TO_TOML",
+    help="Path to TOML formatted input file")
+opt <- parse_args(parser)
+
+# Check that input file is provided
+if (is.na(opt$input)) {
+    stop("Input parameter must be provided. See script usage (--help)")
+} else {
+    filepath <- file.path(opt$input)
+}
+
+# Check whether provided input file exists and is in TOML format
+if (!(file.exists(filepath) && !dir.exists(filepath))) {
+    stop("Input file doesn't exist")
+} else if (!is.toml.file(file=opt$input)) {
+    stop("Input file isn't in TOML format")
+} else {
+    config <- read.config(file=filepath)
+}
+
 # ------------------- Parameters ----------------------- #
 # Parameters that need to be specified/checked before running this script
 
 # This parameter determines which type of microhatiat matrices are generated:
 # 1: real GroIMP forest with dynamics
 # 2: static GroIMP forest (only forest at timeStepStart is used)
-MicrohabitatType <- 1
+MicrohabitatType <- config$MicrohabitatType
 
 # Parameters of light model
-kL <- 0.6  # light extinction coefficient
-DistVoxToConsider <- 8  # How many ring around focal voxel to consider in light model (5 voxels in x and y direction)
+kL <- config$kL  # light extinction coefficient
+DistVoxToConsider <- config$DistVoxToConsider  # How many ring around focal voxel to consider in light model (5 voxels in x and y direction)
 
 # Choose the forest parameters that shall be calculated and stored in the microhabitat matrix
 # (this list can be extended for possible new applications of the epiphyte model.
 # 1: use this variable
 # 0: do not use it
-TotalSurfaceAreaOpt <- 1
-SurfaceAreaLossOpt <- 1
-LightConditionsOpt <- 1
-AverageWeightedAngles <- 0
+TotalSurfaceAreaOpt <- config$TotalSurfaceAreaOpt
+SurfaceAreaLossOpt <- config$SurfaceAreaLossOpt
+LightConditionsOpt <- config$LightConditionsOpt
+AverageWeightedAngles <- config$AverageWeightedAngles
 
 # Parameters that need to be specified if MicrohabitatType=1 or MicrohabitatType=2
 # Directory of GroIMP files (this directory is stored in the Microhabitat folder so that the
 # connection to the input GroIMP files is always clear)
-DirectoryGroIMP <- "/PATH/TO/INPUT"
-DirectorySaveMain <- "/PATH/TO/OUTPUT"
-DirectorySaveFolder <- "MicrohabitatMat"
+DirectoryGroIMP <- config$DirectoryGroIMP
+# Directory to save results
+DirectorySaveMain <- config$DirectorySaveMain
 
-# Name under which the microhabitat matrices are saved (The name of the folder under
-# which the microhabitat matrices are saved is standarized and only the name
-# of the forest is required here, and only if MicrohabitatType=1 or MicrohabitatType=2)
-NameForest <- "ForestModel_Best"
-ReplicateForest <- 0
+ReplicateForest <- config$ReplicateForest
 
 # start and end timestep
-timeStepStart <- 1
-timeStepEnd <- 40
+timeStepStart <- config$timeStepStart
+timeStepEnd <- config$timeStepEnd
 
 # Parameters that need to be specified if MicrohabitatType=3
 # The following parameters are only needed if MicrohabitatType=3
 # Dimensions of the theoretical forest
-ForestHeight <- 40
-dimXTheoretical <- 50
-dimyTheoretical <- 50
-BAI <- 3  # branch area index for the static, theoretical forest
-LAI <- 6  # leaf are index
+# ForestHeight <- 40
+# dimXTheoretical <- 50
+# dimyTheoretical <- 50
+# BAI <- 3  # branch area index for the static, theoretical forest
+# LAI <- 6  # leaf are index
+
+# --------------------------------------------------------------------------- #
 
 # Additional parameters
 # Names of essential GroIMP files
@@ -58,6 +86,7 @@ TotalVoxels <- (DistVoxToConsider * 2 + 1) ^ 2  # Total number of adjacent voxel
 MatrixDimension <- sum(c(TotalSurfaceAreaOpt, SurfaceAreaLossOpt, LightConditionsOpt, AverageWeightedAngles))
 
 # Other parameters created during porting to R
+# Those are needed because of GroIMPs output dir structure
 model_dir_name <- "Model"
 results_dir_name <- "Results"
 forest_global_param_name <- "Forest_param_global.txt"
@@ -82,22 +111,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 
 
 # Create folder to save the microhabitat matrices
-# The names of the folders are standadized:
-# MicrohabitatType=1: 'Microhabitat_NameOfForestModel_SpatialExtent_timeSteps'
-# MicrohabitatType=2: 'Microhabitat_NameOfForestModel_SpatialExtent_timeStep'
-# MicrohabitatType=3: 'Microhabitat_BAI_LAI_kL'
-if (MicrohabitatType == 1) {
-    NameMicrohabitatMatrix <- paste("Microhabitat_", NameForest, "_", dimPlot[1], "x", dimPlot[2], "x", dimPlot[3], "_Rep", ReplicateForest, sep="")
-    forest_type_str <- "DynamicForests"
-} else if (MicrohabitatType == 2) {
-    NameMicrohabitatMatrix <- paste("Microhabitat_", NameForest, "_", dimPlot[1], "x", dimPlot[2], "x", dimPlot[3], "_Rep", ReplicateForest, sep="")
-    forest_type_str <- "StaticForests"
-} else if (MicrohabitatType==3) {
-    NameMicrohabitatMatrix <- paste("Microhabitat_BAI", BAI, "_LAI", LAI, "_kL", kL, sep="")
-    forest_type_str <- "UniformForests"
-}
-
-DirectoryMatrices <- file.path(DirectorySaveMain, forest_type_str, DirectorySaveFolder, NameMicrohabitatMatrix)
+DirectoryMatrices <- file.path(DirectorySaveMain)
 dir.create(DirectoryMatrices, recursive=TRUE)
 
 # Copy global and pass forest file to microhabitat folder
