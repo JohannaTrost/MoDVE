@@ -25,7 +25,7 @@ numSpeciesPools <- 100
 NumberOfSpecies <- 100
 
 # The following option defines if correlations between traits are consider or not
-CorrelationMassAgeOfMaturity <- 1  # Correlation between the mass and the age of maturity (this also influences the growth rate)
+# CorrelationMassAgeOfMaturity <- 1  # Correlation between the mass and the age of maturity (this also influences the growth rate)
 CorrelationMassRecruitment <- 1  # Correlation between the mass and the recruitment
 
 InterceptAgeMaturity <- 2
@@ -51,7 +51,7 @@ Imax <- 900  # maximum light intensity
 LAI <- 6  # leaf area index
 
 # Define a species pool type
-SpeciesPoolType <- 0
+# SpeciesPoolType <- 0
 
 # ============================================================================
 # Define trait (ranges) if random species pool(SpeciesPoolType=0) is choose
@@ -71,32 +71,32 @@ DispersalKernelAsymmetryRandom <- c(0.5, 0.95)  # The trait describes the relati
 # Define which trait is varied if a sequential species pool(SpeciesPoolType=1) is choose.
 # For proper results, only one of the following traits should be defined as sequence, while for the other traits, invariable trait values should to be specified.
 # If no correlations between traits are choosen (CorrelationMassAgeOfMaturity=0 || CorrelationMassRecruitment=0),the following traits are used
-MaxMassSeq <- c(2, 3000)  # maximum mass of species/functional types (g)
-MaxMassLogScaleSeq <- 1  # define if the mass is choosen based on the log scale (MaxMassLogScale=1) or on the normal scale (MaxMassLogScale=0)
-AgeAtMaturitySeq <- 2  # if no correlation is defined, this value is used
-RecruitmentNormalizeAtSize1Seq <- 20  # This parameter regulates the range of recruitment in thise cases
-RecruitmentInvestmentRelMeanSeq <- 0.1  # anual investment in reproduction in relation to vegetative biomass
-RecruitmentIncSeq <- 0  # Increase in realtive reproductive allocation with mass 0: no increase; 1: doubling
-MassAtMaturityRelativeSeq <- 0.5  # Relative mass in relation to maximum Size
-HeightBreadthSeq <- 1  # Relative height
-MeanHeightSeq <- 0.5
-DispersalKernelSeq <- 0  # The higher this values, the more local is the dispersal
-DispersalKernelAsymmetrySeq <- 0.5  # The trait describes the relative proportion of seed dispersed below the mother (i.e. 0.5=> symmetric dispersal kernel)
+# MaxMassSeq <- c(2, 3000)  # maximum mass of species/functional types (g)
+# MaxMassLogScaleSeq <- 1  # define if the mass is choosen based on the log scale (MaxMassLogScale=1) or on the normal scale (MaxMassLogScale=0)
+# AgeAtMaturitySeq <- 2  # if no correlation is defined, this value is used
+# RecruitmentNormalizeAtSize1Seq <- 20  # This parameter regulates the range of recruitment in thise cases
+# RecruitmentInvestmentRelMeanSeq <- 0.1  # anual investment in reproduction in relation to vegetative biomass
+# RecruitmentIncSeq <- 0  # Increase in realtive reproductive allocation with mass 0: no increase; 1: doubling
+# MassAtMaturityRelativeSeq <- 0.5  # Relative mass in relation to maximum Size
+# HeightBreadthSeq <- 1  # Relative height
+# MeanHeightSeq <- 0.5
+# DispersalKernelSeq <- 0  # The higher this values, the more local is the dispersal
+# DispersalKernelAsymmetrySeq <- 0.5  # The trait describes the relative proportion of seed dispersed below the mother (i.e. 0.5=> symmetric dispersal kernel)
 
 # ============================================================================
 # Define traits if neutral species pool(SpeciesPoolType=2) is choose
 # The traits are the same for all species and have to be specified below. If correlations between traits are choosen,
 # the age at maturity and the recruitment are based on the correlations defined above instead of the one defined below
-MaxMassNeutral <- 100  # maximum mass of species/functional types (g)
-AgeAtMaturityNeutral <- 3  # age at which maturity is reaches (years)
-RecruitmentNormalizeAtSize1Neutral <- 15  # If no correlation is choose, this value is used as recruitment (it is not multiplied by RecruitmentInvestmentRel!)
-RecruitmentInvestmentRelMeanNeutral <- 0.1
-RecruitmentIncNeutral <- 0  # Increase in realtive reproductive allocation with mass 0: no increase; 1: doubling
-MassAtMaturityRelativeNeutral <- 0.5  # Relative mass in relation to maximum Size
-HeightBreadthNeutral <- 0.5  # Relative height
-MeanHeightNeutral <- 0.5  # Mean height
-DispersalKernelNeutral <- 1.5  # The higher this values, the more local is the dispersal
-DispersalKernelAsymmetryNeutral <- 0.5  # The trait describes the relative proportion of seed dispersed below the mother (i.e. 0.5=> symmetric dispersal kernel)
+# MaxMassNeutral <- 100  # maximum mass of species/functional types (g)
+# AgeAtMaturityNeutral <- 3  # age at which maturity is reaches (years)
+# RecruitmentNormalizeAtSize1Neutral <- 15  # If no correlation is choose, this value is used as recruitment (it is not multiplied by RecruitmentInvestmentRel!)
+# RecruitmentInvestmentRelMeanNeutral <- 0.1
+# RecruitmentIncNeutral <- 0  # Increase in realtive reproductive allocation with mass 0: no increase; 1: doubling
+# MassAtMaturityRelativeNeutral <- 0.5  # Relative mass in relation to maximum Size
+# HeightBreadthNeutral <- 0.5  # Relative height
+# MeanHeightNeutral <- 0.5  # Mean height
+# DispersalKernelNeutral <- 1.5  # The higher this values, the more local is the dispersal
+# DispersalKernelAsymmetryNeutral <- 0.5  # The trait describes the relative proportion of seed dispersed below the mother (i.e. 0.5=> symmetric dispersal kernel)
 
 # ============================================================================
 # Create folder to save species trait matrices
