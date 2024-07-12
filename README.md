@@ -72,3 +72,19 @@ Run the following command, replacing `path/to/toml` with the actual path to your
 ```bash
 Rscript A1.R -i "path/to/toml"
 ```
+
+## A2
+
+Create a file named `config.toml`. Use the following content as a template, replacing the placeholder values with your data:
+
+```toml
+# Seed for random number generator (integer, optional)
+# Comment it out to use a random seed instead
+seed = 42
+```
+
+Run the following command, replacing `path/to/toml` with the actual path to your `config.toml` file:
+
+```bash
+Rscript A2.R -i "path/to/toml"
+```

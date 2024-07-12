@@ -1,10 +1,19 @@
 # Create species matrices
+source("utils.R")
+
 
 AgeMaturityMetabolic <- function(InterceptAgeMaturity, ScalingAgeMaturity, Mass) {
     return(InterceptAgeMaturity * (Mass^ScalingAgeMaturity))
 }
 
+# Parse input configuration file
+config <- parse_config()
+
 # ============================================================================
+# RNG seed
+seed <- config$seed
+set.seed(seed)  # integer for fixed seed or NULL for random
+
 # Parameters that need to be specified/checked before running this script
 MainOutputDirectory <- "/PATH/TO/OUTPUT"
 
