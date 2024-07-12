@@ -18,7 +18,7 @@ set.seed(seed)  # integer for fixed seed or NULL for random
 MainOutputDirectory <- "/PATH/TO/OUTPUT"
 
 # Folder to save species trait matrices
-NameSpeciesPool <- "IntAgeMat_2_IntRec_70"  # Give meaningful name (the species type is automatically added to the name)
+# NameSpeciesPool <- "IntAgeMat_2_IntRec_70"  # Give meaningful name (the species type is automatically added to the name)
 
 # Define number of species in species pool and total number of species pools to be created
 numSpeciesPools <- 100
@@ -100,28 +100,28 @@ DispersalKernelAsymmetryNeutral <- 0.5  # The trait describes the relative propo
 
 # ============================================================================
 # Create folder to save species trait matrices
-if (SpeciesPoolType == 0) {
-    if (CorrelationMassAgeOfMaturity == 1 || CorrelationMassRecruitment == 1) {
-        FullNameSpeciesPool <- paste("SP_Random_", NameSpeciesPool, "_TraitCorrOn", sep="")
-    } else {
-        FullNameSpeciesPool <- paste("SP_Random_", NameSpeciesPool, "_TraitCorrOff", sep="")
-    }
-} else if (SpeciesPoolType == 1) {
-    if (CorrelationMassAgeOfMaturity == 1 || CorrelationMassRecruitment == 1) {
-        FullNameSpeciesPool <- paste("SP_Sequential_", NameSpeciesPool, "_TraitCorrOn", sep="")
-    } else {
-        FullNameSpeciesPool <- paste("SP_Sequential_", NameSpeciesPool, "_TraitCorrOff", sep="")
-    }
-} else if (SpeciesPoolType == 2) {
-    if (CorrelationMassAgeOfMaturity == 1 || CorrelationMassRecruitment == 1) {
-        FullNameSpeciesPool <- paste("SP_Neutral_", NameSpeciesPool, "_TraitCorrOn", sep="")
-    } else {
-        FullNameSpeciesPool <- paste("SP_Neutral_", NameSpeciesPool, "_TraitCorrOff", sep="")
-    }
-}
+# if (SpeciesPoolType == 0) {
+#     if (CorrelationMassAgeOfMaturity == 1 || CorrelationMassRecruitment == 1) {
+#         FullNameSpeciesPool <- paste("SP_Random_", NameSpeciesPool, "_TraitCorrOn", sep="")
+#     } else {
+#         FullNameSpeciesPool <- paste("SP_Random_", NameSpeciesPool, "_TraitCorrOff", sep="")
+#     }
+# } else if (SpeciesPoolType == 1) {
+#     if (CorrelationMassAgeOfMaturity == 1 || CorrelationMassRecruitment == 1) {
+#         FullNameSpeciesPool <- paste("SP_Sequential_", NameSpeciesPool, "_TraitCorrOn", sep="")
+#     } else {
+#         FullNameSpeciesPool <- paste("SP_Sequential_", NameSpeciesPool, "_TraitCorrOff", sep="")
+#     }
+# } else if (SpeciesPoolType == 2) {
+#     if (CorrelationMassAgeOfMaturity == 1 || CorrelationMassRecruitment == 1) {
+#         FullNameSpeciesPool <- paste("SP_Neutral_", NameSpeciesPool, "_TraitCorrOn", sep="")
+#     } else {
+#         FullNameSpeciesPool <- paste("SP_Neutral_", NameSpeciesPool, "_TraitCorrOff", sep="")
+#     }
+# }
 
 # where to save
-SaveDirectory <- file.path(MainOutputDirectory, FullNameSpeciesPool)
+SaveDirectory <- file.path(MainOutputDirectory)
 dir.create(SaveDirectory, recursive=TRUE)
 
 ColumnHeaders <- c("SpeciesID", "MaximumMass", "MassAtMaturity", "GrowthRate",
