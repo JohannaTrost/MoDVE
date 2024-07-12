@@ -166,11 +166,11 @@ for (Num in 1:numSpeciesPools) {
         # Recruitment traits
 
         # 2. Correlations if CorrelationMassRecruitment=1
-        RecruitmentNormalizeAtSize1Corr <- 70  # Factor converting the reproductive biomass to potential recruits
-        SlopeRecruitmentCorr <- 0 * RecruitmentNormalizeAtSize1Corr  # Slope of the correlation between mass and recruitment
-        RecruitmentInvestmentRelMeanCorr <- 0.1  # Anual investment in reproduction in relation to vegetative biomass (decrease due to correlation with mass)
-        RecruitmentInvestmentRelDevCorr <- 0.25  # The relative deviation from the mean recruitment
-        RecruitmentIncMaxCorr <- 0
+        # RecruitmentNormalizeAtSize1Corr <- 70  # Factor converting the reproductive biomass to potential recruits
+        # SlopeRecruitmentCorr <- 0 * RecruitmentNormalizeAtSize1Corr  # Slope of the correlation between mass and recruitment
+        # RecruitmentInvestmentRelMeanCorr <- 0.1  # Anual investment in reproduction in relation to vegetative biomass (decrease due to correlation with mass)
+        # RecruitmentInvestmentRelDevCorr <- 0.25  # The relative deviation from the mean recruitment
+        # RecruitmentIncMaxCorr <- 0
 
         if (CorrelationMassRecruitment == 1) {
             RecruitmentInvestmentRel <- runif(1, min=RecruitmentInvestmentRelMeanCorr * (1 - RecruitmentInvestmentRelDevCorr), max=RecruitmentInvestmentRelMeanCorr * (1 + RecruitmentInvestmentRelDevCorr))
