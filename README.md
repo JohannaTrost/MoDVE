@@ -72,3 +72,61 @@ Run the following command, replacing `path/to/toml` with the actual path to your
 ```bash
 Rscript A1.R -i "path/to/toml"
 ```
+
+## A2
+
+Create a file named `config.toml`. Use the following content as a template, replacing the placeholder values with your data:
+
+```toml
+# Seed for random number generator (integer, optional)
+# Comment it out to use a random seed instead
+#seed = 42
+
+MainOutputDirectory = "path/to/output/dir"
+
+# Define number of species in species pool and total number of species pools to be created
+numSpeciesPools = 100
+NumberOfSpecies = 100
+
+# The following option defines if correlations between traits are consider or not
+CorrelationMassRecruitment = 1  # Correlation between the mass and the recruitment
+
+InterceptAgeMaturity = 2
+ScalingAgeMaturity = 0.25  # Scaling factor according to metabolic theory
+
+# If correlations are choosen, the following parameters define the shape of the correlations
+# 1. Correlations if CorrelationMassAgeOfMaturity=1
+MaxMassRangeCorr = [2, 3000]  # maximum mass of species/functional types (g)
+AgeAtMaturityDevCorr = 0.25  # relative deviation from mean age of maturity
+
+# 2. Correlations if CorrelationMassRecruitment=1
+RecruitmentNormalizeAtSize1Corr = 70  # Factor converting the reproductive biomass to potential recruits
+RecruitmentInvestmentRelMeanCorr = 0.1  # Anual investment in reproduction in relation to vegetative biomass (decrease due to correlation with mass)
+RecruitmentInvestmentRelDevCorr = 0.25  # The relative deviation from the mean recruitment
+RecruitmentIncMaxCorr = 0
+
+# Parameters of light model (needed to convert the height nicht and the light niche, these values do not have to
+# be the same as used in the microhabitat matrices)
+kL = 0.6  # light extinction coefficient
+Imax = 900  # maximum light intensity
+LAI = 6  # leaf area index
+
+# Define trait (ranges) if random species pool(SpeciesPoolType=0) is choose
+# If no correlations between traits are choosen (CorrelationMassAgeOfMaturity=0 || CorrelationMassRecruitment=0), traits are randomly choosen from the following ranges
+MaxMassRandom = [2, 3000]  # maximum mass of species/functional types (g)
+MaxMassLogScaleRandom = 1  # define if the mass is choosen based on the log scale (MaxMassLogScale=1) or on the normal scale (MaxMassLogScale=0)
+AgeAtMaturityRandom = [1, 1]  # age at which maturity is reaches (years)
+RecruitmentNormalizeAtSize1Random = [1, 20]  # This parameter regulates the range of recruitment in thise cases
+RecruitmentInvestmentRelMeanRandom = [0.07, 0.12]  # Not that the effective recruitment is RecruitmentNormalizeAtSize1Random*RecruitmentInvestmentRelMeanRandom
+RecruitmentIncRandom = [0, 0]
+MassAtMaturityRelativeRandom = [0.5, 0.7]  # Relative mass in relation to maximum Size
+HeightBreadthRandom = [0.15, 0.7]  # Relative height
+DispersalKernelRandom = [0.03, 0.5]  # The higher this values, the more local is the dispersal
+DispersalKernelAsymmetryRandom = [0.5, 0.95]  # The trait describes the relative proportion of seed dispersed below the mother (i.e. 0.5=> symmetric dispersal kernel)
+```
+
+Run the following command, replacing `path/to/toml` with the actual path to your `config.toml` file:
+
+```bash
+Rscript A2.R -i "path/to/toml"
+```
