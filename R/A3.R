@@ -93,3 +93,18 @@ if (MicrohabitatType == 1) {
 
 DirectorySpeciesPools <- file.path(DirectorySpeciesPoolsMain, FolderSpeciesPools)
 
+###############################################################################
+# Load parameters saved along with the microhabitat and species pool files
+
+# Load plot dimensions if an artifical theoretical forest is used
+dimPlot <- readRDS(file.path(DirectoryMicrohabitatMain, "dimPlot.rds"))
+
+# Calculate individuals per species if normalization per hectare (ScalingPerHa=1) is chosen
+if (ScalingPerHa == 1) {
+    IndividualsPerSpecies <- IndividualsPerSpecies * ((dimPlot[1] * dimPlot[2]) / 10000)
+}
+
+# Get number of species from species pool file
+species_filename <- paste("SpeciesPool", numSpeciesPools[1], ".csv", sep="")
+Input_file <- file.path(DirectorySpeciesPools, species_filename)
+SpeciesPool <- read.csv(Input_file)
