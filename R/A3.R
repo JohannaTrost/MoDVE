@@ -106,5 +106,5 @@ if (ScalingPerHa == 1) {
 
 # Get number of species from species pool file
 species_filename <- paste("SpeciesPool", numSpeciesPools[1], ".csv", sep="")
-Input_file <- file.path(DirectorySpeciesPools, species_filename)
+Input_file <- file.path(DirectorySpeciesPoolsMain, species_filename)
 SpeciesPool <- read.csv(Input_file)
