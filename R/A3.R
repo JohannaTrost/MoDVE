@@ -43,3 +43,53 @@ PercentageMaturePerSpecies <- 50
 SurfaceBiomassScaling <- 10000 * 0.01  # cm^2 per m^2
 Imax <- 900
 ###############################################################################
+
+###############################################################################
+# Folders and directories (these files should not change)
+
+# The maximum path name length can be exeeded thus the folder names are abbreviated
+if (MicrohabitatType == 1) {
+    FolderEpiphyteModel <- "DynamicForests"
+} else if (MicrohabitatType == 2) {
+    FolderEpiphyteModel <- "StaticForests"
+} else if (MicrohabitatType == 3) {
+    FolderEpiphyteModel <- "UniformForests"
+}
+
+# Create main model folder under which the initial distribution is saved
+if (SingleSpeciesModel == 1) {
+    DirectoryEpiphyteModelMain1 <- file.path(DirectoryModelMain, "SingleSpeciesModels")
+    DirectoryEpiphyteModelMain2 <- file.path(DirectoryEpiphyteModelMain1, FolderEpiphyteModel)
+    dirname <- paste(FolderMicrohabitat, "_Rep", Replicate, sep="")
+    DirectoryEpiphyteModel <- file.path(DirectoryEpiphyteModelMain2, dirname)
+} else if (SingleSpeciesModel == 0) {
+    DirectoryEpiphyteModelMain1 <- file.path(DirectoryModelMain, "CommunityModels")
+    DirectoryEpiphyteModelMain2 <- file.path(DirectoryEpiphyteModelMain1, FolderEpiphyteModel)
+    dirname <- paste(FolderMicrohabitat, "_Rep", Replicate, sep="")
+    DirectoryEpiphyteModel <- file.path(DirectoryEpiphyteModelMain2, dirname)
+}
+
+# Generate abbreveation for species pool (in IniDist folder)
+PosUnderscores <- unlist(gregexpr("_", FolderSpeciesPools))
+substr1 <- substr(FolderSpeciesPools, PosUnderscores[1] + 1, PosUnderscores[2] - 1)
+substr2 <- substr(FolderSpeciesPools, PosUnderscores[3] + 1, PosUnderscores[4] - 1)
+substr3 <- substr(FolderSpeciesPools, PosUnderscores[5] + 1, PosUnderscores[6] - 1)
+NameSpeciesPoolSave <- paste("SP_", substr1, "_IA_", substr2, "_IR_", substr3, "_TimeS_", TimeStep, sep="")
+
+DirectoryIntitalDistributionMain <- file.path(DirectoryEpiphyteModel, "IniDist")
+DirectoryIntitalDistribution <- file.path(DirectoryIntitalDistributionMain, NameSpeciesPoolSave)
+
+# Generate directories to save the model
+dir.create(DirectoryIntitalDistribution, recursive=TRUE)
+
+dirname <- paste("Microhabitat_", FolderMicrohabitat, "_Rep", Replicate, sep="")
+if (MicrohabitatType == 1) {
+    DirectoryMicrohabitat <- file.path(DirectoryMicrohabitatMain, "DynamicForests", FolderMicrohabitat, dirname)
+} else if (MicrohabitatType == 2) {
+    DirectoryMicrohabitat <- file.path(DirectoryMicrohabitatMain, "StaticForests", FolderMicrohabitat, dirname)
+} else if (MicrohabitatType == 3) {
+    DirectoryMicrohabitat <- file.path(DirectoryMicrohabitatMain, "UniformForests", FolderMicrohabitat, dirname)
+}
+
+DirectorySpeciesPools <- file.path(DirectorySpeciesPoolsMain, FolderSpeciesPools)
+
