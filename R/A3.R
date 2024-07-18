@@ -122,3 +122,41 @@ Microhabitat <- readRDS(FileInitalMatrix)
 # Set real light values (in microhabitat, relative light values are saved)
 Microhabitat[, , , 3] <- Microhabitat[, , , 3] * Imax
 
+###############################################################################
+# Main loop for Single Species Model
+if (SingleSpeciesModel == 1) {
+    AvailableSurfaceAreaForSpecies <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * NumberSpecies), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], NumberSpecies))
+    PotentialVoxelsForSpecies <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * 3 * NumberSpecies), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], 3, NumberSpecies))
+    PotentialVoxelsForIndividual <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * 3), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], 3))
+
+    for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
+        print(paste("Number species pool:", numPool))
+
+        # Laden des species pools
+        species_filename <- paste("SpeciesPool", numPool, ".csv", sep="")
+        Input_file <- file.path(DirectorySpeciesPoolsMain, species_filename)
+        SpeciesPool <- read.csv(Input_file)
+
+        SizeSpeciesPool <- dim(SpeciesPool)
+
+        for (numReplicates in 1:replicatePerSpeciesPool) {
+            print(paste("Number replicate:", numReplicates))
+
+            # Initialize epiphyte matrix
+            IntitalEpiphyteMatrix <- array(rep(0, TotalIndividuals * (SizeSpeciesPool[2] + 7)), dim=c(TotalIndividuals, SizeSpeciesPool[2] + 7))
+
+            # Initialize Available surface area
+            AvailableSurfaceArea <- Microhabitat[, , , 1]  # Matrix to trace the still available surface area per voxel
+
+            # Fill InitialEpiphyteMatrix with species trait informations and the
+            # initial size of each individual
+            for (numSpecies in 1:NumberSpecies) {
+                for (numIndividual in 1:IndividualsPerSpecies) {
+                    # Copy trait data from SpeciesPool to InitalEpiphyteMatrix
+                    idx1 <- ((numSpecies - 1) * IndividualsPerSpecies) + numIndividual
+                    IntitalEpiphyteMatrix[idx1, 1:SizeSpeciesPool[2]] <- as.numeric(SpeciesPool[numSpecies, ])
+                }
+            }
+        }
+    }
+}
