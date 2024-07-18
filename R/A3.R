@@ -108,3 +108,17 @@ if (ScalingPerHa == 1) {
 species_filename <- paste("SpeciesPool", numSpeciesPools[1], ".csv", sep="")
 Input_file <- file.path(DirectorySpeciesPoolsMain, species_filename)
 SpeciesPool <- read.csv(Input_file)
+NumberSpecies <- length(SpeciesPool$SpeciesID)
+
+# Get number of total individuals for each replicate
+TotalIndividuals <- NumberSpecies * IndividualsPerSpecies
+NumberMaturesPerSpecies <- round(IndividualsPerSpecies * (PercentageMaturePerSpecies / 100))
+
+# Load initial microhabitat matrix
+microhabitat_filename <- paste("MicrohabitatMatrix", TimeStep, ".rds", sep="")
+FileInitalMatrix <- file.path(DirectoryMicrohabitatMain, microhabitat_filename)
+Microhabitat <- readRDS(FileInitalMatrix)
+
+# Set real light values (in microhabitat, relative light values are saved)
+Microhabitat[, , , 3] <- Microhabitat[, , , 3] * Imax
+
