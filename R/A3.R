@@ -9,6 +9,10 @@ AgeFunctionOfMass <- function(MaxMass, Mass, K) {
 ###############################################################################
 # Parameters that need to be specified/checked before running this script
 
+# RNG seed
+seed <- 42
+set.seed(seed)  # integer for fixed seed or NULL for random
+
 # Name of epiphyte model
 # FolderEpiphyteModel='EM_20160213'; %I should think about naming
 SingleSpeciesModel <- 0  # 1: Single species model, 0: Community model
