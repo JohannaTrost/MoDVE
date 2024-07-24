@@ -1,5 +1,11 @@
 # Create the initial epiphyte distrubution depending on the epiphyte traits and the initial microhabitat matrix
 
+# Growth function. Used here to approximate the age of the individuals
+# MassFunctionOfAge=@(MaxMass,K,Age) (MaxMass*(1-exp(-K*(Age))));
+AgeFunctionOfMass <- function(MaxMass, Mass, K) {
+    return(-log(1 - (Mass / MaxMass)) / K)
+}
+
 ###############################################################################
 # Parameters that need to be specified/checked before running this script
 
