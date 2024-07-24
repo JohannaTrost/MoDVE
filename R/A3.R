@@ -189,6 +189,11 @@ if (SingleSpeciesModel == 1) {
             # this size =SurfaceAreaNeededInVoxel
             IntitalEpiphyteMatrix[, SizeSpeciesPool[2] + 7] <- (IntitalEpiphyteMatrix[, SizeSpeciesPool[2] + 4]^(2 / 3)) / SurfaceBiomassScaling
 
+            # loop over all species
+            for (numSpecies in 1:NumberSpecies) {
+                # Get subset of indiduals for each species
+                # IntitalEpiphyteMatrixSub <- IntitalEpiphyteMatrix[IntitalEpiphyteMatrix[, 1] == numSpecies, ]
+            }
         }
     }
 }
