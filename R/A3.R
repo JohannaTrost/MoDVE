@@ -152,11 +152,33 @@ if (SingleSpeciesModel == 1) {
             # initial size of each individual
             for (numSpecies in 1:NumberSpecies) {
                 for (numIndividual in 1:IndividualsPerSpecies) {
-                    # Copy trait data from SpeciesPool to InitalEpiphyteMatrix
                     idx1 <- ((numSpecies - 1) * IndividualsPerSpecies) + numIndividual
+
+                    # Copy trait data from SpeciesPool to InitalEpiphyteMatrix
                     IntitalEpiphyteMatrix[idx1, 1:SizeSpeciesPool[2]] <- as.numeric(SpeciesPool[numSpecies, ])
+
+                    # Get size of individual
+                    if (numIndividual <= NumberMaturesPerSpecies) {
+                        SizeOfIndividual <- runif(1, min=SpeciesPool$MassAtMaturity[numSpecies], max=SpeciesPool$MaximumMass[numSpecies])  # Size of mature individuals
+                    } else {
+                        SizeOfIndividual <- runif(1, min=0, max=SpeciesPool$MassAtMaturity[numSpecies])  # Size of juvenile individuals
+                    }
+
+                    # Store initial size of individual
+                    IntitalEpiphyteMatrix[idx1, SizeSpeciesPool[2] + 4] <- SizeOfIndividual
+
+                    # store initial age of individual (age when it would have grown under optimal conditions)
+                    IntitalEpiphyteMatrix[idx1, SizeSpeciesPool[2] + 8] <- round(AgeFunctionOfMass(SpeciesPool$MaximumMass[numSpecies], SizeOfIndividual, SpeciesPool$GrowthRate[numSpecies]))
                 }
             }
+
+            # Store individual ID for each individual
+            IntitalEpiphyteMatrix[1:TotalIndividuals, SizeSpeciesPool[2] + 6] <- 1:TotalIndividuals
+
+            # Calculate the surface area needed to support an individual of
+            # this size =SurfaceAreaNeededInVoxel
+            IntitalEpiphyteMatrix[, SizeSpeciesPool[2] + 7] <- (IntitalEpiphyteMatrix[, SizeSpeciesPool[2] + 4]^(2 / 3)) / SurfaceBiomassScaling
+
         }
     }
 }
