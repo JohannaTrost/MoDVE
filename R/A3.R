@@ -143,7 +143,7 @@ if (SingleSpeciesModel == 1) {
             print(paste("Number replicate:", numReplicates))
 
             # Initialize epiphyte matrix
-            IntitalEpiphyteMatrix <- array(rep(0, TotalIndividuals * (SizeSpeciesPool[2] + 7)), dim=c(TotalIndividuals, SizeSpeciesPool[2] + 7))
+            IntitalEpiphyteMatrix <- array(rep(0, TotalIndividuals * (SizeSpeciesPool[2] + 8)), dim=c(TotalIndividuals, SizeSpeciesPool[2] + 8))
 
             # Initialize Available surface area
             AvailableSurfaceArea <- Microhabitat[, , , 1]  # Matrix to trace the still available surface area per voxel
