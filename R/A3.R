@@ -192,7 +192,29 @@ if (SingleSpeciesModel == 1) {
             # loop over all species
             for (numSpecies in 1:NumberSpecies) {
                 # Get subset of indiduals for each species
-                # IntitalEpiphyteMatrixSub <- IntitalEpiphyteMatrix[IntitalEpiphyteMatrix[, 1] == numSpecies, ]
+                IntitalEpiphyteMatrixSub <- IntitalEpiphyteMatrix[IntitalEpiphyteMatrix[, 1] == numSpecies, ]
+
+                # loop through all individuals, beginning with the largest (competition)
+                # sort IntitalEpiphyteMatrixSub by size
+                sort_ids <- order(IntitalEpiphyteMatrixSub[, SizeSpeciesPool[2] + 4], decreasing=TRUE)
+                IntitalEpiphyteMatrixSub <- IntitalEpiphyteMatrixSub[sort_ids, ]
+                NumNoSurface <- 0
+
+                # Calculate potential voxels for for each species which fullfil
+                # their niche requirments (to save time they are precomputed here)
+                comp1 <- Microhabitat[, , , 1] > 0
+                comp2 <- Microhabitat[, , , 3] >= SpeciesPool$MinLight[numSpecies]
+                comp3 <- Microhabitat[, , , 3] <= SpeciesPool$MaxLight[numSpecies]
+                ids <- arrayInd(which(comp1 & comp2 & comp3), dim(Microhabitat))
+                x <- ids[, 1]
+                y <- ids[, 2]
+                z <- ids[, 3]
+                w <- ids[, 4]
+
+                for (i in 1:nrow(IntitalEpiphyteMatrixSub)) {
+                    # Create a random permutation
+                    randNumbers <- sample(1:length(x))
+                }
             }
         }
     }
