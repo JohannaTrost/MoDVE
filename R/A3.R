@@ -216,6 +216,22 @@ if (SingleSpeciesModel == 1) {
 
                     # Create a random permutation
                     randNumbers <- sample(sequence)
+
+                    for (PotVoxels in sequence) {
+                        avail_surf_area <- AvailableSurfaceArea[x[randNumbers[PotVoxels]], y[randNumbers[PotVoxels]], z[randNumbers[PotVoxels]]]
+                        if (avail_surf_area > IntitalEpiphyteMatrixSub[i, SizeSpeciesPool[2] + 7]) {
+                            IntitalEpiphyteMatrixSub[i, SizeSpeciesPool[2] + 1] <- x[randNumbers[PotVoxels]]
+                            IntitalEpiphyteMatrixSub[i, SizeSpeciesPool[2] + 2] <- y[randNumbers[PotVoxels]]
+                            IntitalEpiphyteMatrixSub[i, SizeSpeciesPool[2] + 3] <- z[randNumbers[PotVoxels]]
+
+                            # Set status of individual: status=1 => alive
+                            IntitalEpiphyteMatrixSub[i, SizeSpeciesPool[2] + 5] <- 1
+
+                            AvailableSurfaceArea[x[randNumbers[PotVoxels]], y[randNumbers[PotVoxels]], z[randNumbers[PotVoxels]]] <- AvailableSurfaceArea[x[randNumbers[PotVoxels]], y[randNumbers[PotVoxels]], z[randNumbers[PotVoxels]]] - IntitalEpiphyteMatrixSub[i, SizeSpeciesPool[2] + 7]
+
+                            break
+                        }
+                    }
                 }
             }
         }
