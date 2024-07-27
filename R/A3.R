@@ -212,8 +212,10 @@ if (SingleSpeciesModel == 1) {
                 w <- ids[, 4]
 
                 for (i in 1:nrow(IntitalEpiphyteMatrixSub)) {
+                    sequence <- seq_len(length(x))  # Works as expected even if x is empty
+
                     # Create a random permutation
-                    randNumbers <- sample(1:length(x))
+                    randNumbers <- sample(sequence)
                 }
             }
         }
