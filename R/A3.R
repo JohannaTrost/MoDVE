@@ -233,6 +233,13 @@ if (SingleSpeciesModel == 1) {
                         }
                     }
                 }
+                # Set the coordinates to 1 for all individuals that did not find any
+                # suitable habitat
+                IntitalEpiphyteMatrixSub[IntitalEpiphyteMatrixSub[, SizeSpeciesPool[2] + 1] == 0, SizeSpeciesPool[2] + 5] <- 2
+                IntitalEpiphyteMatrixSub[IntitalEpiphyteMatrixSub[, SizeSpeciesPool[2] + 1] == 0, SizeSpeciesPool[2] + 1] <- 1
+                IntitalEpiphyteMatrixSub[IntitalEpiphyteMatrixSub[, SizeSpeciesPool[2] + 2] == 0, SizeSpeciesPool[2] + 2] <- 1
+                IntitalEpiphyteMatrixSub[IntitalEpiphyteMatrixSub[, SizeSpeciesPool[2] + 3] == 0, SizeSpeciesPool[2] + 3] <- 1
+
             }
         }
     }
