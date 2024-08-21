@@ -120,6 +120,8 @@ Input_file <- file.path(DirectorySpeciesPoolsMain, species_filename)
 SpeciesPool <- read.csv(Input_file)
 NumberSpecies <- length(SpeciesPool$SpeciesID)
 
+ColumnHeaders <- c(colnames(SpeciesPool), c("X", "Y", "Z", "Mass", "Status", "IndividualID", "SurfaceAreaOccupied", "Age"))
+
 # Get number of total individuals for each replicate
 TotalIndividuals <- NumberSpecies * IndividualsPerSpecies
 NumberMaturesPerSpecies <- round(IndividualsPerSpecies * (PercentageMaturePerSpecies / 100))
@@ -242,6 +244,13 @@ if (SingleSpeciesModel == 1) {
 
                 IntitalEpiphyteMatrix[(((numSpecies-1) * IndividualsPerSpecies) + 1):(numSpecies * IndividualsPerSpecies), ] <- IntitalEpiphyteMatrixSub
             }
+            # Create dataframe from matrix (including headers)
+            IntitalEpiphyteMatrix_df <- as.data.frame(IntitalEpiphyteMatrix)
+            names(IntitalEpiphyteMatrix_df) <- ColumnHeaders
+
+            # Save Inital Epiphyte Matrix
+            FileName <- paste("ID_SpeciesP_", numPool, "_Rep_", numReplicates, ".csv", sep="")
+            write.csv(IntitalEpiphyteMatrix_df, file.path(DirectoryIntitalDistribution, FileName), row.names=FALSE)
         }
     }
 }
