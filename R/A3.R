@@ -137,9 +137,9 @@ Microhabitat[, , , 3] <- Microhabitat[, , , 3] * Imax
 ###############################################################################
 # Main loop for Single Species Model
 if (SingleSpeciesModel == 1) {
-    AvailableSurfaceAreaForSpecies <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * NumberSpecies), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], NumberSpecies))
-    PotentialVoxelsForSpecies <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * 3 * NumberSpecies), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], 3, NumberSpecies))
-    PotentialVoxelsForIndividual <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * 3), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], 3))
+    # AvailableSurfaceAreaForSpecies <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * NumberSpecies), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], NumberSpecies))
+    # PotentialVoxelsForSpecies <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * 3 * NumberSpecies), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], 3, NumberSpecies))
+    # PotentialVoxelsForIndividual <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * 3), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], 3))
 
     for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
         print(paste("Number species pool:", numPool))
