@@ -240,6 +240,7 @@ if (SingleSpeciesModel == 1) {
                 IntitalEpiphyteMatrixSub[IntitalEpiphyteMatrixSub[, SizeSpeciesPool[2] + 2] == 0, SizeSpeciesPool[2] + 2] <- 1
                 IntitalEpiphyteMatrixSub[IntitalEpiphyteMatrixSub[, SizeSpeciesPool[2] + 3] == 0, SizeSpeciesPool[2] + 3] <- 1
 
+                IntitalEpiphyteMatrix[(((numSpecies-1) * IndividualsPerSpecies) + 1):(numSpecies * IndividualsPerSpecies), ] <- IntitalEpiphyteMatrixSub
             }
         }
     }
