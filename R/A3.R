@@ -141,6 +141,7 @@ if (SingleSpeciesModel == 1) {
     # PotentialVoxelsForSpecies <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * 3 * NumberSpecies), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], 3, NumberSpecies))
     # PotentialVoxelsForIndividual <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * 3), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], 3))
 
+# Start - Identical for both SingleSpeciesModel 0 and 1
     for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
         print(paste("Number species pool:", numPool))
 
@@ -190,6 +191,7 @@ if (SingleSpeciesModel == 1) {
             # Calculate the surface area needed to support an individual of
             # this size =SurfaceAreaNeededInVoxel
             IntitalEpiphyteMatrix[, SizeSpeciesPool[2] + 7] <- (IntitalEpiphyteMatrix[, SizeSpeciesPool[2] + 4]^(2 / 3)) / SurfaceBiomassScaling
+# End - Identical for both SingleSpeciesModel 0 and 1
 
             # loop over all species
             for (numSpecies in 1:NumberSpecies) {
@@ -251,6 +253,75 @@ if (SingleSpeciesModel == 1) {
             # Save Inital Epiphyte Matrix
             FileName <- paste("ID_SpeciesP_", numPool, "_Rep_", numReplicates, ".csv", sep="")
             write.csv(IntitalEpiphyteMatrix_df, file.path(DirectoryIntitalDistribution, FileName), row.names=FALSE)
+        }
+    }
+}
+
+# Main loop for community model
+if (SingleSpeciesModel == 0) {
+# Start - Identical for both SingleSpeciesModel 0 and 1
+    for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
+        print(paste("Number species pool:", numPool))
+
+        # Laden des species pools
+        species_filename <- paste("SpeciesPool", numPool, ".csv", sep="")
+        Input_file <- file.path(DirectorySpeciesPoolsMain, species_filename)
+        SpeciesPool <- read.csv(Input_file)
+
+        SizeSpeciesPool <- dim(SpeciesPool)
+
+        for (numReplicates in 1:replicatePerSpeciesPool) {
+            print(paste("Number replicate:", numReplicates))
+
+            # Initialize epiphyte matrix
+            IntitalEpiphyteMatrix <- array(rep(0, TotalIndividuals * (SizeSpeciesPool[2] + 8)), dim=c(TotalIndividuals, SizeSpeciesPool[2] + 8))
+
+            # Initialize Available surface area
+            AvailableSurfaceArea <- Microhabitat[, , , 1]  # Matrix to trace the still available surface area per voxel
+
+            # Fill InitialEpiphyteMatrix with species trait informations and the
+            # initial size of each individual
+            for (numSpecies in 1:NumberSpecies) {
+                for (numIndividual in 1:IndividualsPerSpecies) {
+                    idx1 <- ((numSpecies - 1) * IndividualsPerSpecies) + numIndividual
+
+                    # Copy trait data from SpeciesPool to InitalEpiphyteMatrix
+                    IntitalEpiphyteMatrix[idx1, 1:SizeSpeciesPool[2]] <- as.numeric(SpeciesPool[numSpecies, ])
+
+                    # Get size of individual
+                    if (numIndividual <= NumberMaturesPerSpecies) {
+                        SizeOfIndividual <- runif(1, min=SpeciesPool$MassAtMaturity[numSpecies], max=SpeciesPool$MaximumMass[numSpecies])  # Size of mature individuals
+                    } else {
+                        SizeOfIndividual <- runif(1, min=0, max=SpeciesPool$MassAtMaturity[numSpecies])  # Size of juvenile individuals
+                    }
+
+                    # Store initial size of individual
+                    IntitalEpiphyteMatrix[idx1, SizeSpeciesPool[2] + 4] <- SizeOfIndividual
+
+                    # store initial age of individual (age when it would have grown under optimal conditions)
+                    IntitalEpiphyteMatrix[idx1, SizeSpeciesPool[2] + 8] <- round(AgeFunctionOfMass(SpeciesPool$MaximumMass[numSpecies], SizeOfIndividual, SpeciesPool$GrowthRate[numSpecies]))
+                }
+            }
+
+            # Store individual ID for each individual
+            IntitalEpiphyteMatrix[1:TotalIndividuals, SizeSpeciesPool[2] + 6] <- 1:TotalIndividuals
+
+            # Calculate the surface area needed to support an individual of
+            # this size =SurfaceAreaNeededInVoxel
+            IntitalEpiphyteMatrix[, SizeSpeciesPool[2] + 7] <- (IntitalEpiphyteMatrix[, SizeSpeciesPool[2] + 4]^(2 / 3)) / SurfaceBiomassScaling
+# End - Identical for both SingleSpeciesModel 0 and 1
+
+            # loop randomly through all individuals and select suitable
+            # voxel for each. The suitable voxel can either be the voxel
+            # with the highest available surface area (MethodVoxel=1), or a random voxel
+            MethodVoxel <- 0
+            RandNumInd <- sample(seq_len(TotalIndividuals), TotalIndividuals, replace=FALSE)
+
+            for (i in 1:TotalIndividuals) {
+                print(paste("Individual number", i))
+
+                NumIndRand <- RandNumInd[i]
+            }
         }
     }
 }
