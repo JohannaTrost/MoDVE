@@ -26,10 +26,7 @@ DirectoryModelMain <- "path/to/output"
 DirectoryMicrohabitatMain <- "path/to/microhabitat"
 DirectorySpeciesPoolsMain <- "path/to/species"
 
-# Name of microhabitat matrix
-FolderMicrohabitat <- "ForestModel_Best_30x30"
 Replicate <- 0
-MicrohabitatType <- 1  # Define which type of forest the microhabitat belongs to. 1: dynamic forest, 2: static forest, 3: uniform forest
 
 # Choose species pools to use and number of replicates per species pool
 numSpeciesPools <- c(99, 100)  # Start and end number of  species pools
