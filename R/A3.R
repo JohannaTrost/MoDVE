@@ -141,10 +141,6 @@ Microhabitat[, , , 3] <- Microhabitat[, , , 3] * Imax
 ###############################################################################
 # Main loop for Single Species Model
 if (SingleSpeciesModel == 1) {
-    # AvailableSurfaceAreaForSpecies <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * NumberSpecies), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], NumberSpecies))
-    # PotentialVoxelsForSpecies <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * 3 * NumberSpecies), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], 3, NumberSpecies))
-    # PotentialVoxelsForIndividual <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * 3), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], 3))
-
 # Start - Identical for both SingleSpeciesModel 0 and 1
     for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
         print(paste("Number species pool:", numPool))
@@ -375,9 +371,6 @@ if (SingleSpeciesModel == 0) {
                     IntitalEpiphyteMatrix[NumIndRand, SizeSpeciesPool[2] + 3] <- 1
                 }
             }
-            # Summary
-            # IndividualsWithoutVoxels=size(find(IntitalEpiphyteMatrix(:,SizeSpeciesPool(2)+5)==2),1)
-
             # Create dataframe from matrix (including headers)
             IntitalEpiphyteMatrix_df <- as.data.frame(IntitalEpiphyteMatrix)
             names(IntitalEpiphyteMatrix_df) <- ColumnHeaders
