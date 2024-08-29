@@ -18,8 +18,6 @@ config <- parse_config()
 seed <- config$seed
 set.seed(seed)  # integer for fixed seed or NULL for random
 
-# Name of epiphyte model
-# FolderEpiphyteModel='EM_20160213'; %I should think about naming
 SingleSpeciesModel <- config$SingleSpeciesModel  # 1: Single species model, 0: Community model
 
 # Name of species pool

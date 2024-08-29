@@ -140,8 +140,6 @@ Create a file named `config.toml`. Use the following content as a template, repl
 # Comment it out to use a random seed instead
 #seed = 42
 
-# Name of epiphyte model
-# FolderEpiphyteModel='EM_20160213'; %I should think about naming
 SingleSpeciesModel = 0  # 1: Single species model, 0: Community model
 
 # Name of species pool
