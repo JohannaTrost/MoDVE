@@ -1,4 +1,6 @@
 # Create the initial epiphyte distrubution depending on the epiphyte traits and the initial microhabitat matrix
+source("utils.R")
+
 
 # Growth function. Used here to approximate the age of the individuals
 # MassFunctionOfAge=@(MaxMass,K,Age) (MaxMass*(1-exp(-K*(Age))));
@@ -6,49 +8,52 @@ AgeFunctionOfMass <- function(MaxMass, Mass, K) {
     return(-log(1 - (Mass / MaxMass)) / K)
 }
 
+# Parse input configuration file
+config <- parse_config()
+
 ###############################################################################
 # Parameters that need to be specified/checked before running this script
 
 # RNG seed
-seed <- 42
+seed <- config$seed
 set.seed(seed)  # integer for fixed seed or NULL for random
 
 # Name of epiphyte model
 # FolderEpiphyteModel='EM_20160213'; %I should think about naming
-SingleSpeciesModel <- 0  # 1: Single species model, 0: Community model
+SingleSpeciesModel <- config$SingleSpeciesModel  # 1: Single species model, 0: Community model
 
 # Name of species pool
-FolderSpeciesPools <- "SP_Random_IntAgeMat_2_IntRec_70_TraitCorrOn"
+FolderSpeciesPools <- config$FolderSpeciesPools
 
 # Directory where model is save and directory where microhabitat matrices
 # are stored
-DirectoryModelMain <- "path/to/output"
-DirectoryMicrohabitatMain <- "path/to/microhabitat"
-DirectorySpeciesPoolsMain <- "path/to/species"
+DirectoryModelMain <- config$DirectoryModelMain
+DirectoryMicrohabitatMain <- config$DirectoryMicrohabitatMain
+DirectorySpeciesPoolsMain <- config$DirectorySpeciesPoolsMain
 
-Replicate <- 0
+Replicate <- config$Replicate
 
 # Choose species pools to use and number of replicates per species pool
-numSpeciesPools <- c(99, 100)  # Start and end number of  species pools
-replicatePerSpeciesPool <- 1  # Number of replicates per species pool
-TimeStep <- 1  # Time step for which the Initial distribution is generated
+numSpeciesPools <- config$numSpeciesPools  # Start and end number of  species pools
+replicatePerSpeciesPool <- config$replicatePerSpeciesPool  # Number of replicates per species pool
+TimeStep <- config$TimeStep  # Time step for which the Initial distribution is generated
 
 # The suitable voxel can either be the voxel
 # with the highest available surface area (MethodVoxel=1)
 # or a random voxel (MethodVoxel=0)
-MethodVoxel <- 0
+MethodVoxel <- config$MethodVoxel
 
 # Define how many individuals per species are used, and how many of them are initially mature
 # This variable defines if the NumberSpecies are total numbers irrespective
 # of the model area (ScalingPerHa=0), or if the NumberSpecies or given per
 # hectar and are scaled to the model area (ScalingPerHa=1)
-ScalingPerHa <- 0
-IndividualsPerSpecies <- 100
-PercentageMaturePerSpecies <- 50
+ScalingPerHa <- config$ScalingPerHa
+IndividualsPerSpecies <- config$IndividualsPerSpecies
+PercentageMaturePerSpecies <- config$PercentageMaturePerSpecies
 
 # This parameter set the scaling between the
-SurfaceBiomassScaling <- 10000 * 0.01  # cm^2 per m^2
-Imax <- 900
+SurfaceBiomassScaling <- config$SurfaceBiomassScaling  # cm^2 per m^2
+Imax <- config$Imax
 ###############################################################################
 
 ###############################################################################
