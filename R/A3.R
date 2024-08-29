@@ -122,6 +122,10 @@ NumberSpecies <- length(SpeciesPool$SpeciesID)
 
 ColumnHeaders <- c(colnames(SpeciesPool), c("X", "Y", "Z", "Mass", "Status", "IndividualID", "SurfaceAreaOccupied", "Age"))
 
+# Get numbers of columns used in this script
+ColMinLight <- match("MinLight", ColumnHeaders)
+ColMaxLight <- match("MaxLight", ColumnHeaders)
+
 # Get number of total individuals for each replicate
 TotalIndividuals <- NumberSpecies * IndividualsPerSpecies
 NumberMaturesPerSpecies <- round(IndividualsPerSpecies * (PercentageMaturePerSpecies / 100))
@@ -321,7 +325,66 @@ if (SingleSpeciesModel == 0) {
                 print(paste("Individual number", i))
 
                 NumIndRand <- RandNumInd[i]
+
+                # Find all suitable voxels for this individual
+                MinLightInd <- IntitalEpiphyteMatrix[NumIndRand, ColMinLight]
+                MaxLightInd <- IntitalEpiphyteMatrix[NumIndRand, ColMaxLight]
+                AreaNeededInd <- IntitalEpiphyteMatrix[NumIndRand, SizeSpeciesPool[2] + 7]
+
+                # 1. Get the postions of all voxels fullfilling the
+                # requirements of the individual (light+area)
+                tmp1 <- AvailableSurfaceArea[, , ] > AreaNeededInd
+                tmp2 <- Microhabitat[, , , 3] >= MinLightInd
+                tmp3 <- Microhabitat[, , , 3] <= MaxLightInd
+                SuitableVoxels <- which(tmp1 & tmp2 & tmp3)
+
+                # Choose one of the suitable voxels based on the specified
+                # Method (if suitable voxels are available)
+                if (length(SuitableVoxels) > 0) {
+                    if (MethodVoxel == 1) {
+                        MaxVal <- which(AvailableSurfaceArea[SuitableVoxels] == max(AvailableSurfaceArea[SuitableVoxels]))
+                        ids <- arrayInd(SuitableVoxels[MaxVal[1]], dim(AvailableSurfaceArea))
+                        x <- ids[, 1]
+                        y <- ids[, 2]
+                        z <- ids[, 3]
+                    } else if (MethodVoxel == 0) {
+                        RandVal <- sample.int(length(SuitableVoxels), size=1)
+                        ids <- arrayInd(SuitableVoxels[RandVal], dim(AvailableSurfaceArea))
+                        x <- ids[, 1]
+                        y <- ids[, 2]
+                        z <- ids[, 3]
+                    }
+
+                    # Update available Surface Area
+                    AvailableSurfaceArea[x, y, z] <- AvailableSurfaceArea[x, y, z] - AreaNeededInd
+
+                    # Update Inital Epiphyte Matrix
+                    IntitalEpiphyteMatrix[NumIndRand, SizeSpeciesPool[2] + 1] <- x
+                    IntitalEpiphyteMatrix[NumIndRand, SizeSpeciesPool[2] + 2] <- y
+                    IntitalEpiphyteMatrix[NumIndRand, SizeSpeciesPool[2] + 3] <- z
+
+                    # Set status of individual: status=1 => alive
+                    IntitalEpiphyteMatrix[NumIndRand, SizeSpeciesPool[2] + 5] <- 1
+                } else {
+                    # Set status of individual: status=2 =>> dead
+                    IntitalEpiphyteMatrix[NumIndRand, SizeSpeciesPool[2] + 5] <- 2
+
+                    # Set coordinates to 1 (might cause problems in later model if not)
+                    IntitalEpiphyteMatrix[NumIndRand, SizeSpeciesPool[2] + 1] <- 1
+                    IntitalEpiphyteMatrix[NumIndRand, SizeSpeciesPool[2] + 2] <- 1
+                    IntitalEpiphyteMatrix[NumIndRand, SizeSpeciesPool[2] + 3] <- 1
+                }
             }
+            # Summary
+            # IndividualsWithoutVoxels=size(find(IntitalEpiphyteMatrix(:,SizeSpeciesPool(2)+5)==2),1)
+
+            # Create dataframe from matrix (including headers)
+            IntitalEpiphyteMatrix_df <- as.data.frame(IntitalEpiphyteMatrix)
+            names(IntitalEpiphyteMatrix_df) <- ColumnHeaders
+
+            # Save Inital Epiphyte Matrix
+            FileName <- paste("ID_SpeciesP_", numPool, "_Rep_", numReplicates, ".csv", sep="")
+            write.csv(IntitalEpiphyteMatrix_df, file.path(DirectoryIntitalDistribution, FileName), row.names=FALSE)
         }
     }
 }
