@@ -20,9 +20,6 @@ set.seed(seed)  # integer for fixed seed or NULL for random
 
 SingleSpeciesModel <- config$SingleSpeciesModel  # 1: Single species model, 0: Community model
 
-# Name of species pool
-FolderSpeciesPools <- config$FolderSpeciesPools
-
 # Directory where model is save and directory where microhabitat matrices
 # are stored
 DirectoryModelMain <- config$DirectoryModelMain

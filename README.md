@@ -142,9 +142,6 @@ Create a file named `config.toml`. Use the following content as a template, repl
 
 SingleSpeciesModel = 0  # 1: Single species model, 0: Community model
 
-# Name of species pool
-FolderSpeciesPools = "SP_Random_IntAgeMat_2_IntRec_70_TraitCorrOn"
-
 # Directory where model is save and directory where microhabitat matrices
 # are stored
 DirectoryModelMain = "path/to/output"
