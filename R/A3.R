@@ -264,9 +264,7 @@ if (SingleSpeciesModel == 0) {
 # End - Identical for both SingleSpeciesModel 0 and 1
 
             # loop randomly through all individuals and select suitable
-            # voxel for each. The suitable voxel can either be the voxel
-            # with the highest available surface area (MethodVoxel=1), or a random voxel
-            MethodVoxel <- 0
+            # voxel for each.
             RandNumInd <- sample(seq_len(TotalIndividuals), TotalIndividuals, replace=FALSE)
 
             for (i in 1:TotalIndividuals) {
