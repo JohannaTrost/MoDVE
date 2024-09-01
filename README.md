@@ -130,3 +130,51 @@ Run the following command, replacing `path/to/toml` with the actual path to your
 ```bash
 Rscript A2.R -i "path/to/toml"
 ```
+
+## A3
+
+Create a file named `config.toml`. Use the following content as a template, replacing the placeholder values with your data:
+
+```toml
+# Seed for random number generator (integer, optional)
+# Comment it out to use a random seed instead
+#seed = 42
+
+SingleSpeciesModel = 0  # 1: Single species model, 0: Community model
+
+# Directory where model is save and directory where microhabitat matrices
+# are stored
+DirectoryModelMain = "path/to/output"
+DirectoryMicrohabitatMain = "path/to/microhabitat"
+DirectorySpeciesPoolsMain = "path/to/species"
+
+Replicate = 0
+
+# Choose species pools to use and number of replicates per species pool
+numSpeciesPools = [99, 100]  # Start and end number of  species pools
+replicatePerSpeciesPool = 1  # Number of replicates per species pool
+TimeStep = 1  # Time step for which the Initial distribution is generated
+
+# The suitable voxel can either be the voxel
+# with the highest available surface area (MethodVoxel=1)
+# or a random voxel (MethodVoxel=0)
+MethodVoxel = 0
+
+# Define how many individuals per species are used, and how many of them are initially mature
+# This variable defines if the NumberSpecies are total numbers irrespective
+# of the model area (ScalingPerHa=0), or if the NumberSpecies or given per
+# hectar and are scaled to the model area (ScalingPerHa=1)
+ScalingPerHa = 0
+IndividualsPerSpecies = 100
+PercentageMaturePerSpecies = 50
+
+# This parameter set the scaling between the
+SurfaceBiomassScaling = 100  # cm^2 per m^2
+Imax = 900
+```
+
+Run the following command, replacing `path/to/toml` with the actual path to your `config.toml` file:
+
+```bash
+Rscript A3.R -i "path/to/toml"
+```
