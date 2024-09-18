@@ -74,6 +74,48 @@ DirectoryModelResults <- "path/to/output"  # array???
 
 ###############################################################################
 
+compute_prob_matrix_norm <- function(centralPoint, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool) {
+    # Erzeugen der Distanzmatrix mit allen Distanzen zum
+    DistanceMatrix <- array(rep(0, dimX * dimY * dimZ), dim=c(dimX, dimY, dimZ))
+
+    for (i in 1:dimX) {
+        for (j in 1:dimY) {
+            for (k in 1:dimZ) {
+                x1 <- c(i, j, k)
+                x2 <- c(centralPoint[1], centralPoint[2], centralPoint[3])
+                DistanceMatrix[i, j, k] <- sqrt(sum((x1 - x2)^2))  # call to pdist() in the matlab script
+            }
+        }
+    }
+
+    # Erzeugen der Wahrschienlichkeitsmatrix anhand der Distanzmatrix und dem
+    # artspezischien Wert bb aus der Epiphytenmatrix
+    # Google translate: Generating the probability matrix based on the distance
+    # matrix and the species value from the epiphyte matrix
+    # negExp = @(distance,bb) exp(-distance.*bb); %Negative Exponential function
+    ProbabilityMatrix <- array(rep(0, dimX * dimY * dimZ * NumberOfSpecies), dim=c(dimX, dimY, dimZ, NumberOfSpecies))
+    ProbabilityMatrixNormalized <- array(rep(0, dimX * dimY * dimZ * NumberOfSpecies), dim=c(dimX, dimY, dimZ, NumberOfSpecies))
+
+    for (i in 1:NumberOfSpecies) {
+        exponentE <- SpeciesPool$DispersalKernel[i]
+        dispersalAsymmetry <- SpeciesPool$DispersalKernelAsymmetry[i]
+
+        ProbabilityMatrix[, , , i] <- exp(-DistanceMatrix * exponentE)  # call to negExp(DistanceMatrix(:,:,:),exponentE) in matlab
+
+        # Apply dispersal asymmetry (probability to disperse downwards higher than upwards dispersal)
+        # WARNING: The index i in the 4th dimension was missing from the Matlab script and so we were
+        # getting "incorrect number of dimensions" in R. Added it here but need to ask if this is what
+        # it was supposed to do.
+        ProbabilityMatrix[, , centralPoint[3]:dimZ, i] <- ProbabilityMatrix[, , centralPoint[3]:dimZ, i] * ((1 - dispersalAsymmetry) / 0.5)
+        ProbabilityMatrix[, , 1:(centralPoint[3] - 1), i] <- ProbabilityMatrix[, , 1:(centralPoint[3] - 1), i] * (dispersalAsymmetry / 0.5)
+
+        ProbabilityMatrixNormalized[, , , i] <- ProbabilityMatrix[, , , i] / sum(ProbabilityMatrix[, , , i])  # sum(sum(sum(ProbabilityMatrix(:,:,:,i)))) in matlab
+    }
+
+    return(ProbabilityMatrixNormalized)
+}
+
+
 for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
     for (InititalDistNumber in 1:length(FolderInitialDistributions)) {
 
@@ -124,43 +166,11 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
             dimY <- dimPlot[2] * 2 + 1
             dimZ <- dimPlot[3] * 2 + 1
 
-            # Erzeugen der Distanzmatrix mit allen Distanzen zum
             centralPoint <- c(floor(dimX/2) + 1, floor(dimY/2) + 1, floor(dimZ/2) + 1)
-            DistanceMatrix <- array(rep(0, dimX * dimY * dimZ), dim=c(dimX, dimY, dimZ))
 
-            for (i in 1:dimX) {
-                for (j in 1:dimY) {
-                    for (k in 1:dimZ) {
-                        x1 <- c(i, j, k)
-                        x2 <- c(centralPoint[1], centralPoint[2], centralPoint[3])
-                        DistanceMatrix[i, j, k] <- sqrt(sum((x1 - x2)^2))  # call to pdist() in the matlab script
-                    }
-                }
-            }
+            ProbabilityMatrixNormalized <- compute_prob_matrix_norm(centralPoint, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool)
 
-            # Erzeugen der Wahrschienlichkeitsmatrix anhand der Distanzmatrix und dem
-            # artspezischien Wert bb aus der Epiphytenmatrix
-            # Google translate: Generating the probability matrix based on the distance
-            # matrix and the species value from the epiphyte matrix
-            # negExp = @(distance,bb) exp(-distance.*bb); %Negative Exponential function
-            ProbabilityMatrix <- array(rep(0, dimX * dimY * dimZ * NumberOfSpecies), dim=c(dimX, dimY, dimZ, NumberOfSpecies))
-            ProbabilityMatrixNormalized <- array(rep(0, dimX * dimY * dimZ * NumberOfSpecies), dim=c(dimX, dimY, dimZ, NumberOfSpecies))
 
-            for (i in 1:NumberOfSpecies) {
-                exponentE <- SpeciesPool$DispersalKernel[i]
-                dispersalAsymmetry <- SpeciesPool$DispersalKernelAsymmetry[i]
-
-                ProbabilityMatrix[, , , i] <- exp(-DistanceMatrix * exponentE)  # call to negExp(DistanceMatrix(:,:,:),exponentE) in matlab
-
-                # Apply dispersal asymmetry (probability to disperse downwards higher than upwards dispersal)
-                # WARNING: The index i in the 4th dimension was missing from the Matlab script and so we were
-                # getting "incorrect number of dimensions" in R. Added it here but need to ask if this is what
-                # it was supposed to do.
-                ProbabilityMatrix[, , centralPoint[3]:dimZ, i] <- ProbabilityMatrix[, , centralPoint[3]:dimZ, i] * ((1 - dispersalAsymmetry) / 0.5)
-                ProbabilityMatrix[, , 1:(centralPoint[3] - 1), i] <- ProbabilityMatrix[, , 1:(centralPoint[3] - 1), i] * (dispersalAsymmetry / 0.5)
-
-                ProbabilityMatrixNormalized[, , , i] <- ProbabilityMatrix[, , , i] / sum(ProbabilityMatrix[, , , i])  # sum(sum(sum(ProbabilityMatrix(:,:,:,i)))) in matlab
-            }
 
         }
     }
