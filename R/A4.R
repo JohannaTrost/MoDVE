@@ -106,7 +106,9 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
             for (i in 1:dimX) {
                 for (j in 1:dimY) {
                     for (k in 1:dimZ) {
-                        # DistanceMatrix[i, j, k] <- pdist(rbind(c(i, j, k), c(centralPoint[1], centralPoint[2], centralPoint[3])))
+                        x1 <- c(i, j, k)
+                        x2 <- c(centralPoint[1], centralPoint[2], centralPoint[3])
+                        DistanceMatrix[i, j, k] <- sqrt(sum((x1 - x2)^2))  # call to pdist() in the matlab script
                     }
                 }
             }
