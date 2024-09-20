@@ -71,6 +71,7 @@ MortRateMassScaling <- -0.25  # widely used scaling fator
 DirectoryMicrohabitat <- "path/to/A1/output"  # array???
 DirectorySpeciesPools <- "path/to/A2/output"  # array???
 DirectoryModelResults <- "path/to/output"  # array???
+InitialTimeStep <- 1  # Time step for which the Initial distribution is generated in A3
 
 ###############################################################################
 
@@ -222,7 +223,14 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                 # Initialize Matrix where speceies parameters are save
                 SummaryMatrixSpecies <- array(rep(0, timeSteps*NumberOfSpecies * TotalColsSpeciesMatrix), dim=c(timeSteps*NumberOfSpecies, TotalColsSpeciesMatrix))
 
+                for (t in InitialTimeStep:(InitialTimeStep + timeSteps)) {
 
+                    # Check if the stop criterion is met
+                    if (length(which(E$Status == 1)) > StopCriterion) {
+                        break
+                    }
+
+                }
 
             }
 
