@@ -136,9 +136,23 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
         InterceptRecruitment <- TraitRanges[2, 1]
 
 
+        TotalColsSpeciesMatrix <- 22
 
+        # Headers of matrix
+        SummaryMatrixSpeciesHeaders <- c("TimeStep", "SpeciesID", "NumberIndividualsBeginning", "NumberIndividualsEnd",
+            "NumberMatureIndividuals", "NumberRecruits", "NumberRecruitsPotential", "NumberMortalityBranchFall",
+            "NumberMortalityLight", "NumberMortalityCompetition", "NumberMortalityNatural", "PopulationGrowthRate",
+            "PopulationGrowthRateLog", "BirthRate", "DeathRate", "AverageMass", "AverageAge", "MinLight", "MaxLight",
+            "MeanLight", "MinHeight", "MaxHeight", "MeanHeight")
 
+        if (length(SummaryMatrixSpeciesHeaders) != (TotalColsSpeciesMatrix + 1)) {
+            stop("Headers of species matrix do not match with number of columns")
+        }
 
+        # Headers of matrix
+        SummaryMatrixCommunityHeaders <- c("timeStep", "NumberSpeciesBeginning", "NumberSpeciesEnd",
+            "NumberIndividualsBeginning", "NumberIndividualsEnd", "Recruits", "MortalityBranchFall",
+            "MortalityLight", "MortalityCompetition", "MortalityNatural", "BranchSurfaceIndex", "EpiphyteFilling")
 
 
 
@@ -170,7 +184,47 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
 
             ProbabilityMatrixNormalized <- compute_prob_matrix_norm(centralPoint, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool)
 
+            # Main model loop for each replicate
+            for (r in 1:replicatePerSpeciesPool) {
+                # Check if a initial distribution for the species pool exists. If not, move on to the next species pool
+                FileNameInitalDistribution <- file.path(DirectoryModelMain, paste("ID_SpeciesP_", numPool, "_Rep_", r, ".csv", sep=""))
+                if (!file.exists(FileNameInitalDistribution)) {
+                    break
+                }
 
+                # Create Save-Directory for each each replicate/initialDistribution
+                DirectoryModelResultsRun <- file.path(DirectoryModelResults, paste("ID_SpeciesP_", numPool, "_Rep_", r, sep=""))
+                dir.create(DirectoryModelResultsRun, recursive=TRUE)
+
+                # Load initial epiphyte distribution
+                E <- read.csv(FileNameInitalDistribution, sep=",", header=TRUE)  # E for epiphytes
+
+                MaxIndividualID <- nrow(E)  # to trace individual IDs
+
+                # Initialize Matrix where community parameters are save
+                SummaryMatrixCommunity <- data.frame(matrix(0.0, nrow=timeSteps, ncol=length(SummaryMatrixCommunityHeaders)))
+                colnames(SummaryMatrixCommunity) <- SummaryMatrixCommunityHeaders
+
+                # Load microhabitat matrix if a uniform or static forest is simulated (only needs to be loaded once an not envery timestep)
+                if (MicrohabitatType == 2 || MicrohabitatType == 3) {
+                    Microhabitat <- readRDS(file.path(DirectoryMicrohabitat, "MicrohabitatMatrix1.rds"))
+                    Microhabitat[, , , 3] <- Microhabitat[, , , 3] * Imax  # In the microhabitat matrix, the realtive light extinction is stored: convert to light values in ?mol*m-2*s-1
+
+                    d1 <- dim(Microhabitat)[1]
+                    d2 <- dim(Microhabitat)[2]
+                    d3 <- dim(Microhabitat)[3]
+                    pot_habitat <- array(rep(0, d1 * d2 * d3), dim=c(d1, d2, d3))
+                }
+
+                # Initialize matrices where the aggregated information on species level are saved
+                SummaryMatrixSpeciesSave <- array(rep(0, timeSteps*NumberOfSpecies * TotalColsSpeciesMatrix), dim=c(timeSteps*NumberOfSpecies, TotalColsSpeciesMatrix))
+
+                # Initialize Matrix where speceies parameters are save
+                SummaryMatrixSpecies <- array(rep(0, timeSteps*NumberOfSpecies * TotalColsSpeciesMatrix), dim=c(timeSteps*NumberOfSpecies, TotalColsSpeciesMatrix))
+
+
+
+            }
 
         }
     }
