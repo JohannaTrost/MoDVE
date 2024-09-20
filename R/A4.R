@@ -42,7 +42,7 @@ FolderInitialDistributions <- c("SP_Random_IA_2_IR_70_TimeS_1")  # unused?
 DirectoryModelMain <- "path/to/A3/output"
 
 # Model parameters
-timeSteps <- 40  # Model for timeSteps beginning at the time step given by the initial distribution
+timeSteps <- 39  # Model for timeSteps beginning at the time step given by the initial distribution
 
 # Density of individuals per ha at which to stop the simulationof the community and
 # move to the next replicate (to prevent exploding communities)
