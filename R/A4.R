@@ -230,6 +230,78 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                         break
                     }
 
+                    ###############################################################################
+                    # 1. Dispersal
+
+                    # Load microhabitat matrix for specific timeStep if dynamic forest is simulated
+                    if (MicrohabitatType == 1) {
+                        Microhabitat <- readRDS(file.path(DirectoryMicrohabitat, paste("MicrohabitatMatrix", t, ".rds", sep="")))
+                        Microhabitat[, , , 3] <- Microhabitat[, , , 3] * Imax  # In the microhabitat matrix, the realtive light extinction is stored: convert to light values in ?mol*m-2*s-1
+                        d1 <- dim(Microhabitat)[1]
+                        d2 <- dim(Microhabitat)[2]
+                        d3 <- dim(Microhabitat)[3]
+                        pot_habitat <- array(rep(0, d1 * d2 * d3), dim=c(d1, d2, d3))
+                    }
+
+                    # Store number of individuals at beginning of time step
+                    # NOTE: We can probably move this outside the timestep loop
+                    # We need to first check whether the columns from E that we use
+                    # change or not.
+                    IntialNumberIndividuals <- array(rep(0, NumberOfSpecies))
+                    for (g in 1:NumberOfSpecies) {
+                        # Count indices where SpeciesID is g and Status is 1
+                        IntialNumberIndividuals[g] <- length(which(E$SpeciesID == g & E$Status == 1))
+                    }
+                    IntialNumberIndividualsTotal <- length(which(E$Status == 1))
+                    InitialNumberSpecies <- length(unique(E$SpeciesID[E$Status == 1]))
+                    NumberRecruitsPerSpecies <- array(rep(0, NumberOfSpecies))
+
+                    # Calculate free surface area per voxel
+                    AvailableSurfaceArea <- Microhabitat[, , , 1]
+                    for (i in seq_len(nrow(E))) {
+                        SurfaceAreaNeededInVoxel <- E$Mass[i]^(2/3) / SurfaceBiomassScaling
+                        AvailableSurfaceArea[E$X[i], E$Y[i], E$Z[i]] <- max(0, AvailableSurfaceArea[E$X[i], E$Y[i], E$Z[i]] - SurfaceAreaNeededInVoxel)
+                    }
+
+                    # Check if there are species left (~isempty(E) in matlab)
+                    if (nrow(E) > 0) {
+                        unique_species <- unique(E$SpeciesID)  # list with species IDs of all present species
+
+                        # loop over all species
+                        for (i in seq_len(length(unique_species))) {
+                            # Generate initially empty matrix to store the probabilities for recruitment
+                            ProbabilityMatrixPerSpecies <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3]), dim=c(dimPlot[1], dimPlot[2], dimPlot[3]))
+
+                            # Matrix containing all mature individuals of one species
+                            MatureIndividulsPerSpecies <- E[E$SpeciesID == unique_species[i] & E$Mass >= E$MassAtMaturity, ]
+
+                            # ~isempty(MatureIndividulsPerSpecies) in matlab
+                            if (nrow(MatureIndividulsPerSpecies) > 0) {
+
+                                # Probability matrix for each species: Depending on the position of each mature individual,
+                                # the total probability for the species is calculated.
+                                # The second part of the equation accounts for the actual size of the individual
+                                # in relation to the maximum size for which the recruitment per individual is defined
+                                for (j in seq_len(nrow(MatureIndividulsPerSpecies))) {
+                                    # ProbabilityMatrixPerSpecies=ProbabilityMatrixPerSpecies+...
+                                    # ProbabilityMatrixNormalized(centralPoint(1)-MatureIndividulsPerSpecies(j,ColX)+...
+                                    # 1:centralPoint(1)-MatureIndividulsPerSpecies(j,ColX)+dimPlot(1),...
+                                    # centralPoint(2)-MatureIndividulsPerSpecies(j,ColY)+...
+                                    # 1:centralPoint(2)-MatureIndividulsPerSpecies(j,ColY)+dimPlot(2),...
+                                    # centralPoint(3)-MatureIndividulsPerSpecies(j,ColZ)+...
+                                    # 1:centralPoint(3)-MatureIndividulsPerSpecies(j,ColZ)+dimPlot(3),MatureIndividulsPerSpecies(j,ColSpeciesID)).*...
+                                    # (((InterceptRecruitment+(SlopeRecruitment*MatureIndividulsPerSpecies(j,ColMass)))*...
+                                    # MatureIndividulsPerSpecies(j,ColRecruitmentInvestmentRel))*...
+                                    # (1+(MatureIndividulsPerSpecies(j,ColRecruitmentInc)*...
+                                    # ((MatureIndividulsPerSpecies(j,ColMass)-MatureIndividulsPerSpecies(j,ColMassAtMaturity))/...
+                                    # (MatureIndividulsPerSpecies(j,ColMaximumMass)-MatureIndividulsPerSpecies(j,ColMassAtMaturity))))));
+                                }
+
+                            }
+
+                        }
+                    }
+
                 }
 
             }
