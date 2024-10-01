@@ -320,7 +320,7 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                                     factor3 <- 1 + (MatureIndividulsPerSpecies$RecruitmentInc[j] * factor2)
 
                                     ProbabilityMatrixPerSpecies <- ProbabilityMatrixPerSpecies + ProbabilityMatrixNormalized[idx1, idx2, idx3, idx4] * factor1 * factor3
-                        }
+                                }
 
                                 # Store potential normalized number of recruits in SummaryMatrixSpecies
                                 SummaryMatrixSpecies[((i-1) * timeSteps) + t, ColSNumberRecruitsPotential] <- sum(ProbabilityMatrixPerSpecies)  # potential recruitment / sum(sum(sum(ProbabilityMatrixPerSpecies))) in matlab
@@ -367,12 +367,19 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                                     E[is.na(E)] <- 0  # convert all NA to 0 so that the R script matches the Matlab
 
                                     MaxIndividualID <- MaxIndividualID + length(xInd)
-                    }
+                                }
+                            }
                         }
-                    }
                     }
 
                     NumberRecruits <- length(which(E$Status == 1)) - IntialNumberIndividualsTotal
+                    ###############################################################################
+
+                    # Unclear what this line in the Matlab script is supposed to do.
+                    # From what I understand, the first column in E ("SpeciesID") takes non-zero values
+                    # only, so I think that E(:,1)==0 will always be empty.
+                    # E(E(:,1)==0,:)=[]; %in rare case, some individuals with only zeros are creates, which is wrong. This is to prevent the script to stop.
+                    ###############################################################################
 
                 }
 
