@@ -137,7 +137,31 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
         InterceptRecruitment <- TraitRanges[2, 1]
 
 
-        TotalColsSpeciesMatrix <- 22
+        # Following the columns in the species matrix refering to a trait or
+        # variable. This is handy if the epiphyte matrix changes
+        ColSSpeciesID <- 1
+        ColSNumberIndividualsBeginning <- 2
+        ColSNumberIndividualsEnd <- 3
+        ColSNumberMatureIndividuals <- 4
+        ColSNumberRecruits <- 5
+        ColSNumberRecruitsPotential <- 6
+        ColSNumberMortalityBranchFall <- 7
+        ColSNumberMortalityLight <- 8
+        ColSNumberMortalityCompetition <- 9
+        ColSNumberMortalityNatural <- 10
+        ColSNumberPopulationGrowthRate <- 11
+        ColSNumberPopulationGrowthRateLog <- 12
+        ColSNumberBirthRate <- 13
+        ColSNumberDeathRate <- 14
+        ColSAverageSize <- 15
+        ColSAverageAge <- 16
+        ColSMinLight <- 17
+        ColSMaxLight <- 18
+        ColSMeanLight <- 19
+        ColSMinHeight <- 20
+        ColSMaxHeight <- 21
+        ColSMeanHeight <- 22
+        TotalColsSpeciesMatrix <- ColSMeanHeight
 
         # Headers of matrix
         SummaryMatrixSpeciesHeaders <- c("TimeStep", "SpeciesID", "NumberIndividualsBeginning", "NumberIndividualsEnd",
@@ -283,24 +307,69 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                                 # The second part of the equation accounts for the actual size of the individual
                                 # in relation to the maximum size for which the recruitment per individual is defined
                                 for (j in seq_len(nrow(MatureIndividulsPerSpecies))) {
-                                    # ProbabilityMatrixPerSpecies=ProbabilityMatrixPerSpecies+...
-                                    # ProbabilityMatrixNormalized(centralPoint(1)-MatureIndividulsPerSpecies(j,ColX)+...
-                                    # 1:centralPoint(1)-MatureIndividulsPerSpecies(j,ColX)+dimPlot(1),...
-                                    # centralPoint(2)-MatureIndividulsPerSpecies(j,ColY)+...
-                                    # 1:centralPoint(2)-MatureIndividulsPerSpecies(j,ColY)+dimPlot(2),...
-                                    # centralPoint(3)-MatureIndividulsPerSpecies(j,ColZ)+...
-                                    # 1:centralPoint(3)-MatureIndividulsPerSpecies(j,ColZ)+dimPlot(3),MatureIndividulsPerSpecies(j,ColSpeciesID)).*...
-                                    # (((InterceptRecruitment+(SlopeRecruitment*MatureIndividulsPerSpecies(j,ColMass)))*...
-                                    # MatureIndividulsPerSpecies(j,ColRecruitmentInvestmentRel))*...
-                                    # (1+(MatureIndividulsPerSpecies(j,ColRecruitmentInc)*...
-                                    # ((MatureIndividulsPerSpecies(j,ColMass)-MatureIndividulsPerSpecies(j,ColMassAtMaturity))/...
-                                    # (MatureIndividulsPerSpecies(j,ColMaximumMass)-MatureIndividulsPerSpecies(j,ColMassAtMaturity))))));
-                                }
+                                    idx1 <- seq(from=centralPoint[1] - MatureIndividulsPerSpecies$X[j] + 1, to=centralPoint[1] - MatureIndividulsPerSpecies$X[j] + dimPlot[1], by=1)
+                                    idx2 <- seq(from=centralPoint[2] - MatureIndividulsPerSpecies$Y[j] + 1, to=centralPoint[2] - MatureIndividulsPerSpecies$Y[j] + dimPlot[2], by=1)
+                                    idx3 <- seq(from=centralPoint[3] - MatureIndividulsPerSpecies$Z[j] + 1, to=centralPoint[3] - MatureIndividulsPerSpecies$Z[j] + dimPlot[3], by=1)
+                                    idx4 <- MatureIndividulsPerSpecies$SpeciesID[j]
 
-                            }
+                                    factor1 <- (InterceptRecruitment + (SlopeRecruitment * MatureIndividulsPerSpecies$Mass[j])) * MatureIndividulsPerSpecies$RecruitmentInvestmentRel[j]
+                                    factor2 <- (MatureIndividulsPerSpecies$Mass[j] - MatureIndividulsPerSpecies$MassAtMaturity[j]) / (MatureIndividulsPerSpecies$MaximumMass[j] - MatureIndividulsPerSpecies$MassAtMaturity[j])
+                                    factor3 <- 1 + (MatureIndividulsPerSpecies$RecruitmentInc[j] * factor2)
 
+                                    ProbabilityMatrixPerSpecies <- ProbabilityMatrixPerSpecies + ProbabilityMatrixNormalized[idx1, idx2, idx3, idx4] * factor1 * factor3
+                        }
+
+                                # Store potential normalized number of recruits in SummaryMatrixSpecies
+                                SummaryMatrixSpecies[((i-1) * timeSteps) + t, ColSNumberRecruitsPotential] <- sum(ProbabilityMatrixPerSpecies)  # potential recruitment / sum(sum(sum(ProbabilityMatrixPerSpecies))) in matlab
+
+                                # Matix containing all voxel for which the light requirements are fulfilled
+                                pot_habitat <- ifelse((Microhabitat[, , , 3] >= MatureIndividulsPerSpecies$MinLight[1]) & (Microhabitat[, , , 3] <= MatureIndividulsPerSpecies$MaxLight[1]), 1, 0)
+
+                                # Final probabiliy matrix for new recruits
+                                probability_recruits <- ProbabilityMatrixPerSpecies * pot_habitat * AvailableSurfaceArea
+
+                                # Calculate number of recuits based on final probability matrix
+                                Recruits <- array(rpois(length(probability_recruits), probability_recruits), dim=dim(probability_recruits))  # poissrnd(probability_recruits) in matlab
+
+                                # Add new recruits to epiphyte matrix
+                                num_recruits <- sum(Recruits)  # sum(sum(sum(Recruits))) in matlab
+                                NumberRecruitsPerSpecies[unique_species[i]] <- num_recruits
+
+                                if (num_recruits > 0) {
+                                    ids <- arrayInd(which(Recruits > 0), dim(Recruits))
+                                    xInd <- ids[, 1]
+                                    yInd <- ids[, 2]
+                                    zInd <- ids[, 3]
+
+                                    while (num_recruits > length(xInd)) {
+                                        tmp_ids <- arrayInd(which(Recruits > 0), dim(Recruits))
+                                        Recruits[tmp_ids] = Recruits[tmp_ids] - 1
+
+                                        tmp_ids <- arrayInd(which(Recruits > 0), dim(Recruits))
+                                        xInd <- append(xInd, tmp_ids[, 1])
+                                        yInd <- append(yInd, tmp_ids[, 2])
+                                        zInd <- append(zInd, tmp_ids[, 3])
+                                    }
+                                    vec_recruits <- seq(from=nrow(E) + 1, to=nrow(E) + length(xInd), by=1)
+
+                                    # Copy species information to Epiphyte matrix
+                                    E[vec_recruits, names(SpeciesPool)] <- SpeciesPool[unique_species[i], ]
+                                    E$X[vec_recruits] <- xInd
+                                    E$Y[vec_recruits] <- yInd
+                                    E$Z[vec_recruits] <- zInd
+                                    E$Mass[vec_recruits] <- 0  # Initial size
+                                    E$Status[vec_recruits] <- 1  # status 1:alive
+                                    E$IndividualID[vec_recruits] <- seq(from=MaxIndividualID + 1, to=MaxIndividualID + length(xInd), by=1)  # individual ID
+
+                                    E[is.na(E)] <- 0  # convert all NA to 0 so that the R script matches the Matlab
+
+                                    MaxIndividualID <- MaxIndividualID + length(xInd)
+                    }
                         }
                     }
+                    }
+
+                    NumberRecruits <- length(which(E$Status == 1)) - IntialNumberIndividualsTotal
 
                 }
 
