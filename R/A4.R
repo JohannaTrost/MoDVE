@@ -224,6 +224,9 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                 # Load initial epiphyte distribution
                 E <- read.csv(FileNameInitalDistribution, sep=",", header=TRUE)  # E for epiphytes
 
+                # Add column to E for additional information
+                E[, c("TotalSurfaceInVoxel", "LightInVoxel", "SurfaceLossInVoxel")] <- 0
+
                 MaxIndividualID <- nrow(E)  # to trace individual IDs
 
                 # Initialize Matrix where community parameters are save
