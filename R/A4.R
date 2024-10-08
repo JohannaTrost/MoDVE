@@ -29,6 +29,8 @@
 
 ###############################################################################
 # Parameters that need to be specified/checked before running this script
+seed <- 42
+set.seed(seed)
 
 # Folder of epiphyte models (these models are simulated in this order)
 # The names of the models in the Folder "EpiphyteModels" are needed here
