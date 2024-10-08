@@ -326,6 +326,8 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                                 SummaryMatrixSpecies[((i-1) * timeSteps) + t, ColSNumberRecruitsPotential] <- sum(ProbabilityMatrixPerSpecies)  # potential recruitment / sum(sum(sum(ProbabilityMatrixPerSpecies))) in matlab
 
                                 # Matix containing all voxel for which the light requirements are fulfilled
+                                # We use the first row from MatureIndividulsPerSpecies. Since its elements have the same SpeciesID
+                                # then the MinLight and MaxLight is the same for all rows.
                                 pot_habitat <- ifelse((Microhabitat[, , , 3] >= MatureIndividulsPerSpecies$MinLight[1]) & (Microhabitat[, , , 3] <= MatureIndividulsPerSpecies$MaxLight[1]), 1, 0)
 
                                 # Final probabiliy matrix for new recruits
