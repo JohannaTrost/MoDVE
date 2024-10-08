@@ -433,6 +433,42 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                         }
                     }
 
+                    # Mortality due to competition for space
+
+                    # Calculate total surface area occupied by epiphytes per voxel
+                    TotalSurfaceArePerVoxelOccupied <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3]), dim=c(dimPlot[1], dimPlot[2], dimPlot[3]))
+                    for (w in seq(from=1, to=nrow(E), by=1)) {
+                        if (E$Status[w] == 1) {
+                            TotalSurfaceArePerVoxelOccupied[E$X[w], E$Y[w], E$Z[w]] <- TotalSurfaceArePerVoxelOccupied[E$X[w], E$Y[w], E$Z[w]] + E$SurfaceAreaOccupied[w]
+                        }
+                    }
+
+                    # Indices of voxel where total area of epiphytes exeeds the available surface area
+                    ind_tmp <- arrayInd(which(TotalSurfaceArePerVoxelOccupied > Microhabitat[, , , 1]), dim(TotalSurfaceArePerVoxelOccupied))
+                    IndX <- ind_tmp[, 1]
+                    IndY <- ind_tmp[, 2]
+                    IndZ <- ind_tmp[, 3]
+
+                    for (i in seq(from=1, to=length(IndX), by=1)) {
+                        # Get all epis in voxel
+                        EpisInVoxel <- E[E$X == IndX[i] & E$Y == IndY[i] & E$Z == IndZ[i] & E$Status == 1, ]
+
+                        # Sort them by size (CompetitionMethod=1) or randomly (CompetitionMethod=2)
+                        if (CompetitionMethod == 1) {
+                             EpisInVoxel <- EpisInVoxel[order(EpisInVoxel$SurfaceAreaOccupied, decreasing=TRUE), ]
+                        } else if (CompetitionMethod == 2) {
+                             EpisInVoxel <- EpisInVoxel[sample(seq_len(nrow(EpisInVoxel))), ]
+                        }
+
+                        CumulativeSumOfSurface <- cumsum(EpisInVoxel$SurfaceAreaOccupied)
+                        CumulativeSumOfSurfaceSum <- length(which(CumulativeSumOfSurface <= Microhabitat[IndX[i], IndY[i], IndZ[i], 1]))
+
+                        if (CumulativeSumOfSurfaceSum < nrow(EpisInVoxel)) {
+                            E[is.element(E$IndividualID, EpisInVoxel[(CumulativeSumOfSurfaceSum + 1):nrow(EpisInVoxel), "IndividualID"]), "Status"] <- 2
+                        }
+                    }
+                    ###############################################################################
+
                 }
 
             }
