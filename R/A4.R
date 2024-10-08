@@ -116,6 +116,19 @@ compute_prob_matrix_norm <- function(centralPoint, dimX, dimY, dimZ, NumberOfSpe
     return(ProbabilityMatrixNormalized)
 }
 
+# Functions used in the model
+
+# Bertalanffy Growth
+GrowthRate <- function(MaxMass, Mass, K) {
+    return(K * (MaxMass - Mass))
+}
+
+# Parabolic Optimum function
+Parabol <- function(a, b, c, x) {
+    return((a * x^2) + (b * x) + c)
+}
+
+###############################################################################
 
 for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
     for (InititalDistNumber in 1:length(FolderInitialDistributions)) {
@@ -381,6 +394,25 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                     # From what I understand, the first column in E ("SpeciesID") takes non-zero values
                     # only, so I think that E(:,1)==0 will always be empty.
                     # E(E(:,1)==0,:)=[]; %in rare case, some individuals with only zeros are creates, which is wrong. This is to prevent the script to stop.
+
+                    ###############################################################################
+                    # Growth
+                    for (i in seq(from=1, to=nrow(E), by=1)) {
+                        # maybe it is faster if I do not use the if statement => speed testing
+                        if (E$Status[i] == 1) {
+                            tmp1 <- GrowthRate(E$MaximumMass[i], E$Mass[i], E$GrowthRate[i])
+                            tmp2 <- Parabol(E$LightResponseA[i], E$LightResponseB[i], E$LightResponseC[i], Microhabitat[E$X[i], E$Y[i], E$Z[i], 3])
+                            E$Mass[i] <- E$Mass[i] + max(0, tmp1 * tmp2)
+                        }
+
+                        # Add information about the voxel to the epiphyte matrix
+                        E$SurfaceAreaOccupied[i] <- (E$Mass[i]^(2/3)) / SurfaceBiomassScaling
+                        E$TotalSurfaceInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], 1]  # Total surface in voxel
+                        E$SurfaceLossInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]  # Percentage surface loss in this year
+                        E$LightInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], 3]  # Light conditions in voxel
+                    }
+                    ###############################################################################
+
                     ###############################################################################
 
                 }
