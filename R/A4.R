@@ -469,6 +469,16 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                     }
                     ###############################################################################
 
+                    # Increase age
+                    E$Age <- E$Age + 1
+
+                    # Save number of mortality event
+                    MortalityCompetition <- length(which(E$Status == 2))
+                    MortalityBranchFall <- length(which(E$Status == 3))
+                    MortalityLight <- length(which(E$Status == 4))
+                    MortalityNatural <- length(which(E$Status == 5))
+
+                    ###############################################################################
                 }
 
             }
