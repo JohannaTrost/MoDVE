@@ -260,7 +260,7 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                 }
 
                 # Initialize matrices where the aggregated information on species level are saved
-                SummaryMatrixSpeciesSave <- array(rep(0, timeSteps*NumberOfSpecies * TotalColsSpeciesMatrix), dim=c(timeSteps*NumberOfSpecies, TotalColsSpeciesMatrix))
+                SummaryMatrixSpeciesSave <- array(rep(0, timeSteps*NumberOfSpecies * (TotalColsSpeciesMatrix + 1)), dim=c(timeSteps*NumberOfSpecies, TotalColsSpeciesMatrix + 1))
 
                 # Initialize Matrix where speceies parameters are save
                 SummaryMatrixSpecies <- array(rep(0, timeSteps*NumberOfSpecies * TotalColsSpeciesMatrix), dim=c(timeSteps*NumberOfSpecies, TotalColsSpeciesMatrix))
@@ -481,10 +481,53 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                     MortalityNatural <- length(which(E$Status == 5))
 
                     ###############################################################################
+
+                    # Store information in SummaryMatrixSpecies (summary over time for each species
+                    for (numSpecies in seq(from=1, to=NumberOfSpecies, by=1)) {
+                        SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSSpeciesID] <- numSpecies
+                        SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberIndividualsBeginning] <- IntialNumberIndividuals[numSpecies]
+                        SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberIndividualsEnd] <- sum(E$Status == 1 & E$SpeciesID == numSpecies, na.rm=TRUE)
+                        SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberMatureIndividuals] <- sum(E$Status == 1 & E$SpeciesID == numSpecies & E$Mass >= E$MassAtMaturity, na.rm=TRUE)
+                        SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberRecruits] <- NumberRecruitsPerSpecies[numSpecies]
+                        SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberMortalityBranchFall] <- sum(E$Status == 3 & E$SpeciesID == numSpecies, na.rm=TRUE)
+                        SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberMortalityLight] <- sum(E$Status == 4 & E$SpeciesID == numSpecies, na.rm=TRUE)
+                        SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberMortalityCompetition] <- sum(E$Status == 2 & E$SpeciesID == numSpecies, na.rm=TRUE)
+                        SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberMortalityNatural] <- sum(E$Status == 5 & E$SpeciesID == numSpecies, na.rm=TRUE)
+
+                        if (sum(E$Status == 1 & E$SpeciesID == numSpecies, na.rm=TRUE) > 0 && IntialNumberIndividuals[numSpecies] > 0) {
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberPopulationGrowthRate] <- SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberIndividualsEnd] / SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberIndividualsBeginning]
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberPopulationGrowthRateLog] <- log(SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberPopulationGrowthRate])
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberBirthRate] <- NumberRecruitsPerSpecies[numSpecies] / IntialNumberIndividuals[numSpecies]
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberDeathRate] <- (sum(E$Status == 3 & E$SpeciesID == numSpecies, na.rm=TRUE) + sum(E$Status == 4 & E$SpeciesID == numSpecies, na.rm=TRUE) + sum(E$Status == 2 & E$SpeciesID == numSpecies, na.rm=TRUE) + sum(E$Status == 5 & E$SpeciesID == numSpecies, na.rm=TRUE)) / IntialNumberIndividuals[numSpecies]
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSAverageSize] <- mean(E$Mass[E$SpeciesID == numSpecies])
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSAverageAge] <- mean(E$Age[E$SpeciesID == numSpecies])
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMinLight] <- min(E$LightInVoxel[E$SpeciesID == numSpecies])
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMaxLight] <- max(E$LightInVoxel[E$SpeciesID == numSpecies])
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMeanLight] <- mean(E$LightInVoxel[E$SpeciesID == numSpecies])
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMinHeight] <- min(E$Z[E$SpeciesID == numSpecies])
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMaxHeight] <- max(E$Z[E$SpeciesID == numSpecies])
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMeanHeight] <- mean(E$Z[E$SpeciesID == numSpecies])
+                        } else {
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberPopulationGrowthRate] <- NaN
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberPopulationGrowthRateLog] <- NaN
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberBirthRate] <- NaN
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberDeathRate] <- NaN
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSAverageSize] <- NaN
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSAverageAge] <- NaN
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMinLight] <- NaN
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMaxLight] <- NaN
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMeanLight] <- NaN
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMinHeight] <- NaN
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMaxHeight] <- NaN
+                            SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMeanHeight] <- NaN
+                        }
+
+                        SummaryMatrixSpeciesSave[((numSpecies-1) * timeSteps) + t, 1] <- t
+                        SummaryMatrixSpeciesSave[((numSpecies-1) * timeSteps) + t, 2:(TotalColsSpeciesMatrix + 1)] <- SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ]
+                    }
+
                 }
-
             }
-
         }
     }
 }
