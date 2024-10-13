@@ -542,6 +542,18 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                     SummaryMatrixCommunity$EpiphyteFilling[t] <- (sum(E$Mass^(2/3)) / SurfaceBiomassScaling) / sum(Microhabitat[, , , 1])  # EpiphyteFilling
                     ###############################################################################
 
+                    # Command window information
+                    print("--------------------------------------------")
+                    print(paste("Time step", t, sep=" "))
+                    print(paste("Number of individuals", SummaryMatrixCommunity$NumberIndividualsEnd[t], sep=" "))
+                    print(paste("Number of species", SummaryMatrixCommunity$NumberSpeciesEnd[t], sep=" "))
+                    print(paste("Number of recruits", NumberRecruits, sep=" "))
+                    print(paste("MortalityBranchFall", MortalityBranchFall, sep=" "))
+                    print(paste("MortalityLight", MortalityLight, sep=" "))
+                    print(paste("MortalityCompetition", MortalityCompetition, sep=" "))
+                    print(paste("MortalityNatural", MortalityNatural, sep=" "))
+                    ###############################################################################
+
                 }
             }
         }
