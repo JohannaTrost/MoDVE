@@ -526,6 +526,22 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                         SummaryMatrixSpeciesSave[((numSpecies-1) * timeSteps) + t, 2:(TotalColsSpeciesMatrix + 1)] <- SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ]
                     }
 
+                    ###############################################################################
+                    # Store information in SummaryMatrixCommunity
+                    SummaryMatrixCommunity$timeStep[t] <- t  # TimeStep
+                    SummaryMatrixCommunity$NumberSpeciesBeginning[t] <- InitialNumberSpecies  # NumberOfSpecies at beginning
+                    SummaryMatrixCommunity$NumberSpeciesEnd[t] <- length(unique(E$SpeciesID[E$Status == 1]))  # NumberOfSpecies at end
+                    SummaryMatrixCommunity$NumberIndividualsBeginning[t] <- IntialNumberIndividualsTotal  # NumberIndividuals at beginning
+                    SummaryMatrixCommunity$NumberIndividualsEnd[t] <- length(which(E$Status == 1))  # NumberIndividuals at end
+                    SummaryMatrixCommunity$Recruits[t] <- NumberRecruits  # Recruits
+                    SummaryMatrixCommunity$MortalityBranchFall[t] <- MortalityBranchFall  # MortalityBranchFall
+                    SummaryMatrixCommunity$MortalityLight[t] <- MortalityLight  # MortalityLight
+                    SummaryMatrixCommunity$MortalityCompetition[t] <- MortalityCompetition  # MortalityCompetition
+                    SummaryMatrixCommunity$MortalityNatural[t] <- MortalityNatural  # MortalityNatural
+                    SummaryMatrixCommunity$BranchSurfaceIndex[t] <- sum(Microhabitat[, , , 1]) / (dimPlot[1] * dimPlot[2])  # BranchSurfaceIndex
+                    SummaryMatrixCommunity$EpiphyteFilling[t] <- (sum(E$Mass^(2/3)) / SurfaceBiomassScaling) / sum(Microhabitat[, , , 1])  # EpiphyteFilling
+                    ###############################################################################
+
                 }
             }
         }
