@@ -1,24 +1,3 @@
-###############################################################################
-# START DELETEME
-
-# MicrohabitatNumber = 1
-# InititalDistNumber = 1
-
-# FolderEpiphyteModel = "ForestModel_Best_30x30_Rep0"
-# FolderInitialDistribution = "SP_Random_IA_2_IR_70_TimeS_1"
-# FolderInitialDistributionsTemp = "SP_Random_IA_2_IR_70_TimeS_1"
-# InitialTimeStepTemp = "1"  # SP_Random_IA_2_IR_70_TimeS_1 <-- that 1
-# InitialTimeStep = 1
-
-# FolderEpiphyteModelMain = "DynamicForests"
-# FolderModelType = "CommunityModels"
-
-# DirectoryEpiphyteModel = "INPUT/CommunityModels/DynamicForests/ForestModel_Best_30x30_Rep0"
-# DirectoryIntitalDistribution = [DirectoryEpiphyteModel]/IniDist/SP_Random_IA_2_IR_70_TimeS_1"
-
-# END DELETEME
-###############################################################################
-
 # Suppress warnings
 # options(warn=-1)
 
