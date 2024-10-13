@@ -554,6 +554,22 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                     print(paste("MortalityNatural", MortalityNatural, sep=" "))
                     ###############################################################################
 
+                    # Saving
+                    # Save Epiphyte matrix for every time step
+                    ColumsToSave <- c("SpeciesID", "IndividualID", "Status", "Mass", "Age", "X", "Y", "Z", "TotalSurfaceInVoxel", "SurfaceLossInVoxel", "LightInVoxel")
+                    write.csv(E[, ColumsToSave], file.path(DirectoryModelResultsRun, paste("IndividualMatrixTimeStep", t, ".csv", sep="")), row.names=FALSE)
+
+                    # Create dataframe from matrix (including headers)
+                    SummaryMatrixSpeciesSave_df <- as.data.frame(SummaryMatrixSpeciesSave)
+                    names(SummaryMatrixSpeciesSave_df) <- SummaryMatrixSpeciesHeaders
+
+                    # Save SummaryMatrixSpecies for every time step
+                    write.csv(SummaryMatrixSpeciesSave_df, file.path(DirectoryModelResultsRun, "SpeciesSummary.csv"), row.names=FALSE)
+
+                    # Save SummaryMatrixCommunity for every time step (overwrite old one)
+                    write.csv(SummaryMatrixCommunity, file.path(DirectoryModelResultsRun, "CommunitySummary.csv"), row.names=FALSE)
+                    ###############################################################################
+
                 }
             }
         }
