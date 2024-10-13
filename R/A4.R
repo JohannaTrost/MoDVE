@@ -451,7 +451,7 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                     IndY <- ind_tmp[, 2]
                     IndZ <- ind_tmp[, 3]
 
-                    for (i in seq(from=1, to=length(IndX), by=1)) {
+                    for (i in seq_len(length(IndX))) {
                         # Get all epis in voxel
                         EpisInVoxel <- E[E$X == IndX[i] & E$Y == IndY[i] & E$Z == IndZ[i] & E$Status == 1, ]
 
