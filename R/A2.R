@@ -12,7 +12,7 @@ config <- parse_config()
 # ============================================================================
 # RNG seed
 seed <- config$seed
-set.seed(seed)  # integer for fixed seed or NULL for random
+set.seed(seed, kind="Mersenne-Twister")  # integer for fixed seed or NULL for random
 
 # Parameters that need to be specified/checked before running this script
 MainOutputDirectory <- config$MainOutputDirectory
