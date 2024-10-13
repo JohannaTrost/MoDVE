@@ -570,6 +570,8 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                     write.csv(SummaryMatrixCommunity, file.path(DirectoryModelResultsRun, "CommunitySummary.csv"), row.names=FALSE)
                     ###############################################################################
 
+                    # Remove dead individuals from Epimatrix
+                    E <- E[E$Status <= 1, ]  # Remove rows where Status > 1
                 }
             }
         }
