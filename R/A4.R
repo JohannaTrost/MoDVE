@@ -4,56 +4,66 @@
 
 # Epiphte IBM - Model
 # This model simulates the development of the entire epiphyte community
+source("utils.R")
 
+# Parse input configuration file
+config <- parse_config()
 
 ###############################################################################
 # Parameters that need to be specified/checked before running this script
-seed <- 42
+
+# RNG seed
+seed <- config$seed
 set.seed(seed, kind="Mersenne-Twister")
+
+# Input directories
+DirectoryMicrohabitat <- config$DirectoryMicrohabitat
+DirectorySpeciesPools <- config$DirectorySpeciesPools
+DirectoryModelMain <- config$DirectoryModelMain
+
+# Output directory
+DirectoryModelResults <- config$DirectoryModelResults
+
+MicrohabitatType <- config$MicrohabitatType  # Define which type of forest the microhabitat belongs to. 1: dynamic forest, 2: static forest, 3: uniform forest
+
+# Model parameters
+timeSteps <- config$timeSteps  # Model for timeSteps beginning at the time step given by the initial distribution
+
+# Density of individuals per ha at which to stop the simulationof the community and
+# move to the next replicate (to prevent exploding communities)
+StopCriterionHa <- config$StopCriterionHa  # Individuals per ha
+
+# Choose species pools to use and number of replicates per species pool
+numSpeciesPools <- config$numSpeciesPools  # Start and end number of  species pools (if the species pools do not exist, they are automatically skipped)
+replicatePerSpeciesPool <- config$replicatePerSpeciesPool  # Number of replicates per species pool  (if the replicates do not exist, they are automatically skipped)
+
+SurfaceBiomassScaling <- config$SurfaceBiomassScaling  # cm^2 per m^2
+Imax <- config$Imax  # maximum light above canopy
+
+# Competition Methods; defines which individuals are removed in voxels which
+# are entirely filled. 1:size (small individuals are outcompetet by larger ones); 2:random competition
+CompetitionMethod <- config$CompetitionMethod
+
+# Mortality method (complete random or scaling with mass according to metabolic theory);
+MortalityMethod <- config$MortalityMethod  # 0: random mortality; 1: scaling with mass to the exponent -1/4
+MortRateRandom <- config$MortRateRandom
+MortRateMass <- config$MortRateMass
+MortRateMassScaling <- config$MortRateMassScaling  # widely used scaling fator
+
+InitialTimeStep <- config$InitialTimeStep  # Time step for which the Initial distribution is generated in A3
+
+###############################################################################
+
+# Check if we can delete the following
+# Choose initial distributions (have to be located in 'FolderEpiphyteModel\IniDist\')
+FolderInitialDistributions <- c("SP_Random_IA_2_IR_70_TimeS_1")  # unused?
 
 # Folder of epiphyte models (these models are simulated in this order)
 # The names of the models in the Folder "EpiphyteModels" are needed here
 FolderEpiphyteModels <- c("ForestModel_Best_30x30_Rep0")  # unused?
-MicrohabitatType <- 1  # Define which type of forest the microhabitat belongs to. 1: dynamic forest, 2: static forest, 3: uniform forest
-SingleSpeciesModel <- 0  # 1: Single species model, 0: Community model
 
-# Choose initial distributions (have to be located in 'FolderEpiphyteModel\IniDist\')
-FolderInitialDistributions <- c("SP_Random_IA_2_IR_70_TimeS_1")  # unused?
-
-DirectoryModelMain <- "path/to/A3/output"
-
-# Model parameters
-timeSteps <- 39  # Model for timeSteps beginning at the time step given by the initial distribution
-
-# Density of individuals per ha at which to stop the simulationof the community and
-# move to the next replicate (to prevent exploding communities)
-StopCriterionHa <- 3000000  # Individuals per ha
-
-# Choose species pools to use and number of replicates per species pool
-numSpeciesPools <- c(99, 100)  # Start and end number of  species pools (if the species pools do not exist, they are automatically skipped)
-replicatePerSpeciesPool <- 1  # Number of replicates per species pool  (if the replicates do not exist, they are automatically skipped)
-
-SurfaceBiomassScaling <- 100  # cm^2 per m^2
-Imax <- 900  # maximum light above canopy
-
-# Competition Methods; defines which individuals are removed in voxels which
-# are entirely filled. 1:size (small individuals are outcompetet by larger ones); 2:random competition
-CompetitionMethod <- 1
-
-# Mortality method (complete random or scaling with mass according to metabolic theory);
-MortalityMethod <- 1  # 0: random mortality; 1: scaling with mass to the exponent -1/4
-MortRateRandom <- 0.1
-MortRateMass <- 0.1
-MortRateMassScaling <- -0.25  # widely used scaling fator
-
-
-# NEW
-# Directories where microhabitat and species pool is saved
-DirectoryMicrohabitat <- "path/to/A1/output"  # array???
-DirectorySpeciesPools <- "path/to/A2/output"  # array???
-DirectoryModelResults <- "path/to/output"  # array???
-InitialTimeStep <- 1  # Time step for which the Initial distribution is generated in A3
-
+# 1: Single species model, 0: Community model
+SingleSpeciesModel <- 0  # unused?
 ###############################################################################
 
 compute_prob_matrix_norm <- function(centralPoint, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool) {
@@ -121,7 +131,7 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
         dimPlot <- readRDS(file.path(DirectoryMicrohabitat, "dimPlot.rds"))
 
         # Set StopCriterion for this simulation
-        StopCriterion <- StopCriterionHa * dimPlot[1] * dimPlot[2] * 0.0001
+        StopCriterion <- 0.0001 * StopCriterionHa * dimPlot[1] * dimPlot[2]
 
         # Load TraitRanges (ranges used to create the species pool)
         FileTraitRanges <- file.path(DirectorySpeciesPools, "TraitRanges.csv")

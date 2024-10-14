@@ -178,3 +178,55 @@ Run the following command, replacing `path/to/toml` with the actual path to your
 ```bash
 Rscript A3.R -i "path/to/toml"
 ```
+
+## A4
+
+Create a file named `config.toml`. Use the following content as a template, replacing the placeholder values with your data:
+
+```toml
+# Seed for random number generator (integer, optional)
+# Comment it out to use a random seed instead
+# seed = 42
+
+# Input directories
+DirectoryMicrohabitat = "path/to/A1/output"
+DirectorySpeciesPools = "path/to/A2/output"
+DirectoryModelMain = "path/to/A3/output"
+
+# Output directory
+DirectoryModelResults = "path/to/output"
+
+MicrohabitatType = 1  # Define which type of forest the microhabitat belongs to. 1: dynamic forest, 2: static forest, 3: uniform forest
+
+# Model parameters
+timeSteps = 39  # Model for timeSteps beginning at the time step given by the initial distribution
+
+# Density of individuals per ha at which to stop the simulationof the community and
+# move to the next replicate (to prevent exploding communities)
+StopCriterionHa = 3000000  # Individuals per ha
+
+# Choose species pools to use and number of replicates per species pool
+numSpeciesPools = [99, 100]  # Start and end number of  species pools (if the species pools do not exist, they are automatically skipped)
+replicatePerSpeciesPool = 1  # Number of replicates per species pool  (if the replicates do not exist, they are automatically skipped)
+
+SurfaceBiomassScaling = 100  # cm^2 per m^2
+Imax = 900  # maximum light above canopy
+
+# Competition Methods; defines which individuals are removed in voxels which
+# are entirely filled. 1:size (small individuals are outcompetet by larger ones); 2:random competition
+CompetitionMethod = 1
+
+# Mortality method (complete random or scaling with mass according to metabolic theory);
+MortalityMethod = 1  # 0: random mortality; 1: scaling with mass to the exponent -1/4
+MortRateRandom = 0.1
+MortRateMass = 0.1
+MortRateMassScaling = -0.25  # widely used scaling fator
+
+InitialTimeStep = 1  # Time step for which the Initial distribution is generated in A3
+```
+
+Run the following command, replacing `path/to/toml` with the actual path to your `config.toml` file:
+
+```bash
+Rscript A4.R -i "path/to/toml"
+```
