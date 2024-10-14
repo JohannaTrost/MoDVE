@@ -20,7 +20,6 @@ DirectoryModelMain <- "path/to/A3/output"
 DirectoryModelResults <- "path/to/output"
 
 MicrohabitatType <- 1  # Define which type of forest the microhabitat belongs to. 1: dynamic forest, 2: static forest, 3: uniform forest
-SingleSpeciesModel <- 0  # 1: Single species model, 0: Community model
 
 # Model parameters
 timeSteps <- 39  # Model for timeSteps beginning at the time step given by the initial distribution
@@ -57,6 +56,9 @@ FolderInitialDistributions <- c("SP_Random_IA_2_IR_70_TimeS_1")  # unused?
 # Folder of epiphyte models (these models are simulated in this order)
 # The names of the models in the Folder "EpiphyteModels" are needed here
 FolderEpiphyteModels <- c("ForestModel_Best_30x30_Rep0")  # unused?
+
+# 1: Single species model, 0: Community model
+SingleSpeciesModel <- 0  # unused?
 ###############################################################################
 
 compute_prob_matrix_norm <- function(centralPoint, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool) {
