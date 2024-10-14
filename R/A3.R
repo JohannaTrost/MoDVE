@@ -16,7 +16,7 @@ config <- parse_config()
 
 # RNG seed
 seed <- config$seed
-set.seed(seed)  # integer for fixed seed or NULL for random
+set.seed(seed, kind="Mersenne-Twister")  # integer for fixed seed or NULL for random
 
 SingleSpeciesModel <- config$SingleSpeciesModel  # 1: Single species model, 0: Community model
 
