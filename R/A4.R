@@ -131,7 +131,7 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
         dimPlot <- readRDS(file.path(DirectoryMicrohabitat, "dimPlot.rds"))
 
         # Set StopCriterion for this simulation
-        StopCriterion <- StopCriterionHa * dimPlot[1] * dimPlot[2] * 0.0001
+        StopCriterion <- 0.0001 * StopCriterionHa * dimPlot[1] * dimPlot[2]
 
         # Load TraitRanges (ranges used to create the species pool)
         FileTraitRanges <- file.path(DirectorySpeciesPools, "TraitRanges.csv")
