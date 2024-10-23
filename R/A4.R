@@ -410,9 +410,10 @@ for (MicrohabitatNumber in 1:length(FolderEpiphyteModels)) {
                         if (E$Status[i] == 1) {
                             urand <- runif(1, min=0, max=1)  # In Matlab rand() is called repeatedly (during the comparisons) which produces different random number every time
 
-                            # The following comparison can fail because Microhabitat contains NaNs in some entries
-                            # and in R a comparison with a NaN returns NA, not a boolean.
-                            if (urand < Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]) {  # Mortality due to branch fall
+                            # The following comparison would fail without the is.nan check,
+                            # because Microhabitat contains NaNs in some entries and
+                            # in R a comparison with a NaN returns NA, not a boolean.
+                            if (!is.nan(Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]) && urand < Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]) {  # Mortality due to branch fall
                                 E$Status[i] <- 3
                             } else if (Microhabitat[E$X[i], E$Y[i], E$Z[i], 3] < E$MinLight[i] | Microhabitat[E$X[i], E$Y[i], E$Z[i], 3] > E$MaxLight[i]) {  # Mortality due to changing light conditions
                                 E$Status[i] <- 4
