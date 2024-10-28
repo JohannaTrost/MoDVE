@@ -373,7 +373,7 @@ for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
 
             ###############################################################################
             # Growth
-            for (i in seq(from=1, to=nrow(E), by=1)) {
+            for (i in seq_len(nrow(E))) {
                 # maybe it is faster if I do not use the if statement => speed testing
                 if (E$Status[i] == 1) {
                     tmp1 <- GrowthRate(E$MaximumMass[i], E$Mass[i], E$GrowthRate[i])
@@ -391,7 +391,7 @@ for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
 
             ###############################################################################
             # Mortality
-            for (i in seq(from=1, to=nrow(E), by=1)) {
+            for (i in seq_len(nrow(E))) {
                 if (E$Status[i] == 1) {
                     urand <- runif(1, min=0, max=1)  # In Matlab rand() is called repeatedly (during the comparisons) which produces different random number every time
 
@@ -413,7 +413,7 @@ for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
 
             # Calculate total surface area occupied by epiphytes per voxel
             TotalSurfaceArePerVoxelOccupied <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3]), dim=c(dimPlot[1], dimPlot[2], dimPlot[3]))
-            for (w in seq(from=1, to=nrow(E), by=1)) {
+            for (w in seq_len(nrow(E))) {
                 if (E$Status[w] == 1) {
                     TotalSurfaceArePerVoxelOccupied[E$X[w], E$Y[w], E$Z[w]] <- TotalSurfaceArePerVoxelOccupied[E$X[w], E$Y[w], E$Z[w]] + E$SurfaceAreaOccupied[w]
                 }
@@ -457,7 +457,7 @@ for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
             ###############################################################################
 
             # Store information in SummaryMatrixSpecies (summary over time for each species
-            for (numSpecies in seq(from=1, to=NumberOfSpecies, by=1)) {
+            for (numSpecies in seq_len(NumberOfSpecies)) {
                 SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSSpeciesID] <- numSpecies
                 SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberIndividualsBeginning] <- IntialNumberIndividuals[numSpecies]
                 SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberIndividualsEnd] <- sum(E$Status == 1 & E$SpeciesID == numSpecies, na.rm=TRUE)
