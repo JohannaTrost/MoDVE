@@ -397,7 +397,7 @@ for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
                     # The following comparison would fail without the is.nan check,
                     # because Microhabitat contains NaNs in some entries and
                     # in R a comparison with a NaN returns NA, not a boolean.
-                    # Note: We can runif repeatedly intentionally. See Issue #16 on Github
+                    # Note: We call runif repeatedly intentionally. See Issue #16 on Github
                     if (!is.nan(Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]) && runif(1, min=0, max=1) < Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]) {  # Mortality due to branch fall
                         E$Status[i] <- 3
                     } else if (Microhabitat[E$X[i], E$Y[i], E$Z[i], 3] < E$MinLight[i] | Microhabitat[E$X[i], E$Y[i], E$Z[i], 3] > E$MaxLight[i]) {  # Mortality due to changing light conditions
