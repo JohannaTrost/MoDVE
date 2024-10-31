@@ -27,4 +27,7 @@ jobs:
           pwd
           ls ${{ github.workspace }}
           Rscript --version
+          cd R/
+          pwd
+          ls
       - run: echo "🍏 This job's status is ${{ job.status }}."
