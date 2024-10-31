@@ -29,13 +29,9 @@ jobs:
           cd ${{ github.workspace }}
           cd R/
           Rscript A1.R -i tests/config_a1.toml
-          ls -lh tests/data/
-          ls -lh tests/data/output_a1/
-      # - name: List files in the repository
-      #   run: |
-      #     pwd
-      #     ls ${{ github.workspace }}
-      #     Rscript --version
-      #     cd R/
-      #     pwd
-      #     ls
+
+      - name: Test A1 output
+        run: |
+          cd ${{ github.workspace }}
+          cd R/
+          Rscript tests/test_a1.R
