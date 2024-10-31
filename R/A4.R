@@ -393,18 +393,18 @@ for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
             # Mortality
             for (i in seq_len(nrow(E))) {
                 if (E$Status[i] == 1) {
-                    urand <- runif(1, min=0, max=1)  # In Matlab rand() is called repeatedly (during the comparisons) which produces different random number every time
 
                     # The following comparison would fail without the is.nan check,
                     # because Microhabitat contains NaNs in some entries and
                     # in R a comparison with a NaN returns NA, not a boolean.
-                    if (!is.nan(Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]) && urand < Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]) {  # Mortality due to branch fall
+                    # Note: We call runif repeatedly intentionally. See Issue #16 on Github
+                    if (!is.nan(Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]) && runif(1, min=0, max=1) < Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]) {  # Mortality due to branch fall
                         E$Status[i] <- 3
                     } else if (Microhabitat[E$X[i], E$Y[i], E$Z[i], 3] < E$MinLight[i] | Microhabitat[E$X[i], E$Y[i], E$Z[i], 3] > E$MaxLight[i]) {  # Mortality due to changing light conditions
                         E$Status[i] <- 4
-                    } else if (MortalityMethod == 0 && urand < MortRateRandom) {  # Natural mortality rate
+                    } else if (MortalityMethod == 0 && runif(1, min=0, max=1) < MortRateRandom) {  # Natural mortality rate
                         E$Status[i] <- 5
-                    } else if (MortalityMethod == 1 && urand < (MortRateMass * (E$Mass[i]^MortRateMassScaling))) {
+                    } else if (MortalityMethod == 1 && runif(1, min=0, max=1) < (MortRateMass * (E$Mass[i]^MortRateMassScaling))) {
                         E$Status[i] <- 5
                     }
                 }
