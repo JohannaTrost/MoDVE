@@ -24,11 +24,18 @@ jobs:
           Rscript -e 'install.packages("optparse", repos="http://cran.uk.r-project.org")'
           Rscript -e 'install.packages("configr", repos="http://cran.uk.r-project.org")'
 
-      - name: List files in the repository
+      - name: Run A1 script
         run: |
-          pwd
-          ls ${{ github.workspace }}
-          Rscript --version
+          cd ${{ github.workspace }}
           cd R/
-          pwd
-          ls
+          Rscript A1.R -i tests/config_a1.toml
+          ls -lh tests/data/
+          ls -lh tests/data/output_a1/
+      # - name: List files in the repository
+      #   run: |
+      #     pwd
+      #     ls ${{ github.workspace }}
+      #     Rscript --version
+      #     cd R/
+      #     pwd
+      #     ls
