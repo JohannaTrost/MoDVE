@@ -35,3 +35,15 @@ jobs:
           cd ${{ github.workspace }}
           cd R/
           Rscript tests/test_a1.R
+
+      - name: Run A2 script
+        run: |
+          cd ${{ github.workspace }}
+          cd R/
+          Rscript A2.R -i tests/config_a2.toml
+
+      - name: Test A2 output
+        run: |
+          cd ${{ github.workspace }}
+          cd R/
+          Rscript tests/test_a2.R
