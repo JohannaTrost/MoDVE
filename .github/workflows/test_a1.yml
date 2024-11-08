@@ -1,4 +1,4 @@
-name: Test A1 R script
+name: Test R scripts
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
     - main
 
 jobs:
-  test-a1:
+  setup-and-test:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -24,26 +24,23 @@ jobs:
           Rscript -e 'install.packages("optparse", repos="http://cran.uk.r-project.org")'
           Rscript -e 'install.packages("configr", repos="http://cran.uk.r-project.org")'
 
-      - name: Run A1 script
+      - name: Run and test A1 script
         run: |
           cd ${{ github.workspace }}
           cd R/
           Rscript A1.R -i tests/config_a1.toml
-
-      - name: Test A1 output
-        run: |
-          cd ${{ github.workspace }}
-          cd R/
           Rscript tests/test_a1.R
 
-      - name: Run A2 script
+      - name: Run and test A2 script
         run: |
           cd ${{ github.workspace }}
           cd R/
           Rscript A2.R -i tests/config_a2.toml
+          Rscript tests/test_a2.R
 
-      - name: Test A2 output
+      - name: Run and test A3 script
         run: |
           cd ${{ github.workspace }}
           cd R/
-          Rscript tests/test_a2.R
+          Rscript A3.R -i tests/config_a3.toml
+          Rscript tests/test_a3.R
