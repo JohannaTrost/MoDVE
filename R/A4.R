@@ -239,7 +239,7 @@ for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
         # Initialize Matrix where speceies parameters are save
         SummaryMatrixSpecies <- array(rep(0, (timeSteps*NumberOfSpecies) * TotalColsSpeciesMatrix), dim=c(timeSteps*NumberOfSpecies, TotalColsSpeciesMatrix))
 
-        for (t in InitialTimeStep:(InitialTimeStep + timeSteps)) {
+        for (t in seq_len(timeSteps)) {
 
             # Check if the stop criterion is met
             if (length(which(E$Status == 1)) > StopCriterion) {
@@ -251,7 +251,7 @@ for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
 
             # Load microhabitat matrix for specific timeStep if dynamic forest is simulated
             if (MicrohabitatType == 1) {
-                Microhabitat <- readRDS(file.path(DirectoryMicrohabitat, paste("MicrohabitatMatrix", t, ".rds", sep="")))
+                Microhabitat <- readRDS(file.path(DirectoryMicrohabitat, paste("MicrohabitatMatrix", InitialTimeStep + t - 1, ".rds", sep="")))
                 Microhabitat[, , , 3] <- Microhabitat[, , , 3] * Imax  # In the microhabitat matrix, the realtive light extinction is stored: convert to light values in ?mol*m-2*s-1
                 d1 <- dim(Microhabitat)[1]
                 d2 <- dim(Microhabitat)[2]
@@ -497,13 +497,13 @@ for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
                     SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMeanHeight] <- NaN
                 }
 
-                SummaryMatrixSpeciesSave[((numSpecies-1) * timeSteps) + t, 1] <- t
+                SummaryMatrixSpeciesSave[((numSpecies-1) * timeSteps) + t, 1] <- InitialTimeStep + t - 1
                 SummaryMatrixSpeciesSave[((numSpecies-1) * timeSteps) + t, 2:(TotalColsSpeciesMatrix + 1)] <- SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ]
             }
 
             ###############################################################################
             # Store information in SummaryMatrixCommunity
-            SummaryMatrixCommunity$timeStep[t] <- t  # TimeStep
+            SummaryMatrixCommunity$timeStep[t] <- InitialTimeStep + t - 1  # TimeStep
             SummaryMatrixCommunity$NumberSpeciesBeginning[t] <- InitialNumberSpecies  # NumberOfSpecies at beginning
             SummaryMatrixCommunity$NumberSpeciesEnd[t] <- length(unique(E$SpeciesID[E$Status == 1]))  # NumberOfSpecies at end
             SummaryMatrixCommunity$NumberIndividualsBeginning[t] <- IntialNumberIndividualsTotal  # NumberIndividuals at beginning
@@ -519,7 +519,7 @@ for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
 
             # Command window information
             print("--------------------------------------------")
-            print(paste("Time step", t, sep=" "))
+            print(paste("Time step", InitialTimeStep + t - 1, sep=" "))
             print(paste("Number of individuals", SummaryMatrixCommunity$NumberIndividualsEnd[t], sep=" "))
             print(paste("Number of species", SummaryMatrixCommunity$NumberSpeciesEnd[t], sep=" "))
             print(paste("Number of recruits", NumberRecruits, sep=" "))
@@ -532,7 +532,7 @@ for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
             # Saving
             # Save Epiphyte matrix for every time step
             ColumsToSave <- c("SpeciesID", "IndividualID", "Status", "Mass", "Age", "X", "Y", "Z", "TotalSurfaceInVoxel", "SurfaceLossInVoxel", "LightInVoxel")
-            write.csv(E[, ColumsToSave], file.path(DirectoryModelResultsRun, paste("IndividualMatrixTimeStep", t, ".csv", sep="")), row.names=FALSE)
+            write.csv(E[, ColumsToSave], file.path(DirectoryModelResultsRun, paste("IndividualMatrixTimeStep", InitialTimeStep + t - 1, ".csv", sep="")), row.names=FALSE)
 
             # Create dataframe from matrix (including headers)
             SummaryMatrixSpeciesSave_df <- as.data.frame(SummaryMatrixSpeciesSave)
