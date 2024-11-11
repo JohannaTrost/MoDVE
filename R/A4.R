@@ -219,7 +219,7 @@ for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
         MaxIndividualID <- nrow(E)  # to trace individual IDs
 
         # Initialize Matrix where community parameters are save
-        SummaryMatrixCommunity <- data.frame(matrix(0.0, nrow=timeSteps + 1, ncol=length(SummaryMatrixCommunityHeaders)))
+        SummaryMatrixCommunity <- data.frame(matrix(0.0, nrow=timeSteps, ncol=length(SummaryMatrixCommunityHeaders)))
         colnames(SummaryMatrixCommunity) <- SummaryMatrixCommunityHeaders
 
         # Load microhabitat matrix if a uniform or static forest is simulated (only needs to be loaded once an not envery timestep)
@@ -234,10 +234,10 @@ for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
         }
 
         # Initialize matrices where the aggregated information on species level are saved
-        SummaryMatrixSpeciesSave <- array(rep(0, (timeSteps*NumberOfSpecies + 1) * (TotalColsSpeciesMatrix + 1)), dim=c(timeSteps*NumberOfSpecies + 1, TotalColsSpeciesMatrix + 1))
+        SummaryMatrixSpeciesSave <- array(rep(0, (timeSteps*NumberOfSpecies) * (TotalColsSpeciesMatrix + 1)), dim=c(timeSteps*NumberOfSpecies, TotalColsSpeciesMatrix + 1))
 
         # Initialize Matrix where speceies parameters are save
-        SummaryMatrixSpecies <- array(rep(0, (timeSteps*NumberOfSpecies + 1) * TotalColsSpeciesMatrix), dim=c(timeSteps*NumberOfSpecies + 1, TotalColsSpeciesMatrix))
+        SummaryMatrixSpecies <- array(rep(0, (timeSteps*NumberOfSpecies) * TotalColsSpeciesMatrix), dim=c(timeSteps*NumberOfSpecies, TotalColsSpeciesMatrix))
 
         for (t in InitialTimeStep:(InitialTimeStep + timeSteps)) {
 
