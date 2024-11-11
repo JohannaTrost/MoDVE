@@ -26,8 +26,6 @@ DirectoryModelMain <- config$DirectoryModelMain
 DirectoryMicrohabitatMain <- config$DirectoryMicrohabitatMain
 DirectorySpeciesPoolsMain <- config$DirectorySpeciesPoolsMain
 
-Replicate <- config$Replicate
-
 # Choose species pools to use and number of replicates per species pool
 numSpeciesPools <- config$numSpeciesPools  # Start and end number of  species pools
 replicatePerSpeciesPool <- config$replicatePerSpeciesPool  # Number of replicates per species pool

@@ -148,8 +148,6 @@ DirectoryModelMain = "path/to/output"
 DirectoryMicrohabitatMain = "path/to/microhabitat"
 DirectorySpeciesPoolsMain = "path/to/species"
 
-Replicate = 0
-
 # Choose species pools to use and number of replicates per species pool
 numSpeciesPools = [99, 100]  # Start and end number of  species pools
 replicatePerSpeciesPool = 1  # Number of replicates per species pool
