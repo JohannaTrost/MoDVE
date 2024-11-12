@@ -62,7 +62,7 @@ int_seq <- function(from, to, by=1L) {
     #' int_seq(from = 4, to = 4, by = -1)    # [1] 4
     #' int_seq(from = 4, to = 5, by = -1)    # integer(0)
     #' int_seq(from = 2, to = 1, by = 2)     # integer(0)
-
+    #'
     #' # Invalid usage:
     #' int_seq(from = 2.5, to = 5, by = 1)   # Error: Fractional part in 'from', 'to' or 'by'
     #' int_seq(from = 2, to = 5, by = 0)     # Error: 'by' must be non-zero
@@ -72,7 +72,7 @@ int_seq <- function(from, to, by=1L) {
         stop("int_seq: Fractional part in 'from', 'to' or 'by'")
     }
 
-    # Stop if `by`` is zero
+    # Stop if `by` is zero
     if (by == 0) {
         stop("int_seq: 'by' must be non-zero")
     }
