@@ -105,7 +105,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
         timeStepEnd <- timeStepStart + 1
     }
 
-    for (i in timeStepStart:(timeStepEnd-1)) {
+    for (i in int_seq(from=timeStepStart, to=timeStepEnd-1, by=1)) {
         print(paste("Time step", i))
         start_time <- Sys.time()
 
@@ -150,7 +150,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
         TotalDead <- length(locDeadSegments)
 
         # Loop through all shoots and calculate total surface area, surface loss and weighted angles
-        for (j in 1:nrow(ShootsBegin)) {
+        for (j in seq_len(nrow(ShootsBegin))) {
 
             # Get voxel the shoot is intersecting with
             # Here, we are using a simple approach because the shoots are
@@ -163,13 +163,13 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
             numY <- sum((UniqueY[2] - UniqueY[1]) > 0, na.rm=TRUE) + 1
             numZ <- sum((UniqueZ[2] - UniqueZ[1]) > 0, na.rm=TRUE) + 1
 
-            for (x in 1:numX) {
+            for (x in seq_len(numX)) {
                 xid <- UniqueX[x]
 
-                for (y in 1:numY) {
+                for (y in seq_len(numY)) {
                     yid <- UniqueY[y]
 
-                    for (z in 1:numZ) {
+                    for (z in seq_len(numZ)) {
                         zid <- UniqueZ[z]
 
                         # Calculate new total surface area per voxel
@@ -219,7 +219,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
         CounterDead <- 1
         TotalDead <- length(locDeadSegments)
 
-        for (j in 1:nrow(TrunksBegin)) {
+        for (j in seq_len(nrow(TrunksBegin))) {
             X <- ceiling(TrunksBegin$x[j])  # X voxel of tree
             Y <- ceiling(TrunksBegin$y[j])  # Y voxel of tree
             Height <- TrunksBegin$height[j]  # Height of tree
@@ -227,7 +227,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 
             SurfaceAreaTotal <- 0
 
-            for (Z in rev(1:ceiling(Height))) {
+            for (Z in rev(seq_len(ceiling(Height)))) {
 
                 # Calculate new total surface area per voxel (for trunks)
                 if (TotalSurfaceAreaOpt == 1) {
@@ -277,14 +277,14 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
             Voxels$z <- Voxels$z + 1
 
             # Store information on leaf area in matrix
-            for (j in 1:nrow(Voxels)) {
+            for (j in seq_len(nrow(Voxels))) {
                 Mat_leafArea_per_cell[Voxels$x[j], Voxels$y[j], Voxels$z[j]] <- Voxels$leafarea[j]
             }
 
             # Calculate single column light conditions based on leaf area distribution
-            for (x in 1:dimX) {
-                for (y in 1:dimY) {
-                    for (z in 1:dimZ) {
+            for (x in seq_len(dimX)) {
+                for (y in seq_len(dimY)) {
+                    for (z in seq_len(dimZ)) {
                         Mat_light_per_cell[x, y, z] <- exp(-kL * (sum(Mat_leafArea_per_cell[x, y, z:dimZ]) / 10000))
                     }
                 }
@@ -295,14 +295,14 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 
             # Calculate final light conditions by accounting for the light
             # conditions in adjacent voxels
-            for (x in corridor:(dimX-corridor)) {
-                for (y in corridor:(dimY-corridor)) {
-                    for (z in 1:dimZ) {
+            for (x in int_seq(from=corridor, to=dimX-corridor, by=1)) {
+                for (y in int_seq(from=corridor, to=dimY-corridor, by=1)) {
+                    for (z in seq_len(dimZ)) {
                         TotalContribution <- 0
 
                         # loop over ring surrounding the focal voxel
-                        for (xx in (x-DistVoxToConsider):(x+DistVoxToConsider)) {
-                            for (yy in (y-DistVoxToConsider):(y+DistVoxToConsider)) {
+                        for (xx in int_seq(from=x-DistVoxToConsider, to=x+DistVoxToConsider, by=1)) {
+                            for (yy in int_seq(from=y-DistVoxToConsider, to=y+DistVoxToConsider, by=1)) {
                                 Ring <- max(abs(xx - x), abs(yy - y))
                                 Contribution <- (1 / (DistVoxToConsider + 1)) * (1 / max(1, (Ring * 8))) * Mat_light_per_cell_Copy[xx, yy, z]
                                 TotalContribution <- TotalContribution + Contribution
@@ -323,13 +323,17 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
         # possibly only 5 dimensions to save space
         Microhabitat <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * MatrixDimension), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], MatrixDimension))
 
+        idx1 <- int_seq(from=corridor+1, to=dimX-corridor, by=1)
+        idx2 <- int_seq(from=corridor+1, to=dimY-corridor, by=1)
+        idx3 <- int_seq(from=1, to=dimZ, by=1)
+
         if (TotalSurfaceAreaOpt == 1) {
-            Microhabitat[ , , , 1] <- Mat_surface_per_cell[(corridor+1):(dimX-corridor), (corridor+1):(dimY-corridor), 1:dimZ]
+            Microhabitat[ , , , 1] <- Mat_surface_per_cell[idx1, idx2, idx3]
         }
 
         if (SurfaceAreaLossOpt == 1) {
             if (MicrohabitatType == 1) {
-                Microhabitat[ , , , 2] <- Mat_surfaceloss_per_cell[(corridor+1):(dimX-corridor), (corridor+1):(dimY-corridor), 1:dimZ] / Mat_surface_per_cell[(corridor+1):(dimX-corridor), (corridor+1):(dimY-corridor), 1:dimZ]
+                Microhabitat[ , , , 2] <- Mat_surfaceloss_per_cell[idx1, idx2, idx3] / Mat_surface_per_cell[idx1, idx2, idx3]
             }
 
             if (MicrohabitatType == 2) {
@@ -338,11 +342,11 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
         }
 
         if (LightConditionsOpt == 1) {
-            Microhabitat[ , , , 3] <- Mat_light_per_cell[(corridor+1):(dimX-corridor), (corridor+1):(dimY-corridor), 1:dimZ]
+            Microhabitat[ , , , 3] <- Mat_light_per_cell[idx1, idx2, idx3]
         }
 
         if (AverageWeightedAngles == 1) {
-            Microhabitat[ , , , 4] <- Mat_weighted_angle_per_cell[(corridor+1):(dimX-corridor), (corridor+1):(dimY-corridor), 1:dimZ]
+            Microhabitat[ , , , 4] <- Mat_weighted_angle_per_cell[idx1, idx2, idx3]
         }
 
         MicrohabitatMatSave <- paste("MicrohabitatMatrix", i, ".rds", sep="")
