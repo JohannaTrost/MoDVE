@@ -3,7 +3,6 @@ SingleSpeciesModel = 0
 DirectoryModelMain = "tests/data/output_a3"
 DirectoryMicrohabitatMain = "tests/data/microhabitat"
 DirectorySpeciesPoolsMain = "tests/data/species_pools"
-Replicate = 0
 numSpeciesPools = [4, 5]
 replicatePerSpeciesPool = 1
 TimeStep = 1
