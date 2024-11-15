@@ -325,7 +325,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 
         idx1 <- int_seq(from=corridor+1, to=dimX-corridor, by=1)
         idx2 <- int_seq(from=corridor+1, to=dimY-corridor, by=1)
-        idx3 <- int_seq(from=1, to=dimZ, by=1)
+        idx3 <- seq_len(dimZ)
 
         if (TotalSurfaceAreaOpt == 1) {
             Microhabitat[ , , , 1] <- Mat_surface_per_cell[idx1, idx2, idx3]
