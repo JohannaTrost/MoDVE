@@ -132,12 +132,12 @@ ColumnHeaders <- c("SpeciesID", "MaximumMass", "MassAtMaturity", "GrowthRate",
                    "MaxRecruitsAtMassAtMaturity", "AgeAtMaturity")
 
 # Main loop (for random generation of species pool)
-for (Num in 1:numSpeciesPools) {
+for (Num in seq_len(numSpeciesPools)) {
 
     # Trait matrix where the trait information of each species is saved
     SpeciesTraitMatrix <- matrix(0, NumberOfSpecies, length(ColumnHeaders))
 
-    for (NumSpecies in 1:NumberOfSpecies) {
+    for (NumSpecies in seq_len(NumberOfSpecies)) {
 
         # ============================================================================
         # Maximum Size, size at maturity and growth rate (here, we are
