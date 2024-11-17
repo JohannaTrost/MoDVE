@@ -9,4 +9,4 @@ DirectoryGroIMP = "tests/data/groimp/"
 DirectorySaveMain = "tests/data/output_a1/"
 ReplicateForest = 0
 timeStepStart = 1
-timeStepEnd = 4
+timeStepEnd = 3
