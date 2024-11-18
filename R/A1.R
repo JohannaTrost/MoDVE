@@ -102,10 +102,10 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 
     # In a static forest, only the initial forest at time step timeStepStart is of interest
     if (MicrohabitatType == 2) {
-        timeStepEnd <- timeStepStart + 1
+        timeStepEnd <- timeStepStart
     }
 
-    for (i in int_seq(from=timeStepStart, to=timeStepEnd-1, by=1)) {
+    for (i in int_seq(from=timeStepStart, to=timeStepEnd, by=1)) {
         print(paste("Time step", i))
         start_time <- Sys.time()
 
@@ -119,6 +119,8 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
         trunkFileNameOld <- paste(trunkFile, i, ".txt", sep="")
         trunkFileNameNew <- paste(trunkFile, i+1, ".txt", sep="")
 
+        # In subsequent iterations, we reuse the previous "end data" as the new "begin data"
+        # to avoid redundant file loading from disk.
         if (i != timeStepStart) {
             ShootsBegin <- ShootsEnd
             ShootsEnd <- read.table(file.path(src_dir, shootFileNameNew), sep="\t", header=TRUE, skip=1)
