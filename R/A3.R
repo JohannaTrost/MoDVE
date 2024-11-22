@@ -92,7 +92,7 @@ Microhabitat[, , , 3] <- Microhabitat[, , , 3] * Imax
 # Main loop for Single Species Model
 if (SingleSpeciesModel == 1) {
 # Start - Identical for both SingleSpeciesModel 0 and 1
-    for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
+    for (numPool in int_seq(from=numSpeciesPools[1], to=numSpeciesPools[2], by=1)) {
         print(paste("Number species pool:", numPool))
 
         # Laden des species pools
@@ -102,7 +102,7 @@ if (SingleSpeciesModel == 1) {
 
         SizeSpeciesPool <- dim(SpeciesPool)
 
-        for (numReplicates in 1:replicatePerSpeciesPool) {
+        for (numReplicates in seq_len(replicatePerSpeciesPool)) {
             print(paste("Number replicate:", numReplicates))
 
             # Initialize epiphyte matrix
@@ -113,12 +113,12 @@ if (SingleSpeciesModel == 1) {
 
             # Fill InitialEpiphyteMatrix with species trait informations and the
             # initial size of each individual
-            for (numSpecies in 1:NumberSpecies) {
-                for (numIndividual in 1:IndividualsPerSpecies) {
+            for (numSpecies in seq_len(NumberSpecies)) {
+                for (numIndividual in seq_len(IndividualsPerSpecies)) {
                     idx1 <- ((numSpecies - 1) * IndividualsPerSpecies) + numIndividual
 
                     # Copy trait data from SpeciesPool to InitalEpiphyteMatrix
-                    IntitalEpiphyteMatrix[idx1, 1:SizeSpeciesPool[2]] <- as.numeric(SpeciesPool[numSpecies, ])
+                    IntitalEpiphyteMatrix[idx1, seq_len(SizeSpeciesPool[2])] <- as.numeric(SpeciesPool[numSpecies, ])
 
                     # Get size of individual
                     if (numIndividual <= NumberMaturesPerSpecies) {
@@ -136,7 +136,7 @@ if (SingleSpeciesModel == 1) {
             }
 
             # Store individual ID for each individual
-            IntitalEpiphyteMatrix[1:TotalIndividuals, SizeSpeciesPool[2] + 6] <- 1:TotalIndividuals
+            IntitalEpiphyteMatrix[seq_len(TotalIndividuals), SizeSpeciesPool[2] + 6] <- seq_len(TotalIndividuals)
 
             # Calculate the surface area needed to support an individual of
             # this size =SurfaceAreaNeededInVoxel
@@ -144,7 +144,7 @@ if (SingleSpeciesModel == 1) {
 # End - Identical for both SingleSpeciesModel 0 and 1
 
             # loop over all species
-            for (numSpecies in 1:NumberSpecies) {
+            for (numSpecies in seq_len(NumberSpecies)) {
                 # Get subset of indiduals for each species
                 IntitalEpiphyteMatrixSub <- IntitalEpiphyteMatrix[IntitalEpiphyteMatrix[, 1] == numSpecies, ]
 
@@ -165,7 +165,7 @@ if (SingleSpeciesModel == 1) {
                 z <- ids[, 3]
                 w <- ids[, 4]
 
-                for (i in 1:nrow(IntitalEpiphyteMatrixSub)) {
+                for (i in seq_len(nrow(IntitalEpiphyteMatrixSub))) {
                     sequence <- seq_len(length(x))  # Works as expected even if x is empty
 
                     # Create a random permutation
@@ -194,7 +194,7 @@ if (SingleSpeciesModel == 1) {
                 IntitalEpiphyteMatrixSub[IntitalEpiphyteMatrixSub[, SizeSpeciesPool[2] + 2] == 0, SizeSpeciesPool[2] + 2] <- 1
                 IntitalEpiphyteMatrixSub[IntitalEpiphyteMatrixSub[, SizeSpeciesPool[2] + 3] == 0, SizeSpeciesPool[2] + 3] <- 1
 
-                IntitalEpiphyteMatrix[(((numSpecies-1) * IndividualsPerSpecies) + 1):(numSpecies * IndividualsPerSpecies), ] <- IntitalEpiphyteMatrixSub
+                IntitalEpiphyteMatrix[int_seq(from=((numSpecies-1) * IndividualsPerSpecies) + 1, to=numSpecies * IndividualsPerSpecies, by=1), ] <- IntitalEpiphyteMatrixSub
             }
             # Create dataframe from matrix (including headers)
             IntitalEpiphyteMatrix_df <- as.data.frame(IntitalEpiphyteMatrix)
@@ -210,7 +210,7 @@ if (SingleSpeciesModel == 1) {
 # Main loop for community model
 if (SingleSpeciesModel == 0) {
 # Start - Identical for both SingleSpeciesModel 0 and 1
-    for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
+    for (numPool in int_seq(from=numSpeciesPools[1], to=numSpeciesPools[2], by=1)) {
         print(paste("Number species pool:", numPool))
 
         # Laden des species pools
@@ -220,7 +220,7 @@ if (SingleSpeciesModel == 0) {
 
         SizeSpeciesPool <- dim(SpeciesPool)
 
-        for (numReplicates in 1:replicatePerSpeciesPool) {
+        for (numReplicates in seq_len(replicatePerSpeciesPool)) {
             print(paste("Number replicate:", numReplicates))
 
             # Initialize epiphyte matrix
@@ -231,12 +231,12 @@ if (SingleSpeciesModel == 0) {
 
             # Fill InitialEpiphyteMatrix with species trait informations and the
             # initial size of each individual
-            for (numSpecies in 1:NumberSpecies) {
-                for (numIndividual in 1:IndividualsPerSpecies) {
+            for (numSpecies in seq_len(NumberSpecies)) {
+                for (numIndividual in seq_len(IndividualsPerSpecies)) {
                     idx1 <- ((numSpecies - 1) * IndividualsPerSpecies) + numIndividual
 
                     # Copy trait data from SpeciesPool to InitalEpiphyteMatrix
-                    IntitalEpiphyteMatrix[idx1, 1:SizeSpeciesPool[2]] <- as.numeric(SpeciesPool[numSpecies, ])
+                    IntitalEpiphyteMatrix[idx1, seq_len(SizeSpeciesPool[2])] <- as.numeric(SpeciesPool[numSpecies, ])
 
                     # Get size of individual
                     if (numIndividual <= NumberMaturesPerSpecies) {
@@ -254,7 +254,7 @@ if (SingleSpeciesModel == 0) {
             }
 
             # Store individual ID for each individual
-            IntitalEpiphyteMatrix[1:TotalIndividuals, SizeSpeciesPool[2] + 6] <- 1:TotalIndividuals
+            IntitalEpiphyteMatrix[seq_len(TotalIndividuals), SizeSpeciesPool[2] + 6] <- seq_len(TotalIndividuals)
 
             # Calculate the surface area needed to support an individual of
             # this size =SurfaceAreaNeededInVoxel
@@ -265,7 +265,7 @@ if (SingleSpeciesModel == 0) {
             # voxel for each.
             RandNumInd <- sample(seq_len(TotalIndividuals), TotalIndividuals, replace=FALSE)
 
-            for (i in 1:TotalIndividuals) {
+            for (i in seq_len(TotalIndividuals)) {
                 print(paste("Individual number", i))
 
                 NumIndRand <- RandNumInd[i]
