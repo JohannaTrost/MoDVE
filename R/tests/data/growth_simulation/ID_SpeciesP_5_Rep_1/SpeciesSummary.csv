@@ -1,0 +1,15 @@
+"TimeStep","SpeciesID","NumberIndividualsBeginning","NumberIndividualsEnd","NumberMatureIndividuals","NumberRecruits","NumberRecruitsPotential","NumberMortalityBranchFall","NumberMortalityLight","NumberMortalityCompetition","NumberMortalityNatural","PopulationGrowthRate","PopulationGrowthRateLog","BirthRate","DeathRate","AverageMass","AverageAge","MinLight","MaxLight","MeanLight","MinHeight","MaxHeight","MeanHeight"
+2,1,0,0,0,0,7.04908726067561,0,0,23,0,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+3,1,0,0,0,0,0,0,0,0,0,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+2,2,0,0,0,0,2.76921065853076,0,0,23,0,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+3,2,0,0,0,0,0,0,0,0,0,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+2,3,0,0,0,0,6.49704134468151,0,0,23,0,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+3,3,0,0,0,0,0,0,0,0,0,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+2,4,0,0,0,0,5.28478089751176,0,0,23,0,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+3,4,0,0,0,0,0,0,0,0,0,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+2,5,0,0,0,0,13.0806380687086,0,0,23,0,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+3,5,0,0,0,0,0,0,0,0,0,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+2,6,0,0,0,0,2.80226860665954,0,0,23,0,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+3,6,0,0,0,0,0,0,0,0,0,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+2,7,0,0,0,0,7.11874828249297,0,0,23,0,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+3,7,0,0,0,0,0,0,0,0,0,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
