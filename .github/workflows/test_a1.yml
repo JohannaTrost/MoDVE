@@ -44,3 +44,10 @@ jobs:
           cd R/
           Rscript A3.R -i tests/config_a3.toml
           Rscript tests/test_a3.R
+
+      - name: Run and test A4 script
+        run: |
+          cd ${{ github.workspace }}
+          cd R/
+          Rscript A4.R -i tests/config_a4.toml
+          Rscript tests/test_a4.R
