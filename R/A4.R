@@ -71,10 +71,6 @@ dispersal <- function(NumberOfSpecies,
                       InterceptRecruitment,
                       SlopeRecruitment,
                       ProbabilityMatrixNormalized,
-                      SummaryMatrixSpecies,
-                      timeSteps,
-                      t,
-                      ColSNumberRecruitsPotential,
                       SpeciesPool,
                       MaxIndividualID) {
     # Store number of individuals at beginning of time step
@@ -97,6 +93,10 @@ dispersal <- function(NumberOfSpecies,
     # Check if there are species left (~isempty(E) in matlab)
     if (nrow(E) > 0) {
         unique_species <- unique(E$SpeciesID)  # list with species IDs of all present species
+
+        # Initialize potential recruitment dataframe
+        PotentialRecruitment <- data.frame(matrix(0, nrow=length(unique_species), ncol=2))
+        colnames(PotentialRecruitment) <- c("index", "potential_recruit")
 
         # loop over all species
         for (i in seq_len(length(unique_species))) {
@@ -126,8 +126,9 @@ dispersal <- function(NumberOfSpecies,
                     ProbabilityMatrixPerSpecies <- ProbabilityMatrixPerSpecies + ProbabilityMatrixNormalized[idx1, idx2, idx3, idx4] * factor1 * factor3
                 }
 
-                # Store potential normalized number of recruits in SummaryMatrixSpecies
-                SummaryMatrixSpecies[((i-1) * timeSteps) + t, ColSNumberRecruitsPotential] <- sum(ProbabilityMatrixPerSpecies)  # potential recruitment / sum(sum(sum(ProbabilityMatrixPerSpecies))) in matlab
+                # Store potential normalized number of recruits. We will use this to populate SummaryMatrixSpecies later
+                PotentialRecruitment$index[i] <- i
+                PotentialRecruitment$potential_recruit[i] <- sum(ProbabilityMatrixPerSpecies)  # potential recruitment / sum(sum(sum(ProbabilityMatrixPerSpecies))) in matlab
 
                 # Matix containing all voxel for which the light requirements are fulfilled
                 # We use the first row from MatureIndividulsPerSpecies. Since its elements have the same SpeciesID
@@ -176,6 +177,10 @@ dispersal <- function(NumberOfSpecies,
                 }
             }
         }
+    } else {
+        # Initialize empty potential recruitment dataframe
+        PotentialRecruitment <- data.frame(matrix(0, nrow=0, ncol=2))
+        colnames(PotentialRecruitment) <- c("index", "potential_recruit")
     }
 
     disp_items <- list("IntialNumberIndividuals"=IntialNumberIndividuals,
@@ -183,7 +188,7 @@ dispersal <- function(NumberOfSpecies,
                        "InitialNumberSpecies"=InitialNumberSpecies,
                        "IntialNumberIndividualsTotal"=IntialNumberIndividualsTotal,
                        "E"=E,
-                       "SummaryMatrixSpecies"=SummaryMatrixSpecies,
+                       "PotentialRecruitment"=PotentialRecruitment,
                        "MaxIndividualID"=MaxIndividualID)
     return(disp_items)
 }
@@ -397,25 +402,30 @@ main <- function() {
                     InterceptRecruitment,
                     SlopeRecruitment,
                     ProbabilityMatrixNormalized,
-                    SummaryMatrixSpecies,
-                    timeSteps,
-                    t,
-                    ColSNumberRecruitsPotential,
                     SpeciesPool,
                     MaxIndividualID
                 )
+
                 # Out only.
                 # Created in dispersal() and used later in the script.
                 IntialNumberIndividuals <- disp_items$IntialNumberIndividuals
                 NumberRecruitsPerSpecies <- disp_items$NumberRecruitsPerSpecies
                 InitialNumberSpecies <- disp_items$InitialNumberSpecies
                 IntialNumberIndividualsTotal <- disp_items$IntialNumberIndividualsTotal
+                PotentialRecruitment <- disp_items$PotentialRecruitment
 
                 # Inout.
                 # Created outside dispersal(), modified in dispersal and used later too.
                 E <- disp_items$E
-                SummaryMatrixSpecies <- disp_items$SummaryMatrixSpecies
-                MaxIndividualID <- disp_items$MaxIndividualID
+                MaxIndividualID <- disp_items$MaxIndividualID  # This is only modified in dispersal()
+
+                # Store potential normalized number of recruits in SummaryMatrixSpecies
+                for (ii in seq_len(nrow(PotentialRecruitment))) {
+                    kk <- PotentialRecruitment$index[ii]
+                    if (kk != 0) {
+                        SummaryMatrixSpecies[((kk-1) * timeSteps) + t, ColSNumberRecruitsPotential] <- PotentialRecruitment$potential_recruit[ii]
+                    }
+                }
 
                 NumberRecruits <- length(which(E$Status == 1)) - IntialNumberIndividualsTotal
 
