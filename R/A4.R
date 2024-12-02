@@ -62,6 +62,136 @@ Parabol <- function(a, b, c, x) {
 }
 
 
+dispersal <- function(NumberOfSpecies,
+                      E,
+                      Microhabitat,
+                      SurfaceBiomassScaling,
+                      dimPlot,
+                      centralPoint,
+                      InterceptRecruitment,
+                      SlopeRecruitment,
+                      ProbabilityMatrixNormalized,
+                      SummaryMatrixSpecies,
+                      timeSteps,
+                      t,
+                      ColSNumberRecruitsPotential,
+                      SpeciesPool,
+                      MaxIndividualID) {
+    # Store number of individuals at beginning of time step
+    IntialNumberIndividuals <- array(rep(0, NumberOfSpecies))
+    for (g in 1:NumberOfSpecies) {
+        # Count indices where SpeciesID is g and Status is 1
+        IntialNumberIndividuals[g] <- length(which(E$SpeciesID == g & E$Status == 1))
+    }
+    IntialNumberIndividualsTotal <- length(which(E$Status == 1))
+    InitialNumberSpecies <- length(unique(E$SpeciesID[E$Status == 1]))
+    NumberRecruitsPerSpecies <- array(rep(0, NumberOfSpecies))
+
+    # Calculate free surface area per voxel
+    AvailableSurfaceArea <- Microhabitat[, , , 1]
+    for (i in seq_len(nrow(E))) {
+        SurfaceAreaNeededInVoxel <- E$Mass[i]^(2/3) / SurfaceBiomassScaling
+        AvailableSurfaceArea[E$X[i], E$Y[i], E$Z[i]] <- max(0, AvailableSurfaceArea[E$X[i], E$Y[i], E$Z[i]] - SurfaceAreaNeededInVoxel)
+    }
+
+    # Check if there are species left (~isempty(E) in matlab)
+    if (nrow(E) > 0) {
+        unique_species <- unique(E$SpeciesID)  # list with species IDs of all present species
+
+        # loop over all species
+        for (i in seq_len(length(unique_species))) {
+            # Generate initially empty matrix to store the probabilities for recruitment
+            ProbabilityMatrixPerSpecies <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3]), dim=c(dimPlot[1], dimPlot[2], dimPlot[3]))
+
+            # Matrix containing all mature individuals of one species
+            MatureIndividulsPerSpecies <- E[E$SpeciesID == unique_species[i] & E$Mass >= E$MassAtMaturity, ]
+
+            # ~isempty(MatureIndividulsPerSpecies) in matlab
+            if (nrow(MatureIndividulsPerSpecies) > 0) {
+
+                # Probability matrix for each species: Depending on the position of each mature individual,
+                # the total probability for the species is calculated.
+                # The second part of the equation accounts for the actual size of the individual
+                # in relation to the maximum size for which the recruitment per individual is defined
+                for (j in seq_len(nrow(MatureIndividulsPerSpecies))) {
+                    idx1 <- seq(from=centralPoint[1] - MatureIndividulsPerSpecies$X[j] + 1, to=centralPoint[1] - MatureIndividulsPerSpecies$X[j] + dimPlot[1], by=1)
+                    idx2 <- seq(from=centralPoint[2] - MatureIndividulsPerSpecies$Y[j] + 1, to=centralPoint[2] - MatureIndividulsPerSpecies$Y[j] + dimPlot[2], by=1)
+                    idx3 <- seq(from=centralPoint[3] - MatureIndividulsPerSpecies$Z[j] + 1, to=centralPoint[3] - MatureIndividulsPerSpecies$Z[j] + dimPlot[3], by=1)
+                    idx4 <- MatureIndividulsPerSpecies$SpeciesID[j]
+
+                    factor1 <- (InterceptRecruitment + (SlopeRecruitment * MatureIndividulsPerSpecies$Mass[j])) * MatureIndividulsPerSpecies$RecruitmentInvestmentRel[j]
+                    factor2 <- (MatureIndividulsPerSpecies$Mass[j] - MatureIndividulsPerSpecies$MassAtMaturity[j]) / (MatureIndividulsPerSpecies$MaximumMass[j] - MatureIndividulsPerSpecies$MassAtMaturity[j])
+                    factor3 <- 1 + (MatureIndividulsPerSpecies$RecruitmentInc[j] * factor2)
+
+                    ProbabilityMatrixPerSpecies <- ProbabilityMatrixPerSpecies + ProbabilityMatrixNormalized[idx1, idx2, idx3, idx4] * factor1 * factor3
+                }
+
+                # Store potential normalized number of recruits in SummaryMatrixSpecies
+                SummaryMatrixSpecies[((i-1) * timeSteps) + t, ColSNumberRecruitsPotential] <- sum(ProbabilityMatrixPerSpecies)  # potential recruitment / sum(sum(sum(ProbabilityMatrixPerSpecies))) in matlab
+
+                # Matix containing all voxel for which the light requirements are fulfilled
+                # We use the first row from MatureIndividulsPerSpecies. Since its elements have the same SpeciesID
+                # then the MinLight and MaxLight is the same for all rows.
+                pot_habitat <- ifelse((Microhabitat[, , , 3] >= MatureIndividulsPerSpecies$MinLight[1]) & (Microhabitat[, , , 3] <= MatureIndividulsPerSpecies$MaxLight[1]), 1, 0)
+
+                # Final probabiliy matrix for new recruits
+                probability_recruits <- ProbabilityMatrixPerSpecies * pot_habitat * AvailableSurfaceArea
+
+                # Calculate number of recuits based on final probability matrix
+                Recruits <- array(rpois(length(probability_recruits), probability_recruits), dim=dim(probability_recruits))  # poissrnd(probability_recruits) in matlab
+
+                # Add new recruits to epiphyte matrix
+                num_recruits <- sum(Recruits)  # sum(sum(sum(Recruits))) in matlab
+                NumberRecruitsPerSpecies[unique_species[i]] <- num_recruits
+
+                if (num_recruits > 0) {
+                    ids <- arrayInd(which(Recruits > 0), dim(Recruits))
+                    xInd <- ids[, 1]
+                    yInd <- ids[, 2]
+                    zInd <- ids[, 3]
+
+                    while (num_recruits > length(xInd)) {
+                        tmp_ids <- arrayInd(which(Recruits > 0), dim(Recruits))
+                        Recruits[tmp_ids] = Recruits[tmp_ids] - 1
+
+                        tmp_ids <- arrayInd(which(Recruits > 0), dim(Recruits))
+                        xInd <- append(xInd, tmp_ids[, 1])
+                        yInd <- append(yInd, tmp_ids[, 2])
+                        zInd <- append(zInd, tmp_ids[, 3])
+                    }
+                    vec_recruits <- seq(from=nrow(E) + 1, to=nrow(E) + length(xInd), by=1)
+
+                    # Copy species information to Epiphyte matrix
+                    E[vec_recruits, names(SpeciesPool)] <- SpeciesPool[unique_species[i], ]
+                    E$X[vec_recruits] <- xInd
+                    E$Y[vec_recruits] <- yInd
+                    E$Z[vec_recruits] <- zInd
+                    E$Mass[vec_recruits] <- 0  # Initial size
+                    E$Status[vec_recruits] <- 1  # status 1:alive
+                    E$IndividualID[vec_recruits] <- seq(from=MaxIndividualID + 1, to=MaxIndividualID + length(xInd), by=1)  # individual ID
+
+                    E[is.na(E)] <- 0  # convert all NA to 0 so that the R script matches the Matlab
+
+                    MaxIndividualID <- MaxIndividualID + length(xInd)
+                }
+            }
+        }
+    }
+
+    NumberRecruits <- length(which(E$Status == 1)) - IntialNumberIndividualsTotal
+
+    disp_items <- list("IntialNumberIndividuals"=IntialNumberIndividuals,
+                       "NumberRecruitsPerSpecies"=NumberRecruitsPerSpecies,
+                       "InitialNumberSpecies"=InitialNumberSpecies,
+                       "IntialNumberIndividualsTotal"=IntialNumberIndividualsTotal,
+                       "NumberRecruits"=NumberRecruits,
+                       "E"=E,
+                       "SummaryMatrixSpecies"=SummaryMatrixSpecies,
+                       "MaxIndividualID"=MaxIndividualID)
+    return(disp_items)
+}
+
+
 main <- function() {
     # Parse input configuration file
     config <- parse_config()
@@ -248,9 +378,6 @@ main <- function() {
                     break
                 }
 
-                ###############################################################################
-                # 1. Dispersal
-
                 # Load microhabitat matrix for specific timeStep if dynamic forest is simulated
                 if (MicrohabitatType == 1) {
                     Microhabitat <- readRDS(file.path(DirectoryMicrohabitat, paste("MicrohabitatMatrix", InitialTimeStep + t - 1, ".rds", sep="")))
@@ -261,112 +388,38 @@ main <- function() {
                     pot_habitat <- array(rep(0, d1 * d2 * d3), dim=c(d1, d2, d3))
                 }
 
-                # Store number of individuals at beginning of time step
-                # NOTE: We can probably move this outside the timestep loop
-                # We need to first check whether the columns from E that we use
-                # change or not.
-                IntialNumberIndividuals <- array(rep(0, NumberOfSpecies))
-                for (g in 1:NumberOfSpecies) {
-                    # Count indices where SpeciesID is g and Status is 1
-                    IntialNumberIndividuals[g] <- length(which(E$SpeciesID == g & E$Status == 1))
-                }
-                IntialNumberIndividualsTotal <- length(which(E$Status == 1))
-                InitialNumberSpecies <- length(unique(E$SpeciesID[E$Status == 1]))
-                NumberRecruitsPerSpecies <- array(rep(0, NumberOfSpecies))
-
-                # Calculate free surface area per voxel
-                AvailableSurfaceArea <- Microhabitat[, , , 1]
-                for (i in seq_len(nrow(E))) {
-                    SurfaceAreaNeededInVoxel <- E$Mass[i]^(2/3) / SurfaceBiomassScaling
-                    AvailableSurfaceArea[E$X[i], E$Y[i], E$Z[i]] <- max(0, AvailableSurfaceArea[E$X[i], E$Y[i], E$Z[i]] - SurfaceAreaNeededInVoxel)
-                }
-
-                # Check if there are species left (~isempty(E) in matlab)
-                if (nrow(E) > 0) {
-                    unique_species <- unique(E$SpeciesID)  # list with species IDs of all present species
-
-                    # loop over all species
-                    for (i in seq_len(length(unique_species))) {
-                        # Generate initially empty matrix to store the probabilities for recruitment
-                        ProbabilityMatrixPerSpecies <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3]), dim=c(dimPlot[1], dimPlot[2], dimPlot[3]))
-
-                        # Matrix containing all mature individuals of one species
-                        MatureIndividulsPerSpecies <- E[E$SpeciesID == unique_species[i] & E$Mass >= E$MassAtMaturity, ]
-
-                        # ~isempty(MatureIndividulsPerSpecies) in matlab
-                        if (nrow(MatureIndividulsPerSpecies) > 0) {
-
-                            # Probability matrix for each species: Depending on the position of each mature individual,
-                            # the total probability for the species is calculated.
-                            # The second part of the equation accounts for the actual size of the individual
-                            # in relation to the maximum size for which the recruitment per individual is defined
-                            for (j in seq_len(nrow(MatureIndividulsPerSpecies))) {
-                                idx1 <- seq(from=centralPoint[1] - MatureIndividulsPerSpecies$X[j] + 1, to=centralPoint[1] - MatureIndividulsPerSpecies$X[j] + dimPlot[1], by=1)
-                                idx2 <- seq(from=centralPoint[2] - MatureIndividulsPerSpecies$Y[j] + 1, to=centralPoint[2] - MatureIndividulsPerSpecies$Y[j] + dimPlot[2], by=1)
-                                idx3 <- seq(from=centralPoint[3] - MatureIndividulsPerSpecies$Z[j] + 1, to=centralPoint[3] - MatureIndividulsPerSpecies$Z[j] + dimPlot[3], by=1)
-                                idx4 <- MatureIndividulsPerSpecies$SpeciesID[j]
-
-                                factor1 <- (InterceptRecruitment + (SlopeRecruitment * MatureIndividulsPerSpecies$Mass[j])) * MatureIndividulsPerSpecies$RecruitmentInvestmentRel[j]
-                                factor2 <- (MatureIndividulsPerSpecies$Mass[j] - MatureIndividulsPerSpecies$MassAtMaturity[j]) / (MatureIndividulsPerSpecies$MaximumMass[j] - MatureIndividulsPerSpecies$MassAtMaturity[j])
-                                factor3 <- 1 + (MatureIndividulsPerSpecies$RecruitmentInc[j] * factor2)
-
-                                ProbabilityMatrixPerSpecies <- ProbabilityMatrixPerSpecies + ProbabilityMatrixNormalized[idx1, idx2, idx3, idx4] * factor1 * factor3
-                            }
-
-                            # Store potential normalized number of recruits in SummaryMatrixSpecies
-                            SummaryMatrixSpecies[((i-1) * timeSteps) + t, ColSNumberRecruitsPotential] <- sum(ProbabilityMatrixPerSpecies)  # potential recruitment / sum(sum(sum(ProbabilityMatrixPerSpecies))) in matlab
-
-                            # Matix containing all voxel for which the light requirements are fulfilled
-                            # We use the first row from MatureIndividulsPerSpecies. Since its elements have the same SpeciesID
-                            # then the MinLight and MaxLight is the same for all rows.
-                            pot_habitat <- ifelse((Microhabitat[, , , 3] >= MatureIndividulsPerSpecies$MinLight[1]) & (Microhabitat[, , , 3] <= MatureIndividulsPerSpecies$MaxLight[1]), 1, 0)
-
-                            # Final probabiliy matrix for new recruits
-                            probability_recruits <- ProbabilityMatrixPerSpecies * pot_habitat * AvailableSurfaceArea
-
-                            # Calculate number of recuits based on final probability matrix
-                            Recruits <- array(rpois(length(probability_recruits), probability_recruits), dim=dim(probability_recruits))  # poissrnd(probability_recruits) in matlab
-
-                            # Add new recruits to epiphyte matrix
-                            num_recruits <- sum(Recruits)  # sum(sum(sum(Recruits))) in matlab
-                            NumberRecruitsPerSpecies[unique_species[i]] <- num_recruits
-
-                            if (num_recruits > 0) {
-                                ids <- arrayInd(which(Recruits > 0), dim(Recruits))
-                                xInd <- ids[, 1]
-                                yInd <- ids[, 2]
-                                zInd <- ids[, 3]
-
-                                while (num_recruits > length(xInd)) {
-                                    tmp_ids <- arrayInd(which(Recruits > 0), dim(Recruits))
-                                    Recruits[tmp_ids] = Recruits[tmp_ids] - 1
-
-                                    tmp_ids <- arrayInd(which(Recruits > 0), dim(Recruits))
-                                    xInd <- append(xInd, tmp_ids[, 1])
-                                    yInd <- append(yInd, tmp_ids[, 2])
-                                    zInd <- append(zInd, tmp_ids[, 3])
-                                }
-                                vec_recruits <- seq(from=nrow(E) + 1, to=nrow(E) + length(xInd), by=1)
-
-                                # Copy species information to Epiphyte matrix
-                                E[vec_recruits, names(SpeciesPool)] <- SpeciesPool[unique_species[i], ]
-                                E$X[vec_recruits] <- xInd
-                                E$Y[vec_recruits] <- yInd
-                                E$Z[vec_recruits] <- zInd
-                                E$Mass[vec_recruits] <- 0  # Initial size
-                                E$Status[vec_recruits] <- 1  # status 1:alive
-                                E$IndividualID[vec_recruits] <- seq(from=MaxIndividualID + 1, to=MaxIndividualID + length(xInd), by=1)  # individual ID
-
-                                E[is.na(E)] <- 0  # convert all NA to 0 so that the R script matches the Matlab
-
-                                MaxIndividualID <- MaxIndividualID + length(xInd)
-                            }
-                        }
-                    }
-                }
-
-                NumberRecruits <- length(which(E$Status == 1)) - IntialNumberIndividualsTotal
                 ###############################################################################
+                # 1. Dispersal
+                disp_items <- dispersal(
+                    NumberOfSpecies,
+                    E,
+                    Microhabitat,
+                    SurfaceBiomassScaling,
+                    dimPlot,
+                    centralPoint,
+                    InterceptRecruitment,
+                    SlopeRecruitment,
+                    ProbabilityMatrixNormalized,
+                    SummaryMatrixSpecies,
+                    timeSteps,
+                    t,
+                    ColSNumberRecruitsPotential,
+                    SpeciesPool,
+                    MaxIndividualID
+                )
+                # Out only.
+                # Created in dispersal() and used later in the script.
+                IntialNumberIndividuals <- disp_items$IntialNumberIndividuals
+                NumberRecruitsPerSpecies <- disp_items$NumberRecruitsPerSpecies
+                InitialNumberSpecies <- disp_items$InitialNumberSpecies
+                IntialNumberIndividualsTotal <- disp_items$IntialNumberIndividualsTotal
+                NumberRecruits <- disp_items$NumberRecruits
+
+                # Inout.
+                # Created outside dispersal(), modified in dispersal and used later too.
+                E <- disp_items$E
+                SummaryMatrixSpecies <- disp_items$SummaryMatrixSpecies
+                MaxIndividualID <- disp_items$MaxIndividualID
 
                 # Unclear what this line in the Matlab script is supposed to do.
                 # From what I understand, the first column in E ("SpeciesID") takes non-zero values
