@@ -178,13 +178,10 @@ dispersal <- function(NumberOfSpecies,
         }
     }
 
-    NumberRecruits <- length(which(E$Status == 1)) - IntialNumberIndividualsTotal
-
     disp_items <- list("IntialNumberIndividuals"=IntialNumberIndividuals,
                        "NumberRecruitsPerSpecies"=NumberRecruitsPerSpecies,
                        "InitialNumberSpecies"=InitialNumberSpecies,
                        "IntialNumberIndividualsTotal"=IntialNumberIndividualsTotal,
-                       "NumberRecruits"=NumberRecruits,
                        "E"=E,
                        "SummaryMatrixSpecies"=SummaryMatrixSpecies,
                        "MaxIndividualID"=MaxIndividualID)
@@ -413,13 +410,14 @@ main <- function() {
                 NumberRecruitsPerSpecies <- disp_items$NumberRecruitsPerSpecies
                 InitialNumberSpecies <- disp_items$InitialNumberSpecies
                 IntialNumberIndividualsTotal <- disp_items$IntialNumberIndividualsTotal
-                NumberRecruits <- disp_items$NumberRecruits
 
                 # Inout.
                 # Created outside dispersal(), modified in dispersal and used later too.
                 E <- disp_items$E
                 SummaryMatrixSpecies <- disp_items$SummaryMatrixSpecies
                 MaxIndividualID <- disp_items$MaxIndividualID
+
+                NumberRecruits <- length(which(E$Status == 1)) - IntialNumberIndividualsTotal
 
                 # Unclear what this line in the Matlab script is supposed to do.
                 # From what I understand, the first column in E ("SpeciesID") takes non-zero values
