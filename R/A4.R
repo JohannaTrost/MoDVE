@@ -12,9 +12,9 @@ compute_prob_matrix_norm <- function(centralPoint, dimX, dimY, dimZ, NumberOfSpe
     # Erzeugen der Distanzmatrix mit allen Distanzen zum
     DistanceMatrix <- array(rep(0, dimX * dimY * dimZ), dim=c(dimX, dimY, dimZ))
 
-    for (i in 1:dimX) {
-        for (j in 1:dimY) {
-            for (k in 1:dimZ) {
+    for (i in seq_len(dimX)) {
+        for (j in seq_len(dimY)) {
+            for (k in seq_len(dimZ)) {
                 x1 <- c(i, j, k)
                 x2 <- c(centralPoint[1], centralPoint[2], centralPoint[3])
                 DistanceMatrix[i, j, k] <- sqrt(sum((x1 - x2)^2))  # call to pdist() in the matlab script
@@ -30,7 +30,7 @@ compute_prob_matrix_norm <- function(centralPoint, dimX, dimY, dimZ, NumberOfSpe
     ProbabilityMatrix <- array(rep(0, dimX * dimY * dimZ * NumberOfSpecies), dim=c(dimX, dimY, dimZ, NumberOfSpecies))
     ProbabilityMatrixNormalized <- array(rep(0, dimX * dimY * dimZ * NumberOfSpecies), dim=c(dimX, dimY, dimZ, NumberOfSpecies))
 
-    for (i in 1:NumberOfSpecies) {
+    for (i in seq_len(NumberOfSpecies)) {
         exponentE <- SpeciesPool$DispersalKernel[i]
         dispersalAsymmetry <- SpeciesPool$DispersalKernelAsymmetry[i]
 
@@ -40,8 +40,10 @@ compute_prob_matrix_norm <- function(centralPoint, dimX, dimY, dimZ, NumberOfSpe
         # WARNING: The index i in the 4th dimension was missing from the Matlab script and so we were
         # getting "incorrect number of dimensions" in R. Added it here but need to ask if this is what
         # it was supposed to do.
-        ProbabilityMatrix[, , centralPoint[3]:dimZ, i] <- ProbabilityMatrix[, , centralPoint[3]:dimZ, i] * ((1 - dispersalAsymmetry) / 0.5)
-        ProbabilityMatrix[, , 1:(centralPoint[3] - 1), i] <- ProbabilityMatrix[, , 1:(centralPoint[3] - 1), i] * (dispersalAsymmetry / 0.5)
+        id3_1 <- int_seq(from=centralPoint[3], to=dimZ, by=1)
+        id3_2 <- int_seq(from=1, to=centralPoint[3] - 1, by=1)
+        ProbabilityMatrix[, , id3_1, i] <- ProbabilityMatrix[, , id3_1, i] * ((1 - dispersalAsymmetry) / 0.5)
+        ProbabilityMatrix[, , id3_2, i] <- ProbabilityMatrix[, , id3_2, i] * (dispersalAsymmetry / 0.5)
 
         ProbabilityMatrixNormalized[, , , i] <- ProbabilityMatrix[, , , i] / sum(ProbabilityMatrix[, , , i])  # sum(sum(sum(ProbabilityMatrix(:,:,:,i)))) in matlab
     }
@@ -75,7 +77,7 @@ dispersal <- function(NumberOfSpecies,
                       MaxIndividualID) {
     # Store number of individuals at beginning of time step
     IntialNumberIndividuals <- array(rep(0, NumberOfSpecies))
-    for (g in 1:NumberOfSpecies) {
+    for (g in seq_len(NumberOfSpecies)) {
         # Count indices where SpeciesID is g and Status is 1
         IntialNumberIndividuals[g] <- length(which(E$SpeciesID == g & E$Status == 1))
     }
@@ -307,7 +309,7 @@ main <- function() {
     ###############################################################################
     # Main loop for the community model
 
-    for (numPool in numSpeciesPools[1]:numSpeciesPools[2]) {
+    for (numPool in int_seq(numSpeciesPools[1], numSpeciesPools[2])) {
 
         # Check if a initial distribution for the species pool exists. If not, move on to the next species pool
         FileNameInitalDistributionPool <- paste("ID_SpeciesP_", numPool, "_Rep_1", ".csv", sep="")
@@ -333,7 +335,7 @@ main <- function() {
         ProbabilityMatrixNormalized <- compute_prob_matrix_norm(centralPoint, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool)
 
         # Main model loop for each replicate
-        for (r in 1:replicatePerSpeciesPool) {
+        for (r in seq_len(replicatePerSpeciesPool)) {
             # Check if a initial distribution for the species pool exists. If not, move on to the next species pool
             FileNameInitalDistribution <- file.path(DirectoryModelMain, paste("ID_SpeciesP_", numPool, "_Rep_", r, ".csv", sep=""))
             if (!file.exists(FileNameInitalDistribution)) {
@@ -504,7 +506,7 @@ main <- function() {
                     CumulativeSumOfSurfaceSum <- length(which(CumulativeSumOfSurface <= Microhabitat[IndX[i], IndY[i], IndZ[i], 1]))
 
                     if (CumulativeSumOfSurfaceSum < nrow(EpisInVoxel)) {
-                        E[is.element(E$IndividualID, EpisInVoxel[(CumulativeSumOfSurfaceSum + 1):nrow(EpisInVoxel), "IndividualID"]), "Status"] <- 2
+                        E[is.element(E$IndividualID, EpisInVoxel[int_seq(CumulativeSumOfSurfaceSum + 1, nrow(EpisInVoxel)), "IndividualID"]), "Status"] <- 2
                     }
                 }
                 ###############################################################################
@@ -561,7 +563,7 @@ main <- function() {
                     }
 
                     SummaryMatrixSpeciesSave[((numSpecies-1) * timeSteps) + t, 1] <- InitialTimeStep + t - 1
-                    SummaryMatrixSpeciesSave[((numSpecies-1) * timeSteps) + t, 2:(TotalColsSpeciesMatrix + 1)] <- SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ]
+                    SummaryMatrixSpeciesSave[((numSpecies-1) * timeSteps) + t, int_seq(2, TotalColsSpeciesMatrix + 1)] <- SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ]
                 }
 
                 ###############################################################################
