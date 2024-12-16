@@ -7,6 +7,8 @@
 source("utils.R")
 
 library("foreach")
+library("doParallel")
+library("doRNG")
 
 ###############################################################################
 
@@ -217,6 +219,10 @@ create_pairs <- function(numSpeciesPools, replicatePerSpeciesPool){
 
 
 main <- function() {
+    # Detect the number of CPU cores and register the parallel backend
+    numCores <- detectCores()
+    registerDoParallel(numCores)
+
     # Parse input configuration file
     config <- parse_config()
 
@@ -329,7 +335,7 @@ main <- function() {
     # Main loop for the community model for each species pool and for each replicate
     pairs <- create_pairs(numSpeciesPools, replicatePerSpeciesPool)
 
-    foreach(pair_idx=seq_len(nrow(pairs))) %do% {
+    foreach(pair_idx=seq_len(nrow(pairs))) %dorng% {
         numPool <- pairs$numPool[pair_idx]
         r <- pairs$r[pair_idx]
 
