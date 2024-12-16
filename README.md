@@ -25,6 +25,7 @@ Install the following packages:
 ```bash
 Rscript -e 'install.packages("optparse", repos="http://cran.uk.r-project.org")'
 Rscript -e 'install.packages("configr", repos="http://cran.uk.r-project.org")'
+Rscript -e 'install.packages("foreach", repos="http://cran.uk.r-project.org")'
 ```
 
 ## A1

@@ -6,6 +6,8 @@
 # This model simulates the development of the entire epiphyte community
 source("utils.R")
 
+library("foreach")
+
 ###############################################################################
 
 compute_prob_matrix_norm <- function(centralPoint, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool) {
@@ -325,16 +327,16 @@ main <- function() {
 
     ###############################################################################
     # Main loop for the community model for each species pool and for each replicate
-
     pairs <- create_pairs(numSpeciesPools, replicatePerSpeciesPool)
-    for (pair_idx in seq_len(nrow(pairs))) {
+
+    foreach(pair_idx=seq_len(nrow(pairs))) %do% {
         numPool <- pairs$numPool[pair_idx]
         r <- pairs$r[pair_idx]
 
         # Check if a initial distribution for the species pool exists. If not, move on to the next species pool
         FileNameInitalDistribution <- file.path(DirectoryModelMain, paste("ID_SpeciesP_", numPool, "_Rep_", r, ".csv", sep=""))
         if (!file.exists(FileNameInitalDistribution)) {
-            next
+            return(NULL)
         }
 
         # First step: create probability matrices for each species
