@@ -1,6 +1,6 @@
 # Suppress warnings
 # options(warn=-1)
-
+options(digits.secs=3)  # 3 decimal digits for seconds
 
 # Epiphte IBM - Model
 # This model simulates the development of the entire epiphyte community
@@ -603,15 +603,19 @@ main <- function() {
             ###############################################################################
 
             # Command window information
-            print("--------------------------------------------")
-            print(paste("Time step", InitialTimeStep + t - 1, sep=" "))
-            print(paste("Number of individuals", SummaryMatrixCommunity$NumberIndividualsEnd[t], sep=" "))
-            print(paste("Number of species", SummaryMatrixCommunity$NumberSpeciesEnd[t], sep=" "))
-            print(paste("Number of recruits", NumberRecruits, sep=" "))
-            print(paste("MortalityBranchFall", MortalityBranchFall, sep=" "))
-            print(paste("MortalityLight", MortalityLight, sep=" "))
-            print(paste("MortalityCompetition", MortalityCompetition, sep=" "))
-            print(paste("MortalityNatural", MortalityNatural, sep=" "))
+            information <- "--------------------------------------------"
+            information <- paste(information, paste("Species Pool: ", numPool, sep=""), sep="\n")
+            information <- paste(information, paste("Replicate: ", r, sep=""), sep="\n")
+            information <- paste(information, paste("Time step: ", InitialTimeStep + t - 1, sep=""), sep="\n")
+            information <- paste(information, paste("Number of individuals: ", SummaryMatrixCommunity$NumberIndividualsEnd[t], sep=""), sep="\n")
+            information <- paste(information, paste("Number of species: ", SummaryMatrixCommunity$NumberSpeciesEnd[t], sep=""), sep="\n")
+            information <- paste(information, paste("Number of recruits: ", NumberRecruits, sep=""), sep="\n")
+            information <- paste(information, paste("MortalityBranchFall: ", MortalityBranchFall, sep=""), sep="\n")
+            information <- paste(information, paste("MortalityLight: ", MortalityLight, sep=""), sep="\n")
+            information <- paste(information, paste("MortalityCompetition: ", MortalityCompetition, sep=""), sep="\n")
+            information <- paste(information, paste("MortalityNatural: ", MortalityNatural, sep=""), sep="\n")
+            information <- paste(information, paste("Time: ", format(Sys.time(), "%H:%M:%OS3"), sep=""), sep="\n")
+            writeLines(information)
             ###############################################################################
 
             # Saving
