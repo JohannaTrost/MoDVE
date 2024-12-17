@@ -334,6 +334,13 @@ main <- function() {
     # Main loop for the community model for each species pool and for each replicate
     pairs <- create_pairs(numSpeciesPools, replicatePerSpeciesPool)
 
+    # Each loop employs a different random number generator (RNG) stream, resulting in distinct,
+    # statistically independent random sequences. These sequences are reproducible across multiple
+    # runs, provided the master seed and other input parameters remain unchanged. Importantly, the
+    # number of cores does not influence the sequences, only the order in which the loops are
+    # processed. Consequently, parallel and serial execution will yield identical results.
+    # Internally, the foreach package employs the L'Ecuyer-CMRG RNG algorithm for reliable random
+    # number generation, ensuring reproducible results even in parallel computing environments.
     output <- foreach (pair_idx=seq_len(nrow(pairs))) %dorng% {
         numPool <- pairs$numPool[pair_idx]
         r <- pairs$r[pair_idx]

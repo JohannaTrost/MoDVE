@@ -231,3 +231,7 @@ Run the following command, replacing `path/to/toml` with the actual path to your
 ```bash
 Rscript A4.R -i "path/to/toml"
 ```
+
+This script leverages parallel processing to efficiently process all possible pairs of species pools and replicates for each species. It automatically detects the number of available cores in the system and distributes the workload across them. Importantly, the loops are independent, meaning that the results of one loop do not affect the others. This ensures that the parallel execution produces the same results as a sequential one.
+
+To ensure reproducibility, set the random seed parameter. This guarantees that the same random numbers are generated each time the script is run, leading to identical results. If the seed is commented out, a random seed is used, resulting in different random numbers and potentially different results each time the script is executed.
