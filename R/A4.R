@@ -1,5 +1,4 @@
-# Suppress warnings
-# options(warn=-1)
+options(warn=-1)  # Suppress warnings
 options(digits.secs=3)  # 3 decimal digits for seconds
 
 # Epiphte IBM - Model
