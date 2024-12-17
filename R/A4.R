@@ -334,7 +334,7 @@ main <- function() {
     # Main loop for the community model for each species pool and for each replicate
     pairs <- create_pairs(numSpeciesPools, replicatePerSpeciesPool)
 
-    foreach(pair_idx=seq_len(nrow(pairs))) %dorng% {
+    output <- foreach (pair_idx=seq_len(nrow(pairs))) %dorng% {
         numPool <- pairs$numPool[pair_idx]
         r <- pairs$r[pair_idx]
 
@@ -636,6 +636,7 @@ main <- function() {
             # Remove dead individuals from Epimatrix
             E <- E[E$Status <= 1, ]  # Remove rows where Status > 1
         }
+        return(NULL)
     }
 }
 
