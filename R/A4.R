@@ -217,6 +217,24 @@ create_pairs <- function(numSpeciesPools, replicatePerSpeciesPool){
 }
 
 
+save_rng <- function(savefile) {
+    if (exists(".Random.seed")) {
+        oldseed <- get(".Random.seed", .GlobalEnv)
+    } else {
+        stop("You need to call set.seed() first.")
+    }
+    oldRNGkind <- RNGkind()
+    save("oldseed", "oldRNGkind", file=savefile)
+}
+
+
+restore_rng <- function(savefile) {
+    load(savefile)
+    do.call("RNGkind", as.list(oldRNGkind))
+    assign(".Random.seed", oldseed, .GlobalEnv)
+}
+
+
 main <- function() {
     # Detect the number of CPU cores and register the parallel backend
     numCores <- detectCores()
@@ -227,10 +245,6 @@ main <- function() {
 
     ###############################################################################
     # Parameters that need to be specified/checked before running this script
-
-    # RNG seed
-    seed <- config$seed
-    set.seed(seed, kind="Mersenne-Twister")
 
     # Input directories
     DirectoryMicrohabitat <- config$DirectoryMicrohabitat
@@ -268,10 +282,28 @@ main <- function() {
 
     InitialTimeStep <- config$InitialTimeStep  # Time step for which the Initial distribution is generated in A3
 
+    # RNG seed
+    random_state_file <- config$RandomState
+    if (!is.null(random_state_file) && file.exists(random_state_file)) {
+        writeLines("Loading previous random number generator state...")
+        restore_rng(random_state_file)
+    } else {
+        # If we provide an integer, use it to set the seed
+        # otherwise it will be NULL and therefore a random
+        # seed will be created.
+        seed <- config$seed
+        set.seed(seed, kind="Mersenne-Twister")
+    }
     ###############################################################################
 
     # Create folder to save the model results
     dir.create(DirectoryModelResults, recursive=TRUE)
+
+    # Save current random state.
+    # We need to store this after setting the seed but before calling any
+    # functions that generate random numbers.
+    writeLines("Storing the random number generator state...")
+    save_rng(file.path(DirectoryModelResults, "random_state_seed.RData"))
 
     # Load plot dimensions
     dimPlot <- readRDS(file.path(DirectoryMicrohabitat, "dimPlot.rds"))
