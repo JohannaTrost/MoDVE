@@ -237,7 +237,16 @@ restore_rng <- function(savefile) {
 
 main <- function() {
     # Detect the number of CPU cores and register the parallel backend
-    numCores <- detectCores()
+    # Note: detectCores() will detect the total number of cores on a HPC node,
+    # so use the $SLURM_NTASKS env var if defined.
+    nTasks <- Sys.getenv("SLURM_NTASKS")
+    if (nTasks != "") {
+        numCores <- strtoi(nTasks)
+    }
+    else {
+        numCores <- detectCores()
+    }
+
     registerDoParallel(numCores)
 
     # Parse input configuration file
