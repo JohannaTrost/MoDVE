@@ -25,6 +25,9 @@ Install the following packages:
 ```bash
 Rscript -e 'install.packages("optparse", repos="http://cran.uk.r-project.org")'
 Rscript -e 'install.packages("configr", repos="http://cran.uk.r-project.org")'
+Rscript -e 'install.packages("foreach", repos="http://cran.uk.r-project.org")'
+Rscript -e 'install.packages("doParallel", repos="http://cran.uk.r-project.org")'
+Rscript -e 'install.packages("doRNG", repos="http://cran.uk.r-project.org")'
 ```
 
 ## A1
@@ -186,6 +189,11 @@ Create a file named `config.toml`. Use the following content as a template, repl
 # Comment it out to use a random seed instead
 # seed = 42
 
+# If a file path is provided, the random state will be loaded from that file,
+# ensuring exact replication of previous results.
+# In this case, any specified seed will be disregarded.
+# RandomState = "path/to/random_state_seed.RData"
+
 # Input directories
 DirectoryMicrohabitat = "path/to/A1/output"
 DirectorySpeciesPools = "path/to/A2/output"
@@ -228,3 +236,7 @@ Run the following command, replacing `path/to/toml` with the actual path to your
 ```bash
 Rscript A4.R -i "path/to/toml"
 ```
+
+This script leverages parallel processing to efficiently process all possible pairs of species pools and replicates for each species. It automatically detects the number of available cores in the system and distributes the workload across them. Importantly, the loops are independent, meaning that the results of one loop do not affect the others. This ensures that the parallel execution produces the same results as a sequential one.
+
+To ensure reproducibility, set the random `seed` or provide a previously saved `RandomState`. This guarantees that the same random numbers are generated each time the script is run, leading to identical results. If both a seed and a saved state are provided, the seed is ignored and only the saved state is used. If neither a seed nor a saved state is provided, a random seed will be used, leading to different results each time the script is executed. In any case, the random state is stored to allow for the reproduction of the same results later.
