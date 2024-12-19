@@ -382,7 +382,8 @@ main <- function() {
     # processed. Consequently, parallel and serial execution will yield identical results.
     # Internally, the foreach package employs the L'Ecuyer-CMRG RNG algorithm for reliable random
     # number generation, ensuring reproducible results even in parallel computing environments.
-    output <- foreach (pair_idx=seq_len(nrow(pairs))) %dorng% {
+    output <- foreach (pair_idx=seq_len(nrow(pairs)),
+                       .export=c("compute_prob_matrix_norm", "int_seq", "dispersal", "GrowthRate", "Parabol")) %dorng% {
         numPool <- pairs$numPool[pair_idx]
         r <- pairs$r[pair_idx]
 
