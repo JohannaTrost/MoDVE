@@ -85,6 +85,15 @@ habitats[habitats == 60] <- NA  # Bare / sparse vegetation
 habitats[habitats == 80] <- NA  # Water
 habitats[habitats == 90] <- 12  # Herbacious wetland
 
+# Remove color table
+coltab(habitats) <- NULL
+
+# Save habitats 
+writeRaster(habitats, "/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/habitats.tif", 
+            filetype = "GTiff", overwrite = TRUE)
+
+# Below not working properly
+
 habitats <- project(habitats, "EPSG:4326")
 cheight <- project(cheight, "EPSG:4326")
 lai <- project(lai, "EPSG:4326", res=res(habitats))
