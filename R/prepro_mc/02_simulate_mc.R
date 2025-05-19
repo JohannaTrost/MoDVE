@@ -1,21 +1,27 @@
 require(devtools)
-install_github("ilyamaclean/microclimf")
+# install_github("ilyamaclean/microclimf")
 
 library(microclimf)
 library(terra)
+library(readr)
+library(viridis)
 
 # vegp 1m resolution
-# dtmcaerth 1m resolution
+# dtm 1m resolution
 # soilc 1m resolution
 # climdata is equal for the whole grid 
 
 
 # Load data for one year 
-# (...)
+in_dir <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/regua"
+vegp_reg <- readRDS(paste(in_dir, "vegp.RDS", sep = "/"))
+dtm_reg <- rast(paste(in_dir, "dtm.tif", sep = "/"))
+soilc_reg <- readRDS(paste(in_dir, "soilc.RDS", sep = "/"))
+climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2024.csv", sep = "/"))
 
-max_veg_height <- max(terra::values(terra::unwrap(vegp$hgt)), na.rm = TRUE)
-min_veg_height <- min(terra::values(terra::unwrap(vegp$hgt)), na.rm = TRUE)
-heights <- seq(min_veg_height + 0.5, max_veg_height + 1)
+max_veg_height <- max(terra::values(terra::unwrap(vegp_reg$hgt)), na.rm = TRUE)
+min_veg_height <- min(terra::values(terra::unwrap(vegp_reg$hgt)), na.rm = TRUE)
+heights <- seq(0.5, max_veg_height + 1)
 n_heights <- length(heights)
 
 # Initialize an empty list to store output variables
@@ -23,11 +29,11 @@ avg_mc_all <- list()
 
 # First run to initialize output structure with dimensions
 height <- heights[1]
-micropoint <- runpointmodel(climdata, reqhgt = height, dtmcaerth, vegp, soilc)
+micropoint <- runpointmodel(climdata_reg, reqhgt = height, dtm_reg, vegp_reg, soilc_reg)
 micropoint_mx <- subsetpointmodel(micropoint, tstep = "month", what = "tmax")
 micropoint_mn <- subsetpointmodel(micropoint, tstep = "month", what = "tmin")
-mout_mx <- runmicro(micropoint_mx, reqhgt = height, vegp, soilc, dtmcaerth)
-mout_mn <- runmicro(micropoint_mn, reqhgt = height, vegp, soilc, dtmcaerth)
+mout_mx <- runmicro(micropoint_mx, reqhgt = height, vegp_reg, soilc_reg, dtm_reg)
+mout_mn <- runmicro(micropoint_mn, reqhgt = height, vegp_reg, soilc_reg, dtm_reg)
 
 # Average the two outputs
 avg_mc <- list()
@@ -49,11 +55,11 @@ for (i in 2:n_heights) {
   height <- heights[i]
   
   # Run point and grid models
-  micropoint <- runpointmodel(climdata, reqhgt = height, dtmcaerth, vegp, soilc)
+  micropoint <- runpointmodel(climdata_reg, reqhgt = height, dtm_reg, vegp_reg, soilc_reg)
   micropoint_mx <- subsetpointmodel(micropoint, tstep = "month", what = "tmax")
   micropoint_mn <- subsetpointmodel(micropoint, tstep = "month", what = "tmin")
-  mout_mx <- runmicro(micropoint_mx, reqhgt = height, vegp, soilc, dtmcaerth)
-  mout_mn <- runmicro(micropoint_mn, reqhgt = height, vegp, soilc, dtmcaerth)
+  mout_mx <- runmicro(micropoint_mx, reqhgt = height, vegp_reg, soilc_reg, dtm_reg)
+  mout_mn <- runmicro(micropoint_mn, reqhgt = height, vegp_reg, soilc_reg, dtm_reg)
   
   # Average variables
   avg_mc <- list()
@@ -73,30 +79,72 @@ for (i in 2:n_heights) {
 # Plot grid of 3 heights
 # Plot air temperatures on hottest hour in micropoint (2017-06-20 13:00:00 UTC)
 mypal <- colorRampPalette(c("darkblue", "blue", "green", "yellow", "orange",  "red"))(255)
-plot(rast(avg_mc_all$Tz[,,134, 1]), col = mypal, range = c(20, 48),
-     main = "Mean Tz 1m")
-plot(rast(avg_mc_all$Tz[,,134, 2]), col = mypal, range = c(20, 48),
-     main = "Mean Tz 2m")
-plot(rast(avg_mc_all$Tz[,,134, 3]), col = mypal, range = c(20, 48),
-     main = "Mean Tz 3m")
+
+for (i in seq(1, 288, 50)) {
+  
+  lower <- min(avg_mc_all$Tz[,,i, c(1, 12, 25)])
+  upper <- max(avg_mc_all$Tz[,,i, c(1, 12, 25)])
+  
+  plot(rast(avg_mc_all$Tz[,,i, 1]), col = mypal, 
+       range = c(lower, upper),
+       main = "Mean Tz 0.5m")
+  plot(rast(avg_mc_all$Tz[,,i, 12]), col = mypal, 
+       range = c(lower, upper),
+       main = "Mean Tz 11.5m")
+  plot(rast(avg_mc_all$Tz[,,i, 25]), col = mypal, 
+       range = c(lower, upper),
+       main = "Mean Tz 24.5m")
+}
+
+
+avg_profile <- apply(avg_mc_all$Tz, 4, mean)
+
+plot(avg_profile, heights, type="b")
+
 
 # -------
 # Show example of a slice 
 
-# Choose y index and time index
-y_index <- 25
-time_index <- 134
+cols <- viridis(10)
 
-# Extract [x, z] matrix at fixed y and time
-xz_slice <- avg_mc_all$Tz[, y_index, time_index, ]
+# Height 
+hgt_raster <- terra::unwrap(vegp_reg$hgt)
+height_means <- rowMeans(hgt_raster)
 
-# Transpose for raster format: [rows = height, columns = x]
-xz_slice_rast <- rast(t(xz_slice))
-
-# Plot
-plot(xz_slice_rast, col = mypal, range = c(20, 48),
-     main = "Tz cross-section (x vs height)",
-     xlab = "x coordinate", ylab = "Height (m)")
-
-
+# Loop over time indices
+for (i in seq(1, 288, 20)) {
+  
+  all_means <- list()
+  all_heights <- list()
+  
+  # First loop: collect all profiles for this time index
+  for (y_index in seq(1, 50, 5)) {
+    xz_slice <- avg_mc_all$Tz[, y_index, i, ]
+    mean_temp_by_height <- colMeans(xz_slice, na.rm = TRUE)
+    xz_slice_rast <- rast(t(xz_slice))
+    height_vals <- yFromRow(xz_slice_rast, nrow(xz_slice_rast):1)
+    
+    all_means[[length(all_means) + 1]] <- mean_temp_by_height
+    all_heights[[length(all_heights) + 1]] <- height_vals
+  }
+  
+  # Get global plot limits
+  all_means_combined <- unlist(all_means)
+  all_heights_combined <- unlist(all_heights)
+  xlim_vals <- range(all_means_combined, na.rm = TRUE)
+  ylim_vals <- range(all_heights_combined, na.rm = TRUE)
+  
+  # Start plot
+  plot(NULL, xlim = xlim_vals, ylim = ylim_vals,
+       xlab = "Average Temperature (°C)", ylab = "Height (m)",
+       main = paste("Average Tz Profiles\n Day =", i))
+  
+  for (k in seq_along(all_means)) {
+    print(k)
+    col <- cols[k]
+    lines(all_means[[k]], all_heights[[k]], col = col, lwd = 1.5, alpha=0.5)
+    points(all_means[[k]], all_heights[[k]], col = col, pch = 16, cex = 0.5, , alpha=0.5)
+    abline(h=row_means[k*5], col=col, lty=2, lwd = 1.5, alpha=0.5)
+  }
+}
 
