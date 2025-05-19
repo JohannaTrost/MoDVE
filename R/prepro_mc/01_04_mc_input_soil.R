@@ -28,9 +28,9 @@ par(mfrow = c(1, 2))
 plot(refldata$gref, col=gray.colors(255), range = c(0, 1), main = "Ground")
 plot(refldata$lref, col=gray.colors(255), range = c(0, 1), main = "Leaf")
 
-writeRaster(refldata$gref, "/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/ground_ref_100m.tif", 
+writeRaster(refldata$gref, "/Users/johanna/Uni/masterarbeit/code/data/mc_input/soil/ground_ref_100m.tif", 
             filetype = "GTiff", overwrite = TRUE)
-writeRaster(refldata$lref, "/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/leaf_ref_100m.tif", 
+writeRaster(refldata$lref, "/Users/johanna/Uni/masterarbeit/code/data/mc_input/soil/leaf_ref_100m.tif", 
             filetype = "GTiff", overwrite = TRUE)
 
 r <- rast("/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/rgb_cir_2024-02-01/cir.tif")[[1]]
@@ -67,4 +67,5 @@ png(file.path(out_dir, "Mc.png"))
 plot(terra::unwrap(soilc$Mc), main = expression("Mass Fraction of Clay (kg/kg)"))
 dev.off()
 
-
+saveRDS(soilc, 
+        "/Users/johanna/Uni/masterarbeit/code/data/mc_input/soil/soilc.RDS")
