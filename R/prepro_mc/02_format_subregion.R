@@ -92,6 +92,9 @@ climdata_regua <- data.frame(
   check.names = FALSE  # keep original variable names
 )
 
+# Clean data 
+climdata_regua$swdown[climdata_regua$swdown < 0] <- 0
+
 # -  Prep Vegetation
 
 # Correct layer names 
@@ -117,8 +120,6 @@ plot(dtm_square)
 # - Prep Soil data
 soil_square <- terra_crop(soilc_baf, extent_vect, res = 1)
 
-
-
 plot(terra::unwrap(soil_square$soiltype))
 
 # Save data 
@@ -135,7 +136,7 @@ in_dir <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/regua"
 vegp_reg <- readRDS(paste(in_dir, "vegp.RDS", sep = "/"))
 dtm_reg <- rast(paste(in_dir, "dtm.tif", sep = "/"))
 soilc_reg <- readRDS(paste(in_dir, "soilc.RDS", sep = "/"))
-climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2024.csv", sep = "/"))
+climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2016.csv", sep = "/"))
 
 # Vegetation
 for (name in names(vegp_reg)) {
