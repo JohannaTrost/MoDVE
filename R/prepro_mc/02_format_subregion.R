@@ -5,6 +5,7 @@ library(sf)
 library(terra)
 library(dplyr)
 library(microclimf)
+library(readr)
 
 
 terra_crop <- function(data, ext, res = NULL) {
@@ -47,7 +48,7 @@ terra_crop <- function(data, ext, res = NULL) {
 vegp_baf <- readRDS("/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/vegp.RDS")
 dtm_baf <- rast("/Users/johanna/Uni/masterarbeit/code/data/mc_input/soil/dtm.tif")
 soilc_baf <- readRDS("/Users/johanna/Uni/masterarbeit/code/data/mc_input/soil/soilc.RDS")
-climdata_baf <- readRDS("/Users/johanna/Uni/masterarbeit/code/data/mc_input/climate/era5_climdata_2016.RDS")
+climdata_baf <- readRDS("/Users/johanna/Uni/masterarbeit/code/data/mc_input/climate/era5_climdata_2024.RDS")
 
 # -- REGUA
 
@@ -57,6 +58,18 @@ dir.create(file.path(out))
 # Define the center point
 lat <- -22.426880
 lon <- -42.765096
+center_coords <- st_sfc(st_point(c(lon, lat)), crs = 4326)
+center_proj <- st_transform(center_coords, crs = 31983)
+center_coords_m <- st_coordinates(center_proj)
+
+# -- Pirineus
+
+out <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/pirineus"
+dir.create(file.path(out))
+
+# Define the center point
+lat <- -22.441224
+lon <- -42.50921
 center_coords <- st_sfc(st_point(c(lon, lat)), crs = 4326)
 center_proj <- st_transform(center_coords, crs = 31983)
 center_coords_m <- st_coordinates(center_proj)
@@ -94,6 +107,7 @@ climdata_regua <- data.frame(
 
 # Clean data 
 climdata_regua$swdown[climdata_regua$swdown < 0] <- 0
+climdata_regua$difrad[climdata_regua$difrad < 0] <- 0
 
 # -  Prep Vegetation
 
@@ -128,12 +142,11 @@ writeRaster(dtm_square, paste(out, "dtm.tif", sep = "/"),
             filetype = "GTiff", overwrite = TRUE)
 saveRDS(soil_square, paste(out, "soilc.RDS", sep = "/"))
 write.csv(climdata_regua, 
-          paste(out, "era5_climdata_2016.csv", sep = "/"), 
+          paste(out, "era5_climdata_2024.csv", sep = "/"), 
           row.names=FALSE)
 
 # Visualize data:
-in_dir <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/regua"
-vegp_reg <- readRDS(paste(in_dir, "vegp.RDS", sep = "/"))
+vegp_reg <- readRDS(paste(out, "vegp.RDS", sep = "/"))
 dtm_reg <- rast(paste(in_dir, "dtm.tif", sep = "/"))
 soilc_reg <- readRDS(paste(in_dir, "soilc.RDS", sep = "/"))
 climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2016.csv", sep = "/"))
