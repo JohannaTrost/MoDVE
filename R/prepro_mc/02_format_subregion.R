@@ -147,9 +147,9 @@ write.csv(climdata_regua,
 
 # Visualize data:
 vegp_reg <- readRDS(paste(out, "vegp.RDS", sep = "/"))
-dtm_reg <- rast(paste(in_dir, "dtm.tif", sep = "/"))
-soilc_reg <- readRDS(paste(in_dir, "soilc.RDS", sep = "/"))
-climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2016.csv", sep = "/"))
+dtm_reg <- rast(paste(out, "dtm.tif", sep = "/"))
+soilc_reg <- readRDS(paste(out, "soilc.RDS", sep = "/"))
+climdata_reg <- read_csv(paste(out, "era5_climdata_2024.csv", sep = "/"))
 
 # Vegetation
 for (name in names(vegp_reg)) {
@@ -172,7 +172,8 @@ print(res(vegp_var))
 # Issue with ground radiation
 soilc_reg_unpacked <- lapply(soilc_reg, terra::unwrap)
 soilc_reg_unpacked$groundr <- terra::ifel(is.na(soilc_reg_unpacked$groundr), 
-                                          0.009858172, soilc_reg_unpacked$groundr)
+                                          unique(soilc_reg_unpacked$groundr)[[1]], 
+                                          soilc_reg_unpacked$groundr)
 soic_reg <- lapply(soilc_reg_unpacked, terra::wrap)
 saveRDS(soic_reg, paste(out, "soilc.RDS", sep = "/"))
 
