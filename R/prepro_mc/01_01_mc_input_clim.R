@@ -21,6 +21,7 @@ library(terra)
 library(mcera5)
 library(ncdf4)
 library(tools)
+library(ggplot2)
 
 # example climdata 
 library(microclimf)
@@ -99,13 +100,13 @@ r <- project(r, "EPSG:31983", res = 10)
 
 # Time sequence for 2024
 tme <- as.POSIXlt(seq(
-  as.POSIXct("2024-01-01 00:00", tz = "UTC"),
-  as.POSIXct("2024-12-31 23:00", tz = "UTC"),
+  as.POSIXct("2016-01-01 00:00", tz = "UTC"),
+  as.POSIXct("2016-12-31 23:00", tz = "UTC"),
   by = "1 hour"
 ))
 
 # Define output path and filename
-pathout <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/era5_2024_10m"
+pathout <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/climate"
 file_prefix <- paste0(gsub("-", "_", substr(Sys.time(), 1, 10)
                            ), 
                       "_")
@@ -126,7 +127,8 @@ req <- build_era5_request(
 
 # Correct req object and nc file
 for (month in seq(1, 12)) {
-  req[[month]]$target <- paste0("2025_05_15__2024_", month, ".nc")
+  req[[month]]$target <- paste0(gsub("-", "_", substr(Sys.time(), 1, 10)), 
+                                "__2016_", month, ".nc")
   
   # Correct subset name in nc files 
   nc_path <- paste0(pathout, "/", req[[month]]$target)
@@ -191,7 +193,7 @@ plots <- lapply(names(era5climdata), function(varname) {
 wrap_plots(plots, ncol = 3)
 
 saveRDS(era5climdata, 
-        "/Users/johanna/Uni/masterarbeit/code/data/mc_input/climate/era5_climdata_2024.RDS")
+        "/Users/johanna/Uni/masterarbeit/code/data/mc_input/climate/era5_climdata_2016.RDS")
 
 
 
