@@ -1,8 +1,8 @@
 # Create microhabitat matrices
 source("utils.R")
 
-
 config <- parse_config()
+#config <- read.config(file="tests/config_a1.toml")
 
 # ------------------- Parameters ----------------------- #
 # Parameters that need to be specified/checked before running this script
@@ -136,7 +136,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
             TrunksBegin <- read.table(file.path(src_dir, trunkFileNameOld), sep="\t", header=TRUE, skip=8)
             TrunksEnd <- read.table(file.path(src_dir, trunkFileNameNew), sep="\t", header=TRUE, skip=8)
         }
-
+        
         # inititalize all matrices
         Mat_surface_per_cell <- array(rep(0, dimX * dimY * dimZ), dim=c(dimX, dimY, dimZ))
         Mat_weighted_angle_per_cell <- array(rep(0, dimX * dimY * dimZ), dim=c(dimX, dimY, dimZ))
@@ -279,9 +279,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
             Voxels$z <- Voxels$z + 1
 
             # Store information on leaf area in matrix
-            for (j in seq_len(nrow(Voxels))) {
-                Mat_leafArea_per_cell[Voxels$x[j], Voxels$y[j], Voxels$z[j]] <- Voxels$leafarea[j]
-            }
+            Mat_leafArea_per_cell[cbind(Voxels$x, Voxels$y, Voxels$z)] <- Voxels$leafarea
 
             # Calculate single column light conditions based on leaf area distribution
             for (x in seq_len(dimX)) {
@@ -291,7 +289,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
                     }
                 }
             }
-
+            
             # Copy light conditions
             Mat_light_per_cell_Copy <- Mat_light_per_cell
 
@@ -318,18 +316,20 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
             }
 
         }
-
-
+        
         # Store information in Microhabitat matrix and save matrix for this
         # timestep
         # possibly only 5 dimensions to save space
-        Microhabitat <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * MatrixDimension), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], MatrixDimension))
-
+        Microhabitat <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * (MatrixDimension+1)), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], (MatrixDimension+1)))
+        
         idx1 <- int_seq(from=corridor+1, to=dimX-corridor, by=1)
         idx2 <- int_seq(from=corridor+1, to=dimY-corridor, by=1)
         idx3 <- seq_len(dimZ)
 
         if (TotalSurfaceAreaOpt == 1) {
+            # Compute PAI 
+            Mat_plantArea_per_cell <- Mat_surface_per_cell + Mat_leafArea_per_cell
+            Microhabitat[ , , , MatrixDimension+1] <- Mat_plantArea_per_cell[idx1, idx2, idx3]
             Microhabitat[ , , , 1] <- Mat_surface_per_cell[idx1, idx2, idx3]
         }
 
