@@ -328,7 +328,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 
         if (TotalSurfaceAreaOpt == 1) {
             # Compute PAI 
-            Mat_plantArea_per_cell <- Mat_surface_per_cell + Mat_leafArea_per_cell
+            Mat_plantArea_per_cell <- Mat_surface_per_cell + (Mat_leafArea_per_cell / 10000)
             Microhabitat[ , , , MatrixDimension+1] <- Mat_plantArea_per_cell[idx1, idx2, idx3]
             Microhabitat[ , , , 1] <- Mat_surface_per_cell[idx1, idx2, idx3]
         }
