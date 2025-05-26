@@ -13,11 +13,16 @@ library(viridis)
 
 
 # Load data for one year 
-in_dir <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/regua"
+in_dir <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/pirineus"
 vegp_reg <- readRDS(paste(in_dir, "vegp.RDS", sep = "/"))
 dtm_reg <- rast(paste(in_dir, "dtm.tif", sep = "/"))
 soilc_reg <- readRDS(paste(in_dir, "soilc.RDS", sep = "/"))
 climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2024.csv", sep = "/"))
+
+# Hot fix for pressure limit
+mnelev <- min(values(dtm_reg))
+mxp<-108.5*((293-0.0065*mnelev)/293)^5.26
+climdata_reg$pres[climdata_reg$pres > mxp] <- mxp
 
 max_veg_height <- max(terra::values(terra::unwrap(vegp_reg$hgt)), na.rm = TRUE)
 min_veg_height <- min(terra::values(terra::unwrap(vegp_reg$hgt)), na.rm = TRUE)
@@ -32,8 +37,10 @@ height <- heights[1]
 micropoint <- runpointmodel(climdata_reg, reqhgt = height, dtm_reg, vegp_reg, soilc_reg)
 micropoint_mx <- subsetpointmodel(micropoint, tstep = "month", what = "tmax")
 micropoint_mn <- subsetpointmodel(micropoint, tstep = "month", what = "tmin")
-mout_mx <- runmicro(micropoint_mx, reqhgt = height, vegp_reg, soilc_reg, dtm_reg)
-mout_mn <- runmicro(micropoint_mn, reqhgt = height, vegp_reg, soilc_reg, dtm_reg)
+mout_mx <- runmicro(micropoint_mx, reqhgt = height, vegp_reg, soilc_reg, dtm_reg,
+                    method = "Cpp")
+mout_mn <- runmicro(micropoint_mn, reqhgt = height, vegp_reg, soilc_reg, dtm_reg,
+                    method = "Cpp")
 
 # Average the two outputs
 avg_mc <- list()
@@ -96,10 +103,13 @@ for (i in seq(1, 288, 50)) {
        main = "Mean Tz 24.5m")
 }
 
+# Plot avg profiles
+for (var in names(avg_mc_all)) {
+  avg_profile <- apply(avg_mc_all[[var]], 4, mean)
+  plot(avg_profile, heights, type="b", 
+       main = var)
+}
 
-avg_profile <- apply(avg_mc_all$Tz, 4, mean)
-
-plot(avg_profile, heights, type="b")
 
 
 # -------
