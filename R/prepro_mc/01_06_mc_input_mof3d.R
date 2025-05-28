@@ -51,37 +51,40 @@ vegp_reg <- readRDS(paste(in_dir, "vegp.RDS", sep = "/"))
 vegp_unwrpd <- lapply(vegp_reg, terra::unwrap)
 
 # Raster to store simulated forest data
-vegp_mof3d <- copy(vegp_unwrpd)
+vegp_mof3d <- vegp_unwrpd
 
 # --- Canopy height 
 
-forest_file <- '/Users/johanna/Uni/masterarbeit/code/output/mof3d_test/Results/trees_replicate_0_time_step_30.txt'
-trees <- read.csv(forest_file, sep = "\t", skip = 8)
+# MoF3D microhabitat matrix (generated with modified version of A1.R from MoDVE)
+microhab_file <- "/Users/johanna/Uni/masterarbeit/code/output/modev_zach_25_01_07/MicrohabitatMatrix99.rds"
+mm <- readRDS(microhab_file)
 
+# --- For each cell that is NA extract the max veg. height from PAI
 
-# Get voxel positions by ceiling the x and y coordinates
-trees$X_voxel <- ceiling(trees$x)
-trees$Y_voxel <- ceiling(trees$y)
+# Extract PAI
+pai <- mm[,,,5]
+max_x <- dim(pai)[1]
+max_y <- dim(pai)[2]
 
-# Determine matrix dimensions (you may adjust based on known grid size)
-tmp <- readLines(forest_file)
-max_x <- as.numeric(sub("MaxX\t", "", tmp[4]))
-max_y <- as.numeric(sub("MaxY\t", "", tmp[5]))
-corridor <- as.numeric(sub("Corridor\t", "", tmp[7]))
-
-# Initialize matrix with NA or -Inf to compare heights
+# Create a copy of max_heights to modify
 max_heights <- matrix(NA, nrow = max_x, ncol = max_y)
 
-# Loop through data and update matrix with max heights
-for (i in seq_len(nrow(trees))) {
-  x <- ceiling(trees$x[i] - corridor)
-  y <- ceiling(trees$y[i] - corridor)
-  h <- trees$height[i]
-  
-  if (is.na(max_heights[x, y]) || h > max_heights[x, y]) {
-    max_heights[x, y] <- h
+# For each NA, find max height where PAI > 0
+for (i in 1:max_x) {
+  for (j in 1:max_y) {
+    # Get the vertical profile of PAI at this cell
+    profile <- pai[i, j, ]
+    
+    # Find the last layer with non-zero PAI
+    non_zero <- which(profile > 0)
+    
+    if (length(non_zero) > 0) {
+      # Set the height as the maximum non-zero layer (in meters)
+      max_heights[i, j] <- max(non_zero)
+    }
   }
 }
+
 # Replace NAs with 0s -> where no trees
 max_heights[is.na(max_heights)] <- 0
 max_height <- max(max_heights)
@@ -90,13 +93,6 @@ max_height <- max(max_heights)
 values(vegp_mof3d$hgt) <- max_heights
 
 # --- PAI
-
-# MoF3D microhabitat matrix (generated with modified version of A1.R from MoDVE)
-microhab_file <- "../../output/MoDEV_test_v2/MicrohabitatMatrix30.rds"
-mm <- readRDS(microhab_file)
-
-# Extract PAI
-pai <- mm[,,,5]
 
 # Canopy as upper 4th of forest -> total PAI
 lower_hgt <- floor(max_height * (3/4))
@@ -162,11 +158,17 @@ vegp_mof3d$q50 <- terra::rast(extent = terra::ext(vegp_mof3d$pai),
                               crs = terra::crs(vegp_mof3d$pai))
 vegp_mof3d$q50[] <- 100 # default value if no info is available
 
+# --- Add veg. emissivity 
+
+em <- 0.97
+vegp_mof3d$em <- deepcopy(vegp_mof3d$q50)
+values(vegp_mof3d$em) <- em
+
 # Wrap data and save 
 vegp_mof3d_wrp <- lapply(vegp_mof3d, terra::wrap)
 
-saveRDS(vegp_mof3d_wrp, paste(in_dir, "vegp_mof3d.RDS", sep = "/"))
-saveRDS(paii, paste(in_dir, "paii_mof3d.RDS", sep = "/"))
+saveRDS(vegp_mof3d_wrp, paste(in_dir, "vegp_mof3d_ptm_v2.RDS", sep = "/"))
+saveRDS(paii, paste(in_dir, "paii_mof3d_v2.RDS", sep = "/"))
 
 # Plot height
 plot(vegp_mof3d$h)
@@ -185,12 +187,23 @@ soilp <- get_by_soiltype(ptm_soilc$soiltype)
 
 # Add missing variables: Psie, Smax, Smin etc.
 for (var_name in names(soilp)) {
-  ptm_soilc[[var_name]] <- soilp[[var_name]]
+  if (var_name == "psi_e") {
+    ptm_soilc[[var_name]] <- -soilp[[var_name]]
+  } else {
+    ptm_soilc[[var_name]] <- soilp[[var_name]]
+  }
 }
+# Rename for correct structure for pointmodel
+names(ptm_soilc)[names(ptm_soilc) == "psi_e"] <- "Psie"
 
 dtm_reg <- rast(paste(in_dir, "dtm.tif", sep = "/"))
 ptm_soilc$slope<-terra::terrain(dtm_reg,'slope')
 ptm_soilc$aspect<-terra::terrain(dtm_reg,'aspect')
 
-#soilc_reg$gref <- microclimf:::.rta(soilc_reg$groundr, length(climdata_reg$obs_time))
+em <- 0.97
+ptm_soilc$em <- deepcopy(ptm_soilc$slope)
+values(ptm_soilc$em) <- em
 
+ptm_soilc_wrp <- lapply(ptm_soilc, terra::wrap)
+
+saveRDS(ptm_soilc_wrp, paste(in_dir, "soilc_ptm.RDS", sep = "/"))
