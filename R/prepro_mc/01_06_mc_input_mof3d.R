@@ -106,47 +106,6 @@ plot(vegp_unwrpd$pai)
 paii <- apply(pai[,,1:upper_hgt], c(3), mean)
 plot(paii, type = "line")
 
-
-# --- Leaf angle inclination
-
-zdim <- ceiling(max(max_heights, na.rm = TRUE))
-mat_weighted_angle_per_cell <- mm[,,1:zdim,4]
-
-# Convert leaf angle to Cambells leaf angle inclination coefficient
-# see https://doi.org/10.1016/0168-1923(88)90057-3
-compute_x <- function(theta_deg) {
-  if (is.na(theta_deg)) {
-    return(NA)
-  }
-  if (theta_deg <= 57.4) { # >1
-    x <- ((1 / theta_deg) - 0.0053) / 0.0103
-  }else{
-    x <- ((1 / theta_deg) - 0.0107) / 0.0066
-  }
-  return(x)
-}
-
-x_matrix <- apply(mat_weighted_angle_per_cell, c(1, 2, 3), 
-                  function(x) compute_x(x))
-# Leaf angles with an x-value >10 are unrealistic and will be excluded
-angles = copy(mat_weighted_angle_per_cell)
-angles[x_matrix > 10] = NA
-x_matrix[x_matrix > 10] = NA
-
-# Get average leaf angle inclination coefficients
-x_matrix_2d <- apply(x_matrix, c(1, 2), function(x) median(x, na.rm = TRUE))
-avg_angles <- apply(angles, c(1, 2), function(x) median(x, na.rm = TRUE))
-
-hist(x_matrix_2d)
-hist(avg_angles)
-hist(values(terra::unwrap(vegp_reg$x)))
-
-# Store in raster
-values(vegp_mof3d$x) <- x_matrix_2d
-
-plot(vegp_mof3d$x)
-plot(vegp_unwrpd$x)
-
 # Adjust names for micropoint 
 names(vegp_mof3d)[names(vegp_mof3d) == "leafr"] <- "lref"
 names(vegp_mof3d)[names(vegp_mof3d) == "leaft"] <- "ltra"
