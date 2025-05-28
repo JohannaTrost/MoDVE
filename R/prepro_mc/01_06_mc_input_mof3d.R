@@ -56,7 +56,7 @@ vegp_mof3d <- vegp_unwrpd
 # --- Canopy height 
 
 # MoF3D microhabitat matrix (generated with modified version of A1.R from MoDVE)
-microhab_file <- "/Users/johanna/Uni/masterarbeit/code/output/modev_zach_25_01_07/MicrohabitatMatrix99.rds"
+microhab_file <- "/Users/johanna/Uni/masterarbeit/code/output/modev_zach_25_01_07/MicrohabitatMatrix98.rds"
 mm <- readRDS(microhab_file)
 
 # --- For each cell that is NA extract the max veg. height from PAI
@@ -68,6 +68,7 @@ max_y <- dim(pai)[2]
 
 # Create a copy of max_heights to modify
 max_heights <- matrix(NA, nrow = max_x, ncol = max_y)
+pai_2d <- matrix(NA, nrow = max_x, ncol = max_y)
 
 # For each NA, find max height where PAI > 0
 for (i in 1:max_x) {
@@ -80,31 +81,39 @@ for (i in 1:max_x) {
     
     if (length(non_zero) > 0) {
       # Set the height as the maximum non-zero layer (in meters)
-      max_heights[i, j] <- max(non_zero)
+      veg_hgt <- max(non_zero)
+      max_heights[i, j] <- veg_hgt
+      lower_hgt <- floor(veg_hgt * (3/4))  # Get "canopy" PAI only
+      pai_2d[i, j] <- sum(pai[i, j, lower_hgt:veg_hgt])
+    } else {
+      max_heights[i, j] <- 0
+      pai_2d[i, j] <- 0
     }
   }
 }
 
-# Replace NAs with 0s -> where no trees
-max_heights[is.na(max_heights)] <- 0
-max_height <- max(max_heights)
-
 # Store in raster
 values(vegp_mof3d$hgt) <- max_heights
-
-# --- PAI
-
-# Canopy as upper 4th of forest -> total PAI
-lower_hgt <- floor(max_height * (3/4))
-upper_hgt <- ceiling(max_height)
-values(vegp_mof3d$pai) <- apply(pai[,,lower_hgt:upper_hgt], 
-                                c(1, 2), sum)
+values(vegp_mof3d$pai) <- pai_2d
 
 plot(vegp_mof3d$pai)
 plot(vegp_unwrpd$pai)
 
+# Look at average PAI profile 
 paii <- apply(pai[,,1:upper_hgt], c(3), mean)
-plot(paii, type = "line")
+plot(c(1:length(paii)) ~ paii, type = "l", main = paste("Total PAI:", sum(paii)))
+
+# Check branch area
+sai <- mm[,,,1]
+saii <- apply(sai[,,1:upper_hgt], c(3), mean)
+plot(c(1:length(saii)) ~ saii, type = "l", main = paste("Total SAI:", sum(saii)))
+
+# Check LAI
+lai <- pai - sai
+laii <- apply(lai[,,1:upper_hgt], c(3), mean)
+plot(c(1:length(laii)) ~ laii, type = "l", main = paste("Total LAI:", sum(laii)))
+
+# Smooting 
 
 # Adjust names for micropoint 
 names(vegp_mof3d)[names(vegp_mof3d) == "leafr"] <- "lref"
@@ -119,7 +128,7 @@ vegp_mof3d$q50[] <- 100 # default value if no info is available
 
 # --- Add veg. emissivity 
 
-em <- 0.97
+em <- 0.97 # From original model (see micropoint/microclimf)
 vegp_mof3d$em <- deepcopy(vegp_mof3d$q50)
 values(vegp_mof3d$em) <- em
 
