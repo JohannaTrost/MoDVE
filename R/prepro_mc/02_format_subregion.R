@@ -63,7 +63,7 @@ center_proj <- st_transform(center_coords, crs = 31983)
 center_coords_m <- st_coordinates(center_proj)
 
 # -- Pirineus
-
+'''
 out <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/pirineus"
 dir.create(file.path(out))
 
@@ -73,7 +73,7 @@ lon <- -42.50921
 center_coords <- st_sfc(st_point(c(lon, lat)), crs = 4326)
 center_proj <- st_transform(center_coords, crs = 31983)
 center_coords_m <- st_coordinates(center_proj)
-
+'''
 # Create a 50m x 50m square (i.e., a 50m buffer in all directions)
 extent_box <- st_buffer(center_proj, dist = 25, endCapStyle = "SQUARE")
 extent_vect <- vect(extent_box)
@@ -127,7 +127,7 @@ plot(terra::unwrap(vegp_square$hgt))
 # - Prep DTM
 pai <- deepcopy(terra::unwrap(vegp_square$pai))
 dtm_baf_res <- resample(dtm_baf, pai) 
-dtm_square <- crop(dtm_baf_res$lyr1, extent_vect)
+dtm_square <- dtm_baf_res$lyr1
 
 plot(dtm_square)
 
