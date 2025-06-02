@@ -72,7 +72,7 @@ indices2coords <- function(x, y, raster, crs_out = "EPSG:4326") {
 in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
 vegp_reg <- readRDS(paste(in_dir, "vegp_mof3d_ptm_v2.RDS", sep = "/"))
 dtm_reg <- rast(paste(in_dir, "dtm.tif", sep = "/"))
-soilc_reg <- readRDS(paste(in_dir, "soilc_ptm.RDS", sep = "/"))
+soilc_reg <- readRDS(paste(in_dir, "soilc.RDS", sep = "/"))
 climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2024.csv", sep = "/"))
 microhab_file <- "/Users/johanna/Uni/masterarbeit/code/output/modev_zach_25_01_07/MicrohabitatMatrix99.rds"
 pai <- readRDS(microhab_file)[,,,5]
@@ -98,13 +98,29 @@ indices <- coords2indices(lon, lat, terra::unwrap(vegp_reg$pai))
 #paii <- apply(pai, c(3), "mean")
 paii <- pai[indices[[1]], indices[[2]], 1:max(vegparams$h, 0.5)]
 
-mout <- micropoint::runpointmodel(climdata_reg, reqhgt = heights[1], vegparams, 
-                                  paii, grndparams, lat = lat, long= lon)
+# Compute height profile
+res <- list()
+for (h in heights) {
+  start_time <- Sys.time()
+  
+  mout <- micropoint::runpointmodel(climdata_reg, reqhgt = h, vegparams, 
+                                    paii, grndparams, lat = lat, long= lon)
+  end_time <- Sys.time()
+  time_taken <- round(end_time - start_time, 2)
+  
+  res[[as.character(h)]] <- mout
+}
 
-vegparams <- vegparams[names(micropoint::forestparams)]
-xx <- plotprofile(climdata_reg, hr = 4091, plotout = "tair", vegparams, 
-                  paii = paii,grndparams, lat = lat, long = lon)
+profile <- c()
+for (h in heights) {
+  df <- res[[as.character(h)]]
+  print(df[4091, "tair"])
+  profile <- append(profile, df[4091, "tair"])
+}
 
+
+
+plot(heights ~ profile, type = "l")
 
 # Dimensions
 nx <- dim(pai)[1]
@@ -119,7 +135,6 @@ unwrapped_pai <- terra::unwrap(vegp_reg$pai)
 
 # Correct parameter order
 vegp_reg <- vegp_reg[names(micropoint::forestparams)[1:10]]
-soilc_reg <- soilc_reg[names(micropoint::groundparams)]
 climdata_reg <- climdata_reg[, names(micropoint::climdata)]
 
 start_time <- Sys.time()
@@ -165,6 +180,6 @@ for (i in 1:nx) {
 
 end_time <- Sys.time()
 time_taken <- round(end_time - start_time, 2)
-print(paste("Grid cell took", time_taken, "secs"))
+print(paste("Grid cell took", time_taken, "mins"))
 
 
