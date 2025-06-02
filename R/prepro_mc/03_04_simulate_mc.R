@@ -68,16 +68,16 @@ indices2coords <- function(x, y, raster, crs_out = "EPSG:4326") {
 
 # Load data for one year 
 in_dir <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/regua"
-vegp_reg <- readRDS(paste(in_dir, "vegp_mof3d_ptm.RDS", sep = "/"))
+vegp_reg <- readRDS(paste(in_dir, "vegp_mof3d_ptm_v2.RDS", sep = "/"))
 dtm_reg <- rast(paste(in_dir, "dtm.tif", sep = "/"))
-soilc_reg <- readRDS(paste(in_dir, "soilc.RDS", sep = "/"))
+soilc_reg <- readRDS(paste(in_dir, "soilc_ptm.RDS", sep = "/"))
 climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2024.csv", sep = "/"))
-microhab_file <- "../../output/MoDEV_test_v2/MicrohabitatMatrix30.rds"
+microhab_file <- "/Users/johanna/Uni/masterarbeit/code/output/modev_zach_25_01_07/MicrohabitatMatrix99.rds"
 pai <- readRDS(microhab_file)[,,,5]
 
 # Veg heights
-max_veg_height <- max(terra::values(terra::unwrap(vegp_reg$hgt)), na.rm = TRUE)
-min_veg_height <- min(terra::values(terra::unwrap(vegp_reg$hgt)), na.rm = TRUE)
+max_veg_height <- max(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE)
+min_veg_height <- min(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE)
 heights <- seq(0.5, max_veg_height + 1)
 n_heights <- length(heights)
 
@@ -93,12 +93,59 @@ lat <- coords[[2]]
 vegparams <- extract_params(vegp_reg, lon, lat)
 grndparams <- extract_params(soilc_reg, lon, lat)
 #indices <- coord_2_index(lon, lat, terra::unwrap(vegp_reg$pai))
-paii <- pai[indices[[1]], indices[[2]], 1:max(vegparams$h, 0.5)]
+paii <- apply(pai, c(3), "mean")[1:((max(vegparams$h, 0.5) + 26) * 0.7)]
+#pai[indices[[1]], indices[[2]], 1:max(vegparams$h, 0.5)]
+
+mout <- micropoint::runpointmodel(climdata_reg, reqhgt = heights[1], vegparams, 
+                                  paii, grndparams, lat = lat, long= lon)
 
 
+vegp_debug <- micropoint::forestparams
+vegp_debug$h <- vegparams$h
+vegp_debug$pai <- vegparams$pai
+vegp_debug$x <- vegparams$x
+vegp_debug$lref <- vegparams$lref
+vegp_debug$clump <- vegparams$clump
+vegp_debug$ltra <- vegparams$ltra
+vegp_debug$leafd <- vegparams$leafd
+vegp_debug$em <- vegparams$em
+vegp_debug$gsmax <- vegparams$gsmax
+vegp_debug$q50 <- vegparams$q50
+vegp_debug$skew <- vegparams$skew
+vegp_debug$spread <- vegparams$spread
+
+# --- Fit parameters to the data
+
+# Objective function
+fit_fun <- function(params, observed, vegparams) {
+  skew <- params[1]
+  spread <- params[2]
+  modeled <- PAIgeometry(PAI = sum(observed), n = length(observed),
+                         skew = skew, spread = spread)
+  sum((observed - modeled)^2)
+}
+
+# Initial guesses for skew and spread
+init_params <- c(skew = 1, spread = 1)
+
+# Fit using optim
+fit <- optim(par = init_params, fn = fit_fun, observed = paii, vegparams = vegp_debug)
+
+# Fitted parameters
+fitted_skew <- fit$par[1]
+fitted_spread <- fit$par[2]
+
+paii_test <- PAIgeometry(PAI = sum(paii), 
+                         n = length(paii), 
+                         skew = fitted_skew, spread = fitted_spread)
+z <- c(1:length(paii)) / length(paii)
+# plant area within each layer
+#plot(z ~ paii_test, type = "l", main = paste("Total PAI:", sum(paii_test)))
+
+#plot(c(1:length(paii)) / length(paii) ~ paii, type = "l", main = paste("Total PAI:", sum(paii)))
+
+vegparams <- vegparams[names(vegp_debug)]
 xx <- plotprofile(climdata_reg, hr = 4091, plotout = "tair", vegparams, 
-                  paii = paii, grndparams, lat = lat, long= lon)
+                  paii = paii,grndparams, lat = lat, long = lon)
 
-xx <- plotprofile(micropoint::climdata, hr = 4091, plotout = "tair", micropoint::forestparams, 
-                  paii = paii, micropoint::soilparams, lat = 49.96807, long = -5.215668)
 

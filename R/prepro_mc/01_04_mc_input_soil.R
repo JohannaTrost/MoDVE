@@ -1,6 +1,11 @@
 library(terra)
-library(microclimdata)
 library(httr)
+
+library(remotes)
+remotes::install_local("/Users/johanna/Uni/masterarbeit/code/microclimdata")
+
+library(microclimdata)
+
 
 albedo <- rast("/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/albedo/albedo_modis_2024-01-01.tif")
 lai <- rast("/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/lai_2024_500m.tif")
@@ -35,8 +40,16 @@ writeRaster(refldata$lref, "/Users/johanna/Uni/masterarbeit/code/data/mc_input/s
 
 r <- rast("/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/rgb_cir_2024-02-01/cir.tif")[[1]]
 soildata <- soildata_download(r, 
-                              pathdir = "/Users/johanna/Uni/masterarbeit/code/data/mc_input/tmp", 
+                              pathdir = "/Users/johanna/Uni/masterarbeit/code/data/mc_input/tmp/", 
                               deletefiles = TRUE)
+
+
+# --- Generate input data for micropoint model
+
+# TODO get the data at this point
+
+# --- Generate data for microclimf (grid model)
+
 soilc <-  create_soilgrid(soildata, refldata, landcover, water = 80)
 attributes(soilc)
 

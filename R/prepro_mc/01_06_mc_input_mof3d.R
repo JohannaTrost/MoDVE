@@ -3,6 +3,7 @@
 library(micropoint)
 library(microclimf)
 library(terra)
+library(xts)
 
 
 matrix2raster <- function(matrix, ref_rast, name) {
@@ -103,7 +104,7 @@ plot(vegp_unwrpd$pai)
 paii <- apply(pai[,,1:upper_hgt], c(3), mean)
 plot(c(1:length(paii)) ~ paii, type = "l", main = paste("Total PAI:", sum(paii)))
 
-# Check branch area
+# Check SAI
 sai <- mm[,,,1]
 saii <- apply(sai[,,1:upper_hgt], c(3), mean)
 plot(c(1:length(saii)) ~ saii, type = "l", main = paste("Total SAI:", sum(saii)))
@@ -113,7 +114,20 @@ lai <- pai - sai
 laii <- apply(lai[,,1:upper_hgt], c(3), mean)
 plot(c(1:length(laii)) ~ laii, type = "l", main = paste("Total LAI:", sum(laii)))
 
-# Smooting 
+# -- Smoothing - 2D conv
+
+# 2D moving average kernel
+kernel <- matrix(1, nrow = 3, ncol = 3)
+kernel <- kernel / sum(kernel)
+
+# Apply kernel to every slice
+smoothed_pai <- array(0, dim = dim(pai))
+for (k in 1:dim(pai)[3]) {
+  # prepare cimg object (4D: x, y, cc, z)
+  slice <- as.cimg(pai[,,k])
+  smoothed <- imfilter(slice, kernel, boundary = "replicate")  # replicate borders
+  smoothed_pai[,,k] <- as.array(smoothed)
+}
 
 # Adjust names for micropoint 
 names(vegp_mof3d)[names(vegp_mof3d) == "leafr"] <- "lref"
