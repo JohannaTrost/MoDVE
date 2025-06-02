@@ -47,7 +47,7 @@ terra_crop <- function(data, ext, res = NULL) {
 
 vegp_baf <- readRDS("/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/vegp.RDS")
 dtm_baf <- rast("/Users/johanna/Uni/masterarbeit/data/mc_input/soil/dtm.tif")
-soilc_baf <- readRDS("/Users/johanna/Uni/masterarbeit/data/mc_input/soil/soilc.RDS")
+soilc_baf <- readRDS("/Users/johanna/Uni/masterarbeit/data/mc_input/soil/soilc_ptm.RDS")
 climdata_baf <- readRDS("/Users/johanna/Uni/masterarbeit/data/mc_input/climate/era5_climdata_2024.RDS")
 
 # -- REGUA
@@ -134,7 +134,34 @@ plot(dtm_square)
 # - Prep Soil data
 soil_square <- terra_crop(soilc_baf, extent_vect, res = 1)
 
-plot(terra::unwrap(soil_square$soiltype))
+plot(terra::unwrap(soil_square$slope))
+
+# Potentially fill up soil variables if there are NAs
+for (name in names(soil_square)) {
+
+  raster <- terra::unwrap(soil_square[[name]])
+  
+  # Check if there are any NAs
+  if (anyNA(values(raster))) {
+    # Get unique non-NA values
+    unique_vals <- unique(na.omit(values(raster)))
+    
+    if (length(unique_vals) == 1) {
+      # Fill NAs with the single unique value
+      values(raster)[is.na(values(raster))] <- unique_vals
+      soil_square[[name]] <- raster  # Replace with modified raster
+      cat(paste0("Filled NAs in '", name, "' with value: ", unique_vals, "\n"))
+    } else {
+      cat(paste0("'", name, "': Raster contains NAs and multiple values.\n"))
+    }
+  }
+}
+
+# Wrap unwrapped soil variables
+soil_square$gref <- terra::wrap(soil_square$gref)
+soil_square$slope <- terra::wrap(soil_square$slope)
+soil_square$aspect <- terra::wrap(soil_square$aspect)
+soil_square$em <- terra::wrap(soil_square$em)
 
 # Save data 
 saveRDS(vegp_square, paste(out, "vegp.RDS", sep = "/"))
