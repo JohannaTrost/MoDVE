@@ -106,7 +106,7 @@ tme <- as.POSIXlt(seq(
 ))
 
 # Define output path and filename
-pathout <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/climate"
+pathout <- "/Users/johanna/Uni/masterarbeit/data/mc_input/climate"
 file_prefix <- paste0(gsub("-", "_", substr(Sys.time(), 1, 10)
                            ), 
                       "_")
@@ -193,7 +193,7 @@ plots <- lapply(names(era5climdata), function(varname) {
 wrap_plots(plots, ncol = 3)
 
 saveRDS(era5climdata, 
-        "/Users/johanna/Uni/masterarbeit/code/data/mc_input/climate/era5_climdata_2016.RDS")
+        "/Users/johanna/Uni/masterarbeit/data/mc_input/climate/era5_climdata_2016.RDS")
 
 
 

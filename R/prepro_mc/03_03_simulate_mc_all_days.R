@@ -63,7 +63,7 @@ agg_model_var <- function(data, time_vec, time_df) {
 out = "/Users/johanna/Uni/masterarbeit/code/output/microclimf/all_days_sim_regua_2024"
 
 # Load data for one year 
-in_dir <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/regua"
+in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
 vegp_reg <- readRDS(paste(in_dir, "vegp.RDS", sep = "/"))
 dtm_reg <- rast(paste(in_dir, "dtm.tif", sep = "/"))
 soilc_reg <- readRDS(paste(in_dir, "soilc.RDS", sep = "/"))

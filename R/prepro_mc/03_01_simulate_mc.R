@@ -13,7 +13,7 @@ library(viridis)
 
 
 # Load data for one year 
-in_dir <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/pirineus"
+in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/pirineus"
 vegp_reg <- readRDS(paste(in_dir, "vegp.RDS", sep = "/"))
 dtm_reg <- rast(paste(in_dir, "dtm.tif", sep = "/"))
 soilc_reg <- readRDS(paste(in_dir, "soilc.RDS", sep = "/"))

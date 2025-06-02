@@ -14,38 +14,8 @@ matrix2raster <- function(matrix, ref_rast, name) {
 }
 
 
-get_by_soiltype <- function(soil_raster) {
-  # Soil parameters table (already provided)
-  soilparams <- micropoint::soilparams
-  
-  # Exclude specific columns
-  exclude_vars <- c("Soil.type")
-  target_vars <- setdiff(colnames(soilparams), exclude_vars)
-  
-  # soil type codes in raster correspond to rows in soilparams:
-  soilparams$soil_code <- 1:nrow(soilparams)
-  
-  # Create a raster for each variable in soilparams
-  raster_list <- list()
-  for (var in target_vars) {
-    # Create a vector to map soil type code to variable value
-    map_values <- setNames(soilparams[[var]], soilparams$soil_code)
-    
-    # Reclassify the raster
-    new_raster <- classify(soil_raster, 
-                           rcl = cbind(soilparams$soil_code, soilparams[[var]]))
-    names(new_raster) <- var # Set layer name
-    
-    # Add to list
-    raster_list[[var]] <- new_raster
-  }
-  
-  return(raster_list)
-}
-
-
 # Veg. parameters derived with the microclimdata package
-in_dir <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/regua"
+in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
 vegp_reg <- readRDS(paste(in_dir, "vegp.RDS", sep = "/"))
 
 # Unpack 
@@ -114,21 +84,6 @@ lai <- pai - sai
 laii <- apply(lai[,,1:upper_hgt], c(3), mean)
 plot(c(1:length(laii)) ~ laii, type = "l", main = paste("Total LAI:", sum(laii)))
 
-# -- Smoothing - 2D conv
-
-# 2D moving average kernel
-kernel <- matrix(1, nrow = 3, ncol = 3)
-kernel <- kernel / sum(kernel)
-
-# Apply kernel to every slice
-smoothed_pai <- array(0, dim = dim(pai))
-for (k in 1:dim(pai)[3]) {
-  # prepare cimg object (4D: x, y, cc, z)
-  slice <- as.cimg(pai[,,k])
-  smoothed <- imfilter(slice, kernel, boundary = "replicate")  # replicate borders
-  smoothed_pai[,,k] <- as.array(smoothed)
-}
-
 # Adjust names for micropoint 
 names(vegp_mof3d)[names(vegp_mof3d) == "leafr"] <- "lref"
 names(vegp_mof3d)[names(vegp_mof3d) == "leaft"] <- "ltra"
@@ -155,37 +110,3 @@ saveRDS(paii, paste(in_dir, "paii_mof3d_v2.RDS", sep = "/"))
 # Plot height
 plot(vegp_mof3d$h)
 plot(vegp_unwrpd$hgt)
-
-
-# --- Get soilparameters for point model 
-
-soilc_reg <- readRDS(paste(in_dir, "soilc.RDS", sep = "/"))
-
-names(soilc_reg)[names(soilc_reg) == "groundr"] <- "gref"
-
-# Extract missing variables
-ptm_soilc <- lapply(soilc_reg, terra::unwrap)
-soilp <- get_by_soiltype(ptm_soilc$soiltype)
-
-# Add missing variables: Psie, Smax, Smin etc.
-for (var_name in names(soilp)) {
-  if (var_name == "psi_e") {
-    ptm_soilc[[var_name]] <- -soilp[[var_name]]
-  } else {
-    ptm_soilc[[var_name]] <- soilp[[var_name]]
-  }
-}
-# Rename for correct structure for pointmodel
-names(ptm_soilc)[names(ptm_soilc) == "psi_e"] <- "Psie"
-
-dtm_reg <- rast(paste(in_dir, "dtm.tif", sep = "/"))
-ptm_soilc$slope<-terra::terrain(dtm_reg,'slope')
-ptm_soilc$aspect<-terra::terrain(dtm_reg,'aspect')
-
-em <- 0.97
-ptm_soilc$em <- deepcopy(ptm_soilc$slope)
-values(ptm_soilc$em) <- em
-
-ptm_soilc_wrp <- lapply(ptm_soilc, terra::wrap)
-
-saveRDS(ptm_soilc_wrp, paste(in_dir, "soilc_ptm.RDS", sep = "/"))

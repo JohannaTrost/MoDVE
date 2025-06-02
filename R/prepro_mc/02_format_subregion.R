@@ -45,14 +45,14 @@ terra_crop <- function(data, ext, res = NULL) {
 
 
 
-vegp_baf <- readRDS("/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/vegp.RDS")
-dtm_baf <- rast("/Users/johanna/Uni/masterarbeit/code/data/mc_input/soil/dtm.tif")
-soilc_baf <- readRDS("/Users/johanna/Uni/masterarbeit/code/data/mc_input/soil/soilc.RDS")
-climdata_baf <- readRDS("/Users/johanna/Uni/masterarbeit/code/data/mc_input/climate/era5_climdata_2024.RDS")
+vegp_baf <- readRDS("/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/vegp.RDS")
+dtm_baf <- rast("/Users/johanna/Uni/masterarbeit/data/mc_input/soil/dtm.tif")
+soilc_baf <- readRDS("/Users/johanna/Uni/masterarbeit/data/mc_input/soil/soilc.RDS")
+climdata_baf <- readRDS("/Users/johanna/Uni/masterarbeit/data/mc_input/climate/era5_climdata_2024.RDS")
 
 # -- REGUA
 
-out <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/regua"
+out <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
 dir.create(file.path(out))
 
 # Define the center point
@@ -64,7 +64,7 @@ center_coords_m <- st_coordinates(center_proj)
 
 # -- Pirineus
 '''
-out <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/pirineus"
+out <- "/Users/johanna/Uni/masterarbeit/data/mc_input/pirineus"
 dir.create(file.path(out))
 
 # Define the center point

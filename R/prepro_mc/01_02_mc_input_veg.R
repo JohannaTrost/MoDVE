@@ -24,7 +24,7 @@ projectname<-'ee-jt281-mc'
 # Create a template raster used to define the area of download
 lcover_download(r, type = "ESA", year = 2024, GoogleDrivefolder, pathtopython, projectname)
 # **** Copy data across to a local drive once complete ***
-lcover <- rast("/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/ESA_WorldCover_2023_10m.tif")
+lcover <- rast("/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/ESA_WorldCover_2023_10m.tif")
 
 plot(lcover)
 
@@ -38,7 +38,7 @@ res(r) <- 1
 vegheight_download(r, GoogleDrivefolder, pathtopython, projectname)
 
 # Visualize
-cheight <- rast("/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/canopy_height_2020_1m.tif")
+cheight <- rast("/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/canopy_height_2020_1m.tif")
 
 plot(cheight)
 cheight_4326 <- project(cheight, "EPSG:4326")
@@ -48,13 +48,13 @@ plot(cheight_4326)
 # --- LAI 
 
 # Empirical
-pathout<-"/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/modis_lai/"
+pathout<-"/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/modis_lai/"
 #dir.create(pathout)
 tme <- as.POSIXlt(c(0:30) * 3600 * 24, origin = "2024-01-01", tz = "UTC")  # Data for January 2023
 lai_download(r, tme, reso = 500, pathout, credentials, pathtopython)
 
 # Get LAI
-lcover <- rast("/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/ESA_WorldCover_2023_10m.tif")
+lcover <- rast("/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/ESA_WorldCover_2023_10m.tif")
 lcover[lcover == 80] <- NA  # set permanent water bodies to NA'
 lcover <- lcover * 0
 lcover <- aggregate(lcover, 50, fun = 'mean', na.rm = TRUE)
@@ -62,7 +62,7 @@ lcover <- aggregate(lcover, 50, fun = 'mean', na.rm = TRUE)
 lai <- lai_mosaic(lcover, pathout, reso = 500, msk = TRUE)
 
 # Save lai 
-writeRaster(lai, "/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/lai_2024_500m.tif", 
+writeRaster(lai, "/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/lai_2024_500m.tif", 
             filetype = "GTiff", overwrite = TRUE)
 
 plot(lai)
@@ -77,8 +77,8 @@ library(microclimf)
 # PAI: Plant area index values represent the combined one sided woody and 
 #      green vegetation plant area per unit ground area.
 
-hab <- rast("/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/ESA_WorldCover_2023_10m.tif")
-cheight <- rast("/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/canopy_height_2020_1m.tif")
+hab <- rast("/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/ESA_WorldCover_2023_10m.tif")
+cheight <- rast("/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/canopy_height_2020_1m.tif")
 
 hab[hab == 10] <- 2   # Forest
 hab[hab == 20] <- 7   # Shrubland
@@ -93,14 +93,14 @@ hab[hab == 90] <- 12  # Herbacious wetland
 coltab(hab) <- NULL
 
 # Save habitats 
-writeRaster(hab, "/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/habitats.tif", 
+writeRaster(hab, "/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/habitats.tif", 
             filetype = "GTiff", overwrite = TRUE)
 
 # Below not working properly
 
-hab <- rast("/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/habitats.tif")
-cheight <- rast("/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/canopy_height_2020_1m.tif")
-lai <- rast("/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/lai_2024_500m.tif")
+hab <- rast("/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/habitats.tif")
+cheight <- rast("/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/canopy_height_2020_1m.tif")
+lai <- rast("/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/lai_2024_500m.tif")
 
 hab <- as.factor(hab)
 hab <- project(hab, "EPSG:4326", method="near")
@@ -159,7 +159,7 @@ dev.off()
 
 
 saveRDS(vegp, 
-        "/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/vegp.RDS")
+        "/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/vegp.RDS")
 
 
 

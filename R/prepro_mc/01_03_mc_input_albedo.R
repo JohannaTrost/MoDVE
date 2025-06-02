@@ -13,7 +13,7 @@ crs(r) <- "EPSG:4326"
 r <- project(r, "EPSG:31983", res = 500)
 
 tme <- as.POSIXlt(c(0:30) * 3600 * 24, origin = "2024-02-01 00:00", tz = "UTC")
-pathout <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/albedo/"
+pathout <- "/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/albedo/"
 albedo_download(r, tme, pathout, credentials)
 
 # Shitty albedo 
@@ -21,12 +21,12 @@ albmodis <- albedo_process(r, pathout)
 plot(albmodis, col = gray.colors(255), range = c(0, 1))
 
 writeRaster(albmodis, 
-            "/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/albedo/albedo_modis_2024-01-01.tif", 
+            "/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/albedo/albedo_modis_2024-01-01.tif", 
             filetype = "GTiff", overwrite = TRUE)
 
 # --- Get RGB and CIR
 
-pathout <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/rgb_cir_2024-02-01/"
+pathout <- "/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/rgb_cir_2024-02-01/"
 modis_rgb_cir_download <- function(r, tme, pathout, credentials) {
   # Time sanity check
   tsed <- tme[length(tme)]
@@ -171,10 +171,10 @@ plotRGB(modis_rgb[[1:3]], stretch = "lin")  # RGB
 plotRGB(modis_rgb[[4:6]], stretch = "lin")  # CIR
 
 writeRaster(modis_rgb[[1:3]], 
-            "/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/rgb_cir_2024-02-01/rgb.tif", 
+            "/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/rgb_cir_2024-02-01/rgb.tif", 
             filetype = "GTiff", overwrite = TRUE)
 writeRaster(modis_rgb[[4:6]], 
-            "/Users/johanna/Uni/masterarbeit/code/data/mc_input/vegetation/rgb_cir_2024-02-01/cir.tif", 
+            "/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/rgb_cir_2024-02-01/cir.tif", 
             filetype = "GTiff", overwrite = TRUE)
 
 albphoto <- albedo_fromaerial(modis_rgb[[1:3]], 

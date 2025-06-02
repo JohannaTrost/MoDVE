@@ -1,5 +1,7 @@
 require(devtools)
 # install_github("ilyamaclean/microclimf")
+#remotes::install_local("/Users/johanna/Uni/masterarbeit/code/micropoint",
+#                       force = TRUE)
 
 library(micropoint)
 library(terra)
@@ -67,7 +69,7 @@ indices2coords <- function(x, y, raster, crs_out = "EPSG:4326") {
 
 
 # Load data for one year 
-in_dir <- "/Users/johanna/Uni/masterarbeit/code/data/mc_input/regua"
+in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
 vegp_reg <- readRDS(paste(in_dir, "vegp_mof3d_ptm_v2.RDS", sep = "/"))
 dtm_reg <- rast(paste(in_dir, "dtm.tif", sep = "/"))
 soilc_reg <- readRDS(paste(in_dir, "soilc_ptm.RDS", sep = "/"))
@@ -84,7 +86,7 @@ n_heights <- length(heights)
 # Coordinate 
 #lat <- -22.426880
 #lon <- -42.765096
-indices <- c(30, 25)
+indices <- c(1, 1)
 coords <- indices2coords(indices[[1]], indices[[2]], terra::unwrap(vegp_reg$pai))[c("x", "y")]
 lon <- coords[[1]]
 lat <- coords[[2]]
@@ -92,60 +94,77 @@ lat <- coords[[2]]
 # Get parameters for the point
 vegparams <- extract_params(vegp_reg, lon, lat)
 grndparams <- extract_params(soilc_reg, lon, lat)
-#indices <- coord_2_index(lon, lat, terra::unwrap(vegp_reg$pai))
-paii <- apply(pai, c(3), "mean")[1:((max(vegparams$h, 0.5) + 26) * 0.7)]
-#pai[indices[[1]], indices[[2]], 1:max(vegparams$h, 0.5)]
+indices <- coords2indices(lon, lat, terra::unwrap(vegp_reg$pai))
+#paii <- apply(pai, c(3), "mean")
+paii <- pai[indices[[1]], indices[[2]], 1:max(vegparams$h, 0.5)]
 
 mout <- micropoint::runpointmodel(climdata_reg, reqhgt = heights[1], vegparams, 
                                   paii, grndparams, lat = lat, long= lon)
 
-
-vegp_debug <- micropoint::forestparams
-vegp_debug$h <- vegparams$h
-vegp_debug$pai <- vegparams$pai
-vegp_debug$x <- vegparams$x
-vegp_debug$lref <- vegparams$lref
-vegp_debug$clump <- vegparams$clump
-vegp_debug$ltra <- vegparams$ltra
-vegp_debug$leafd <- vegparams$leafd
-vegp_debug$em <- vegparams$em
-vegp_debug$gsmax <- vegparams$gsmax
-vegp_debug$q50 <- vegparams$q50
-vegp_debug$skew <- vegparams$skew
-vegp_debug$spread <- vegparams$spread
-
-# --- Fit parameters to the data
-
-# Objective function
-fit_fun <- function(params, observed, vegparams) {
-  skew <- params[1]
-  spread <- params[2]
-  modeled <- PAIgeometry(PAI = sum(observed), n = length(observed),
-                         skew = skew, spread = spread)
-  sum((observed - modeled)^2)
-}
-
-# Initial guesses for skew and spread
-init_params <- c(skew = 1, spread = 1)
-
-# Fit using optim
-fit <- optim(par = init_params, fn = fit_fun, observed = paii, vegparams = vegp_debug)
-
-# Fitted parameters
-fitted_skew <- fit$par[1]
-fitted_spread <- fit$par[2]
-
-paii_test <- PAIgeometry(PAI = sum(paii), 
-                         n = length(paii), 
-                         skew = fitted_skew, spread = fitted_spread)
-z <- c(1:length(paii)) / length(paii)
-# plant area within each layer
-#plot(z ~ paii_test, type = "l", main = paste("Total PAI:", sum(paii_test)))
-
-#plot(c(1:length(paii)) / length(paii) ~ paii, type = "l", main = paste("Total PAI:", sum(paii)))
-
-vegparams <- vegparams[names(vegp_debug)]
+vegparams <- vegparams[names(micropoint::forestparams)]
 xx <- plotprofile(climdata_reg, hr = 4091, plotout = "tair", vegparams, 
                   paii = paii,grndparams, lat = lat, long = lon)
+
+
+# Dimensions
+nx <- dim(pai)[1]
+ny <- dim(pai)[2]
+nz <- dim(pai)[3]  # vertical levels
+
+# Initialize the 3D output array
+result <- array(NA, dim = c(nx, ny, nz))
+
+# Unwrap PAI layer for coordinate conversion
+unwrapped_pai <- terra::unwrap(vegp_reg$pai)
+
+# Correct parameter order
+vegp_reg <- vegp_reg[names(micropoint::forestparams)[1:10]]
+soilc_reg <- soilc_reg[names(micropoint::groundparams)]
+climdata_reg <- climdata_reg[, names(micropoint::climdata)]
+
+start_time <- Sys.time()
+
+# Loop over all grid indices
+for (i in 1:nx) {
+  for (j in 1:ny) {
+    # Get lon/lat for grid cell
+    coords <- indices2coords(i, j, unwrapped_pai)[c("x", "y")]
+    lon <- coords[[1]]
+    lat <- coords[[2]]
+    
+    # Extract parameters
+    vegparams <- extract_params(vegp_reg, lon, lat)
+    grndparams <- extract_params(soilc_reg, lon, lat)
+    
+    # Get correct index for PAI
+    indices <- coords2indices(lon, lat, unwrapped_pai)
+    
+    # Extract PAI profile for this point
+    paii <- pai[indices[[1]], indices[[2]],]
+    
+    print(length(paii))
+    
+    # Run the profile simulation
+    profile <- tryCatch({
+      plotprofile(climdata_reg, hr = 4091, plotout = "tair", vegparams, 
+                  paii = paii, grndparams, lat = lat, long = lon)
+    }, error = function(e) {
+      print(paste("plotprofile failed for grid cell (", i, ",", j, ")"))
+      rep(NA, nz)
+    })
+    
+    # Ensure the output is the right length
+    profile_length <- length(profile$var)
+    if (profile_length > nz) {
+      result[i, j, ] <- profile$var[1:nz]
+    } else {
+      result[i, j, 1:profile_length] <- profile$var
+    }
+  }
+}
+
+end_time <- Sys.time()
+time_taken <- round(end_time - start_time, 2)
+print(paste("Grid cell took", time_taken, "secs"))
 
 
