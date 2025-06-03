@@ -104,8 +104,7 @@ values(vegp_mof3d$em) <- em
 # Wrap data and save 
 vegp_mof3d_wrp <- lapply(vegp_mof3d, terra::wrap)
 
-saveRDS(vegp_mof3d_wrp, paste(in_dir, "vegp_mof3d_ptm_v2.RDS", sep = "/"))
-saveRDS(paii, paste(in_dir, "paii_mof3d_v2.RDS", sep = "/"))
+saveRDS(vegp_mof3d_wrp, paste(in_dir, "vegp_mof3d_ptm_v3.RDS", sep = "/"))
 
 # Plot height
 plot(vegp_mof3d$h)
