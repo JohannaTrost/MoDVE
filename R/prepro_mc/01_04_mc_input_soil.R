@@ -116,7 +116,8 @@ ptm_soilc$em <- deepcopy(ptm_soilc$slope)
 values(ptm_soilc$em) <- em
 
 # Use correct order of variables for the model
-ptm_soilc <- ptm_soilc[names(micropoint::groundparams)]
+var_order <- append(names(micropoint::groundparams), "soiltype")
+ptm_soilc <- ptm_soilc[var_order]
 
 # Wrap all rasters
 ptm_soilc_wrp <- lapply(ptm_soilc, terra::wrap)

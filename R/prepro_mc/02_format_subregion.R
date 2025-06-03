@@ -77,6 +77,12 @@ center_coords_m <- st_coordinates(center_proj)
 # Create a 50m x 50m square (i.e., a 50m buffer in all directions)
 extent_box <- st_buffer(center_proj, dist = 25, endCapStyle = "SQUARE")
 extent_vect <- vect(extent_box)
+# Ceil the extent if decimals 
+e <- ext(extent_vect)
+ce <- ext(round(e[1]), round(e[2]), round(e[3]), round(e[4]))
+# Create new polygon from ceiled extent
+ceiled_box <- as.polygons(ce)
+crs(ceiled_box) <- crs(extent_vect)  # Set CRS to match original
 
 # - Prep climate data 
 
@@ -124,17 +130,10 @@ unwrapped_list <- setNames(
 vegp_square <- terra_crop(unwrapped_list, extent_vect, res = 1)
 plot(terra::unwrap(vegp_square$hgt))
 
-# - Prep DTM
-pai <- deepcopy(terra::unwrap(vegp_square$pai))
-dtm_baf_res <- resample(dtm_baf, pai) 
-dtm_square <- dtm_baf_res$lyr1
-
-plot(dtm_square)
-
 # - Prep Soil data
-soil_square <- terra_crop(soilc_baf, extent_vect, res = 1)
+soil_square <- terra_crop(soilc_baf, ceiled_box, res = 1)
 
-plot(terra::unwrap(soil_square$slope))
+plot(terra::unwrap(soil_square$soiltype))
 
 # Potentially fill up soil variables if there are NAs
 for (name in names(soil_square)) {
@@ -162,6 +161,13 @@ soil_square$gref <- terra::wrap(soil_square$gref)
 soil_square$slope <- terra::wrap(soil_square$slope)
 soil_square$aspect <- terra::wrap(soil_square$aspect)
 soil_square$em <- terra::wrap(soil_square$em)
+
+# - Prep DTM
+em <- deepcopy(terra::unwrap(soil_square$em))
+dtm_baf_res <- resample(dtm_baf, em) 
+dtm_square <- dtm_baf_res$lyr1
+
+plot(dtm_square)
 
 # Save data 
 saveRDS(vegp_square, paste(out, "vegp.RDS", sep = "/"))
