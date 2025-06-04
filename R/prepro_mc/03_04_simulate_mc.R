@@ -161,119 +161,85 @@ min_veg_height <- min(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE)
 heights <- seq(0.5, max_veg_height + 1)
 n_heights <- length(heights)
 
+# Define output directory 
+outdir <- "/Users/johanna/Uni/masterarbeit/data/mc_output"
+
 # Coordinate 
 #lat <- -22.426880
 #lon <- -42.765096
-indices <- c(25, 25)
-coords <- indices2coords(indices[[1]], indices[[2]], terra::unwrap(vegp_reg$pai))[c("x", "y")]
-lon <- coords[[1]]
-lat <- coords[[2]]
 
-# Get parameters for the point model
-vegparams <- extract_params(vegp_reg, lon, lat)
-grndparams <- extract_params(soilc_reg, lon, lat)
-indices <- coords2indices(lon, lat, terra::unwrap(vegp_reg$pai))
-#paii <- apply(pai, c(3), "mean")
-paii <- pai[indices[[1]], indices[[2]], 1:max(vegparams$h, 0.5)]
-  
-# Format microclimf inputs 
-mcf_vegp <- lapply(vegp_mcpoint2mcf(vegp_reg), terra::unwrap)
-mcf_soilc <- lapply(soilc_mcpoint2mcf(soilc_reg), terra::unwrap)
+for (x in seq(1:50)) {
+  for (y in seq(1:50)) {
+    
+    print(paste(x, y, "\n"))
+    start_time_cell <- Sys.time()
+    
+    # Get grid cell coordiantes
+    coords <- indices2coords(x, y, terra::unwrap(vegp_reg$pai))[c("x", "y")]
+    lon <- coords[[1]]
+    lat <- coords[[2]]
+    
+    # Get parameters for the point model
+    vegparams <- extract_params(vegp_reg, lon, lat)
+    grndparams <- extract_params(soilc_reg, lon, lat)
+    #indices <- coords2indices(lon, lat, terra::unwrap(vegp_reg$pai))
+    #paii <- apply(pai, c(3), "mean")
+    paii <- pai[x, y, 1:max(vegparams$h, 0.5)]
+    
+    # Format microclimf inputs 
+    mcf_vegp <- lapply(vegp_mcpoint2mcf(vegp_reg), terra::unwrap)
+    mcf_soilc <- lapply(soilc_mcpoint2mcf(soilc_reg), terra::unwrap)
+    
+    # Results list
+    res <- list()
+    
+    # Compute microclimate at different heigths
+    for (i in 1:length(heights)) {
+      
+      h <- heights[i]
+      print(h)
+      
+      start_time <- Sys.time()
+      
+      # Run the micropoint point model to get vertical MC profile
+      mout <- micropoint::runpointmodel(climdata_reg, reqhgt = h, vegparams, 
+                                        paii, grndparams, lat = lat, long= lon)
+      # Run the microclimf point model to get relative humidity
+      mcf_ptmout <- microclimf::runpointmodel(climdata_reg, reqhgt = h, dtm_reg, 
+                                              mcf_vegp, mcf_soilc)
+      mout$relhum <- mcf_ptmout$weather$relhum
+      
+      end_time <- Sys.time()
+      print(round(end_time - start_time, 2))
 
-# Store all/monthly MC
-res <- list()
-ptm_res <- list()
+      start_time <- Sys.time()
 
-# Store profile of mid cell (25, 25)
-mcp_profile <- data.frame(height = numeric(0), temp = numeric(0), 
-                          relhum = numeric(0), windspeed = numeric(0))
-mcf_profile <- data.frame(height = numeric(0), temp = numeric(0), 
-                          relhum = numeric(0), windspeed = numeric(0))
-
-# Compute microclimate at different heigths
-for (i in 1:length(heights)) {
-  
-  h <- heights[i]
-  print(h)
-  
-  start_time <- Sys.time()
-  
-  # Run the micropoint point model to get vertical MC profile
-  mout <- micropoint::runpointmodel(climdata_reg, reqhgt = h, vegparams, 
-                                    paii, grndparams, lat = lat, long= lon)
-  # Run the microclimf point model to get dfo variables for the grid model
-  mcf_ptmout <- microclimf::runpointmodel(climdata_reg, reqhgt = h, dtm_reg, 
-                                          mcf_vegp, mcf_soilc)
-  
-  end_time <- Sys.time()
-  print(round(end_time - start_time, 2))
-  
-  # Format model output to use grid model
-  gridm_input <- format_gridm_input(mout, mcf_ptmout$dfo, mcf_ptmout$subs,
-                                    climdata_reg, mcf_vegp, lat, lon)
-  
-  # Save ptm result 
-  ptm_res[[as.character(h)]] <- gridm_input$weather
-  
-  # Replace rel. humidity with microclimf values as micropoint is implausible (extremely dry)
-  gridm_input$weather$relhum <- mcf_ptmout$weather$relhum
-  
-  # Subset the micropoint model output to get hottest and coldest days in each month
-  micropoint_mx <- subsetpointmodel(gridm_input, tstep = "month", what = "tmax")
-  micropoint_mn <- subsetpointmodel(gridm_input, tstep = "month", what = "tmin")
-  
-  mout_mx <- runmicro(micropoint_mx, reqhgt = h, mcf_vegp, mcf_soilc, dtm_reg,
-                      method = "Cpp")
-  mout_mn <- runmicro(micropoint_mn, reqhgt = h, 
-                      mcf_vegp, mcf_soilc, dtm_reg,
-                      method = "Cpp")
-  
-  # --- Get monthly min, max and mean
-  
-  # Time vectors
-  obs_time_mn <- micropoint_mn$weather$obs_time
-  obs_time_mx <- micropoint_mx$weather$obs_time
-  
-  # Group time steps by month index
-  month_labels_mn <- format(floor_date(obs_time_mn, "month"), "%Y-%m")
-  month_labels_mx <- format(floor_date(obs_time_mx, "month"), "%Y-%m")
-  if(!all(month_labels_mn == month_labels_mx)) {
-    stop("tmin and tmax subsets have an unequal amount of days per month.")
-  }
-  
-  for (var in names(mout_mn)) {
-    monthly_mc <- get_monthly_mc_stats(mout_mn[[var]], mout_mx[[var]],
-                                       month_labels_mn, month_labels_mx)
-    # Populate results list
-    if (i > 1) {
-      res[[var]][,,i,,] <- monthly_mc
-    } else {
-      dims <- dim(monthly_mc)
-      res[[var]] <- array(NA, dim = c(dims[1], dims[2], n_heights, dims[3], dims[4]))
-      res[[var]][,,i,,] <- monthly_mc
+      for (var in c("tair", "tcanopy", "relhum", "windspeed")) {
+        
+        # Populate results list
+        if (x != 1 & y != 1) { 
+          res[[var]][i,] <- mout[[var]]
+        } else {
+          res[[var]] <- array(NA, 
+                              dim = c(n_heights, length(mout[[var]])))
+          res[[var]][i,] <- mout[[var]]
+        }
+      }
+      end_time <- Sys.time()
+      print(round(end_time - start_time, 2))
     }
+    
+    end_time_cell <- Sys.time()
+    print(round(end_time_cell - start_time_cell, 2))
+    print(paste(x, y, "\n"))
+
+    # For each grid cell update the saved result
+    saveRDS(res, paste0(outdir, "/mc_x", x, "_y", y, "_v1.rds"))
   }
-  
-  # Print avg yearly vars 
-  mcf_temp_avg <- mean(res$Tz[indices[[1]], indices[[2]], i,, 3])
-  mcf_hum_avg <- mean(res$relhum[indices[[1]], indices[[2]], i,, 3])
-  mcf_wind_avg <- mean(res$windspeed[indices[[1]], indices[[2]], i,, 3])
-  
-  mcp_temp_avg <- mean(ptm_res[[as.character(h)]]$temp)
-  mcp_hum_avg <- mean(ptm_res[[as.character(h)]]$relhum)
-  mcp_wind_avg <- mean(ptm_res[[as.character(h)]]$windspeed)
-  
-  # Append to data frames
-  mcf_profile <- rbind(mcf_profile, 
-                       data.frame(height = h, temp = mcf_temp_avg,
-                                  relhum = mcf_hum_avg, windspeed = mcf_wind_avg))
-  mcp_profile <- rbind(mcp_profile, 
-                       data.frame(height = h, temp = mcp_temp_avg, 
-                                  relhum = mcp_hum_avg, windspeed = mcp_wind_avg))
-  
 }
 
+
 plot(mcf_profile$height ~ mcf_profile$temp, type="line")
-plot(mcp_profile$height ~ mcp_profile$temp, type="line")
+plot(mcp_profile$height ~ mcp_profile$relhum, type="line")
 
 
