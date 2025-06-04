@@ -170,57 +170,57 @@ outdir <- "/Users/johanna/Uni/masterarbeit/data/mc_output"
 
 for (x in seq(1:50)) {
   for (y in seq(1:50)) {
-    
+
     print(paste(x, y, "\n"))
     start_time_cell <- Sys.time()
-    
+
     # Get grid cell coordiantes
     coords <- indices2coords(x, y, terra::unwrap(vegp_reg$pai))[c("x", "y")]
     lon <- coords[[1]]
     lat <- coords[[2]]
-    
+
     # Get parameters for the point model
     vegparams <- extract_params(vegp_reg, lon, lat)
     grndparams <- extract_params(soilc_reg, lon, lat)
     #indices <- coords2indices(lon, lat, terra::unwrap(vegp_reg$pai))
     #paii <- apply(pai, c(3), "mean")
     paii <- pai[x, y, 1:max(vegparams$h, 0.5)]
-    
-    # Format microclimf inputs 
+
+    # Format microclimf inputs
     mcf_vegp <- lapply(vegp_mcpoint2mcf(vegp_reg), terra::unwrap)
     mcf_soilc <- lapply(soilc_mcpoint2mcf(soilc_reg), terra::unwrap)
-    
+
     # Results list
     res <- list()
-    
+
     # Compute microclimate at different heigths
     for (i in 1:length(heights)) {
-      
+
       h <- heights[i]
       print(h)
-      
+
       start_time <- Sys.time()
-      
+
       # Run the micropoint point model to get vertical MC profile
-      mout <- micropoint::runpointmodel(climdata_reg, reqhgt = h, vegparams, 
+      mout <- micropoint::runpointmodel(climdata_reg, reqhgt = h, vegparams,
                                         paii, grndparams, lat = lat, long= lon)
       # Run the microclimf point model to get relative humidity
-      mcf_ptmout <- microclimf::runpointmodel(climdata_reg, reqhgt = h, dtm_reg, 
+      mcf_ptmout <- microclimf::runpointmodel(climdata_reg, reqhgt = h, dtm_reg,
                                               mcf_vegp, mcf_soilc)
       mout$relhum <- mcf_ptmout$weather$relhum
-      
+
       end_time <- Sys.time()
       print(round(end_time - start_time, 2))
 
       start_time <- Sys.time()
 
       for (var in c("tair", "tcanopy", "relhum", "windspeed")) {
-        
+
         # Populate results list
-        if (x != 1 & y != 1) { 
+        if (i != 1) {
           res[[var]][i,] <- mout[[var]]
         } else {
-          res[[var]] <- array(NA, 
+          res[[var]] <- array(NA,
                               dim = c(n_heights, length(mout[[var]])))
           res[[var]][i,] <- mout[[var]]
         }
@@ -228,7 +228,7 @@ for (x in seq(1:50)) {
       end_time <- Sys.time()
       print(round(end_time - start_time, 2))
     }
-    
+
     end_time_cell <- Sys.time()
     print(round(end_time_cell - start_time_cell, 2))
     print(paste(x, y, "\n"))
@@ -237,9 +237,5 @@ for (x in seq(1:50)) {
     saveRDS(res, paste0(outdir, "/mc_x", x, "_y", y, "_v1.rds"))
   }
 }
-
-
-plot(mcf_profile$height ~ mcf_profile$temp, type="line")
-plot(mcp_profile$height ~ mcp_profile$relhum, type="line")
 
 
