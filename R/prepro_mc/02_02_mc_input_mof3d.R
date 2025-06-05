@@ -16,7 +16,7 @@ matrix2raster <- function(matrix, ref_rast, name) {
 
 # Veg. parameters derived with the microclimdata package
 in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
-vegp_reg <- readRDS(paste(in_dir, "vegp.RDS", sep = "/"))
+vegp_reg <- readRDS(paste(in_dir, "vegp_v2.RDS", sep = "/"))
 
 # Unpack 
 vegp_unwrpd <- lapply(vegp_reg, terra::unwrap)
@@ -71,17 +71,17 @@ plot(vegp_mof3d$pai)
 plot(vegp_unwrpd$pai)
 
 # Look at average PAI profile 
-paii <- apply(pai[,,1:upper_hgt], c(3), mean)
+paii <- apply(pai[,,1:veg_hgt], c(3), mean)
 plot(c(1:length(paii)) ~ paii, type = "l", main = paste("Total PAI:", sum(paii)))
 
 # Check SAI
 sai <- mm[,,,1]
-saii <- apply(sai[,,1:upper_hgt], c(3), mean)
+saii <- apply(sai[,,1:veg_hgt], c(3), mean)
 plot(c(1:length(saii)) ~ saii, type = "l", main = paste("Total SAI:", sum(saii)))
 
 # Check LAI
 lai <- pai - sai
-laii <- apply(lai[,,1:upper_hgt], c(3), mean)
+laii <- apply(lai[,,1:veg_hgt], c(3), mean)
 plot(c(1:length(laii)) ~ laii, type = "l", main = paste("Total LAI:", sum(laii)))
 
 # Adjust names for micropoint 
@@ -104,7 +104,10 @@ values(vegp_mof3d$em) <- em
 # Wrap data and save 
 vegp_mof3d_wrp <- lapply(vegp_mof3d, terra::wrap)
 
-saveRDS(vegp_mof3d_wrp, paste(in_dir, "vegp_mof3d_ptm_v3.RDS", sep = "/"))
+# Correct order
+vegp_mof3d_wrp <- vegp_mof3d_wrp[names(micropoint::vegparams)]
+
+saveRDS(vegp_mof3d_wrp, paste(in_dir, "vegp_mof3d_ptm_v2.RDS", sep = "/"))
 
 # Plot height
 plot(vegp_mof3d$h)

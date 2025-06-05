@@ -150,6 +150,13 @@ indices2coords <- function(x, y, raster, crs_out = "EPSG:4326") {
 # Define output directory 
 outdir <- "/Users/johanna/Uni/masterarbeit/data/mc_output"
 
+# Save heights of MC simulations
+in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
+vegp_reg <- readRDS(paste(in_dir, "vegp_mof3d_ptm_v2.RDS", sep = "/"))
+max_veg_height <- max(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE)
+heights <- seq(0.5, max_veg_height + 1)
+saveRDS(heights, paste0(outdir, "/v2_mc_heights.rds"))
+
 
 # ----------------------------------------------------------
 # Set up parallel processing
@@ -159,7 +166,7 @@ outdir <- "/Users/johanna/Uni/masterarbeit/data/mc_output"
 plan(multisession, workers = parallel::detectCores() - 1)  # or use "multicore" on Linux/macOS
 
 # Create coordinate grid
-grid <- expand.grid(x = 3:50, y = 1:50)
+grid <- expand.grid(x = 1:50, y = 1:50)
 
 # Function to process a single (x, y) cell
 process_cell <- function(x, y) {
@@ -169,7 +176,6 @@ process_cell <- function(x, y) {
   # Load data for one year
   in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
   vegp_reg <- readRDS(paste(in_dir, "vegp_mof3d_ptm_v2.RDS", sep = "/"))
-  dtm_reg <- rast(paste(in_dir, "dtm.tif", sep = "/"))
   soilc_reg <- readRDS(paste(in_dir, "soilc.RDS", sep = "/"))
   climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2024.csv", sep = "/"))
   microhab_file <- "/Users/johanna/Uni/masterarbeit/code/output/modev_zach_25_01_07/MicrohabitatMatrix99.rds"
@@ -190,9 +196,6 @@ process_cell <- function(x, y) {
   grndparams <- extract_params(soilc_reg, lon, lat)
   paii <- pai[x, y, 1:max(vegparams$h, 0.5)]
 
-  mcf_vegp <- lapply(vegp_mcpoint2mcf(vegp_reg), terra::unwrap)
-  mcf_soilc <- lapply(soilc_mcpoint2mcf(soilc_reg), terra::unwrap)
-
   res <- list()
 
   for (i in seq_along(heights)) {
@@ -205,11 +208,15 @@ process_cell <- function(x, y) {
     mout <- micropoint::runpointmodel(climdata_reg, reqhgt = h, vegparams,
                                       paii, grndparams, lat = lat, long = lon)
     message("Point model run completed.")
-    mcf_ptmout <- microclimf::runpointmodel(climdata_reg, reqhgt = h, dtm_reg,
-                                            mcf_vegp, mcf_soilc)
-    mout$relhum <- mcf_ptmout$weather$relhum
 
-    for (var in c("tair", "tcanopy", "relhum", "windspeed")) {
+    # Which variables to save
+    if (i == 1 & x == 1 & y == 1) {
+      exp_vars <- c("tair", "tcanopy", "relhum", "windspeed", "obs_time")
+    } else {
+      exp_vars <- c("tair", "tcanopy", "relhum", "windspeed")
+    }
+
+    for (var in exp_vars) {
       message(paste(x, y, var, h))
       if (i == 1) {
         res[[var]] <- array(NA, dim = c(length(heights), length(mout[[var]])))
@@ -218,7 +225,7 @@ process_cell <- function(x, y) {
     }
   }
 
-  saveRDS(res, paste0(outdir, "/mc_x", x, "_y", y, "_v1.rds"))
+  saveRDS(res, paste0(outdir, "/v2_mc_x", x, "_y", y, ".rds"))
   end_time_cell <- Sys.time()
   message(paste("Finished cell:", x, y, "in", round(end_time_cell - start_time_cell, 2), "seconds"))
 
@@ -226,6 +233,7 @@ process_cell <- function(x, y) {
 }
 
 # Run in parallel
-future_map2(grid$x, grid$y, process_cell, .progress = TRUE, .options = furrr_options(seed = 420))
+future_map2(grid$x, grid$y, process_cell, .progress = TRUE,
+            .options = furrr_options(seed = 420, stdout = TRUE))
 
 Sys.time()

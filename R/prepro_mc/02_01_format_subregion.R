@@ -43,8 +43,13 @@ terra_crop <- function(data, ext, res = NULL) {
   return(data_square_packed)
 }
 
+dms_to_decimal <- function(dms) {
+  parts <- as.numeric(unlist(regmatches(dms, gregexpr("[0-9.]+", dms))))
+  sign <- ifelse(grepl("[SW]", dms), -1, 1)
+  return(sign * (parts[1] + parts[2] / 60 + parts[3] / 3600))
+}
 
-
+# Load data
 vegp_baf <- readRDS("/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/vegp.RDS")
 dtm_baf <- rast("/Users/johanna/Uni/masterarbeit/data/mc_input/soil/dtm.tif")
 soilc_baf <- readRDS("/Users/johanna/Uni/masterarbeit/data/mc_input/soil/soilc_ptm.RDS")
@@ -52,28 +57,28 @@ climdata_baf <- readRDS("/Users/johanna/Uni/masterarbeit/data/mc_input/climate/e
 
 # -- REGUA
 
-out <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
-dir.create(file.path(out))
-
-# Define the center point
-lat <- -22.426880
-lon <- -42.765096
-center_coords <- st_sfc(st_point(c(lon, lat)), crs = 4326)
-center_proj <- st_transform(center_coords, crs = 31983)
-center_coords_m <- st_coordinates(center_proj)
+# out <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
+# dir.create(file.path(out))
+#
+# # Define the center point - 22°23′44.75″S, 42°44′15.78″W
+# lat <- dms_to_decimal("22°23′44.75″S")
+# lon <- dms_to_decimal("42°44′15.78″W")
+# center_coords <- st_sfc(st_point(c(lon, lat)), crs = 4326)
+# center_proj <- st_transform(center_coords, crs = 31983)
+# center_coords_m <- st_coordinates(center_proj)
 
 # -- Pirineus
-'''
+
 out <- "/Users/johanna/Uni/masterarbeit/data/mc_input/pirineus"
 dir.create(file.path(out))
 
 # Define the center point
-lat <- -22.441224
-lon <- -42.50921
+lat <- dms_to_decimal("22°26′46.74″S")
+lon <- dms_to_decimal("42°30′06.16″W")
 center_coords <- st_sfc(st_point(c(lon, lat)), crs = 4326)
 center_proj <- st_transform(center_coords, crs = 31983)
 center_coords_m <- st_coordinates(center_proj)
-'''
+
 # Create a 50m x 50m square (i.e., a 50m buffer in all directions)
 extent_box <- st_buffer(center_proj, dist = 25, endCapStyle = "SQUARE")
 extent_vect <- vect(extent_box)
@@ -127,7 +132,7 @@ unwrapped_list <- setNames(
   }),
   layer_names
 )
-vegp_square <- terra_crop(unwrapped_list, extent_vect, res = 1)
+vegp_square <- terra_crop(unwrapped_list, ceiled_box, res = 1)
 plot(terra::unwrap(vegp_square$hgt))
 
 # - Prep Soil data
@@ -170,19 +175,19 @@ dtm_square <- dtm_baf_res$lyr1
 plot(dtm_square)
 
 # Save data 
-saveRDS(vegp_square, paste(out, "vegp.RDS", sep = "/"))
-writeRaster(dtm_square, paste(out, "dtm.tif", sep = "/"), 
+saveRDS(vegp_square, paste(out, "vegp_v2.RDS", sep = "/"))
+writeRaster(dtm_square, paste(out, "dtm_v2.tif", sep = "/"),
             filetype = "GTiff", overwrite = TRUE)
-saveRDS(soil_square, paste(out, "soilc.RDS", sep = "/"))
+saveRDS(soil_square, paste(out, "soilc_v2.RDS", sep = "/"))
 write.csv(climdata_regua, 
-          paste(out, "era5_climdata_2024.csv", sep = "/"), 
+          paste(out, "era5_climdata_2024_v2.csv", sep = "/"),
           row.names=FALSE)
 
 # Visualize data:
-vegp_reg <- readRDS(paste(out, "vegp.RDS", sep = "/"))
-dtm_reg <- rast(paste(out, "dtm.tif", sep = "/"))
-soilc_reg <- readRDS(paste(out, "soilc.RDS", sep = "/"))
-climdata_reg <- read_csv(paste(out, "era5_climdata_2024.csv", sep = "/"))
+vegp_reg <- readRDS(paste(out, "vegp_v2.RDS", sep = "/"))
+dtm_reg <- rast(paste(out, "dtm_v2.tif", sep = "/"))
+soilc_reg <- readRDS(paste(out, "soilc_v2.RDS", sep = "/"))
+climdata_reg <- read_csv(paste(out, "era5_climdata_2024_v2.csv", sep = "/"))
 
 # Vegetation
 for (name in names(vegp_reg)) {
@@ -204,9 +209,9 @@ print(res(vegp_var))
 
 # Issue with ground radiation
 soilc_reg_unpacked <- lapply(soilc_reg, terra::unwrap)
-soilc_reg_unpacked$groundr <- terra::ifel(is.na(soilc_reg_unpacked$groundr), 
-                                          unique(soilc_reg_unpacked$groundr)[[1]], 
-                                          soilc_reg_unpacked$groundr)
+soilc_reg_unpacked$groundr <- terra::ifel(is.na(soilc_reg_unpacked$gref),
+                                          unique(soilc_reg_unpacked$gref)[[1]],
+                                          soilc_reg_unpacked$gref)
 soic_reg <- lapply(soilc_reg_unpacked, terra::wrap)
-saveRDS(soic_reg, paste(out, "soilc.RDS", sep = "/"))
+saveRDS(soic_reg, paste(out, "soilc_v2.RDS", sep = "/"))
 
