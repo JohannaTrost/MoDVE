@@ -10,6 +10,9 @@ library(future)
 library(microclimf)
 library(dplyr)
 library(ggplot2)
+library(purrr)
+library(readxl)
+
 
 get_monthly_mc_stats <- function(min_arr, max_arr, month_labs_mn,
                                  month_labs_mx){
@@ -109,7 +112,8 @@ climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2024_v2.csv", sep = "/"))
 # Get PAI
 microhab_file <- "/Users/johanna/Uni/masterarbeit/code/output/modev_zach_25_01_07/MicrohabitatMatrix98.rds"
 pai <- readRDS(microhab_file)[,,,5]
-paii <- pai[x, y, 1:max(vegparams$h, 0.5)]
+paii <- apply(pai[,,1:max(vegparams$h, 0.5)], c(3), mean, na.rm = TRUE)
+#paii <- pai[25, 25, 1:max(vegparams$h, 0.5)]
 
 # Get coordiantes
 coords <- indices2coords(x, y, terra::unwrap(vegp_reg$pai))[c("x", "y")]
@@ -119,6 +123,9 @@ lat <- coords[[2]]
 # Get params for the point
 vegparams <- extract_params(vegp_reg, lon, lat)
 grndparams <- extract_params(soilc_reg, lon, lat)
+
+# Replace PAI
+vegparams$pai <- sum(paii)
 
 # Veg heights
 max_veg_height <- max(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE)
@@ -137,39 +144,67 @@ mc_sim <- data.frame(
   relhum = mout$relhum
 )
 
-# Load empirical data
+
+# Define the empirical directories
+emp_dirs <- c("3600m, 446mASL", "3800m, 387mASL", "3650m, 438mASL",
+              "3850m, 387mASL waterfall reference", "3700m, 433mASL")
+
+# Path to empirical data
 emp_path <- "/Users/johanna/Uni/masterarbeit/data/empirical/Datalogger 400m elevation REGUA understory Trilha Verde"
-emp_dir <- "3600m, 446mASL"
-emp_file <- "21983350 2024-11-06 21_41_33 Brazil Standard Time (Data Brazil Standard Time).xlsx"
 
-emp_data <- readxl::read_excel(file.path(emp_path, emp_dir, emp_file))
+# Function to process and compare one logger
+process_logger <- function(emp_dir) {
+  emp_file <- file.path(emp_path, emp_dir, "mc_data.xlsx")
 
-# Format the empirical data and join with simulation data
-emp_sim_data <- emp_data %>%
-  select("Date-Time (Brazil Standard Time)", "Temperature (°C)", "RH (%)") %>%
-  rename("obs_time" = "Date-Time (Brazil Standard Time)",
-         "tair_emp" = "Temperature (°C)",
-         "relhum_emp" = "RH (%)") %>%
+  # Read and process empirical data
+  emp_data <- read_excel(emp_file) %>%
+    select("Date-Time (Brazil Standard Time)", "Temperature (°C)", "RH (%)") %>%
+    rename(
+      obs_time = "Date-Time (Brazil Standard Time)",
+      tair_emp = "Temperature (°C)",
+      relhum_emp = "RH (%)"
+    ) %>%
     mutate(
-    # Parse obs_time as POSIXct in Brazil Standard Time (UTC-3)
-    obs_time = force_tz(as.POSIXct(obs_time), tzone = "America/Sao_Paulo"),
+      obs_time = force_tz(as.POSIXct(obs_time), tzone = "America/Sao_Paulo"),
+      obs_time_utc = with_tz(obs_time, tzone = "UTC"),
+      obs_hour_utc = floor_date(obs_time_utc, unit = "hour")
+    ) %>%
+    group_by(obs_hour_utc) %>%
+    summarise(
+      tair_emp = mean(tair_emp, na.rm = TRUE),
+      relhum_emp = mean(relhum_emp, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    rename(obs_time = obs_hour_utc)
 
-    # Convert to UTC
-    obs_time_utc = with_tz(obs_time, tzone = "UTC"),
+  # Join with simulation data
+  joined <- left_join(emp_data, mc_sim, by = "obs_time")
 
-    # Floor to the hour
-    obs_hour_utc = floor_date(obs_time_utc, unit = "hour")
-  ) %>%
-  # Group by floored hourly time and average the values
-  group_by(obs_hour_utc) %>%
-  summarise(
-    tair_emp = mean(tair_emp, na.rm = TRUE),
-    relhum_emp = mean(relhum_emp, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  rename(obs_time = obs_hour_utc) %>%
-  # Join with the microclimate simulation data
-  left_join(., mc_sim, by = "obs_time")
+  # Compute metrics
+  summarise(joined,
+    logger = emp_dir,
+    mae_relhum = mean(abs(relhum_emp - relhum), na.rm = TRUE),
+    cor_relhum = cor(relhum_emp, relhum, use = "complete.obs"),
+    mae_tair = mean(abs(tair_emp - tair), na.rm = TRUE),
+    cor_tair = cor(tair_emp, tair, use = "complete.obs")
+  )
+}
+
+# Apply the function to all loggers and bind the results
+results <- map_dfr(emp_dirs, process_logger)
+
+# Sort by lowest MAE (e.g., for tair)
+results_sorted <- results %>% arrange(mae_tair)
+
+# View results
+print(results_sorted)
+
+# Aggregate across loggers
+results_sorted %>%
+  summarise(across(where(is.numeric), list(mean = mean, sd = sd), na.rm = TRUE)) %>%
+  t(.) %>%
+  round(., 2)
+
 
 # Assuming emp_sim_data is already loaded and is a tibble
 
@@ -198,10 +233,14 @@ plot_relhum <- ggplot(emp_sim_data, aes(x = obs_time)) +
   theme_minimal()
 
 # Print plots to a pdf file
-pdf("../../figs/mc_output/airt_emp_vs_sim_mc_regua_3600m_446mASL.pdf")
+pdf("../../figs/mc_output/airt_emp_vs_sim_mc_regua_3600m_446mASL_v2.pdf")
 print(plot_airt)
 dev.off()
 
-pdf("../../figs/mc_output/relhum_emp_vs_sim_mc_regua_3600m_446mASL.pdf")
+pdf("../../figs/mc_output/relhum_emp_vs_sim_mc_regua_3600m_446mASL_v2.pdf")
 print(plot_relhum)
+dev.off()
+
+pdf("../../figs/mc_output/relhum_emp_vs_sim_mc_regua_3600m_446mASL_ccf.pdf")
+ccf(emp_sim_data$tair, emp_sim_data$tair_emp)
 dev.off()

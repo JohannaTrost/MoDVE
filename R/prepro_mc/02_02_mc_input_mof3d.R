@@ -54,8 +54,7 @@ for (i in 1:max_x) {
       # Set the height as the maximum non-zero layer (in meters)
       veg_hgt <- max(non_zero)
       max_heights[i, j] <- veg_hgt
-      lower_hgt <- floor(veg_hgt * (3/4))  # Get "canopy" PAI only
-      pai_2d[i, j] <- sum(pai[i, j, lower_hgt:veg_hgt])
+      pai_2d[i, j] <- min(13, sum(pai[i, j,]))
     } else {
       max_heights[i, j] <- 0
       pai_2d[i, j] <- 0
@@ -107,7 +106,7 @@ vegp_mof3d_wrp <- lapply(vegp_mof3d, terra::wrap)
 # Correct order
 vegp_mof3d_wrp <- vegp_mof3d_wrp[names(micropoint::vegparams)]
 
-saveRDS(vegp_mof3d_wrp, paste(in_dir, "vegp_mof3d_ptm_v2.RDS", sep = "/"))
+saveRDS(vegp_mof3d_wrp, paste(in_dir, "vegp_mof3d_ptm_v3.RDS", sep = "/"))
 
 # Plot height
 plot(vegp_mof3d$h)

@@ -209,9 +209,10 @@ print(res(vegp_var))
 
 # Issue with ground radiation
 soilc_reg_unpacked <- lapply(soilc_reg, terra::unwrap)
-soilc_reg_unpacked$groundr <- terra::ifel(is.na(soilc_reg_unpacked$gref),
+soilc_reg_unpacked$gref <- terra::ifel(is.na(soilc_reg_unpacked$gref),
                                           unique(soilc_reg_unpacked$gref)[[1]],
                                           soilc_reg_unpacked$gref)
 soic_reg <- lapply(soilc_reg_unpacked, terra::wrap)
+soic_reg <- soic_reg[names(micropoint::groundparams)]
 saveRDS(soic_reg, paste(out, "soilc_v2.RDS", sep = "/"))
 

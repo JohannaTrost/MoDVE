@@ -13,6 +13,21 @@ library(furrr)
 library(future)
 
 
+immediateMessage <- function(..., domain = NULL, appendLF = TRUE) {
+  msg <- .makeMessage(..., domain = domain, appendLF = appendLF)
+  call <- sys.call()
+  m <- simpleMessage(msg, call)
+
+  cls <- class(m)
+  cls <- setdiff(cls, "condition")
+  cls <- c(cls, "immediateCondition", "condition")
+  class(m) <- cls
+
+  message(m)
+  invisible(m)
+}
+
+
 get_monthly_mc_stats <- function(min_arr, max_arr, month_labs_mn, 
                                  month_labs_mx){
   months <- unique(month_labs_mn)
@@ -170,14 +185,20 @@ grid <- expand.grid(x = 1:50, y = 1:50)
 
 # Function to process a single (x, y) cell
 process_cell <- function(x, y) {
+  output_file <- paste0(outdir, "/v2_mc_x", x, "_y", y, ".rds")  # Adjust path/format as needed
 
-  library(microclimf)
+  if (file.exists(output_file)) {
+    immediateMessage(paste("Skipping cell", x, y, "- output already exists at", output_file))
+    return(NULL)
+  }
+
+  library(microclimf) # Have to load inside the function otherwise there is "future" error
 
   # Load data for one year
   in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
   vegp_reg <- readRDS(paste(in_dir, "vegp_mof3d_ptm_v2.RDS", sep = "/"))
-  soilc_reg <- readRDS(paste(in_dir, "soilc.RDS", sep = "/"))
-  climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2024.csv", sep = "/"))
+  soilc_reg <- readRDS(paste(in_dir, "soilc_v2.RDS", sep = "/"))
+  climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2024_v2.csv", sep = "/"))
   microhab_file <- "/Users/johanna/Uni/masterarbeit/code/output/modev_zach_25_01_07/MicrohabitatMatrix99.rds"
   pai <- readRDS(microhab_file)[,,,5]
 
@@ -185,7 +206,7 @@ process_cell <- function(x, y) {
   max_veg_height <- max(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE)
   heights <- seq(0.5, max_veg_height + 1)
 
-  message(paste("Processing cell:", x, y))
+  immediateMessage(paste("Processing cell:", x, y))
   start_time_cell <- Sys.time()
 
   coords <- indices2coords(x, y, terra::unwrap(vegp_reg$pai))[c("x", "y")]
@@ -199,15 +220,19 @@ process_cell <- function(x, y) {
   res <- list()
 
   for (i in seq_along(heights)) {
-
     h <- heights[i]
-
-    message(paste(x, y, "height:", h))
+    immediateMessage(paste(x, y, "height:", h))
     print(h)
 
     mout <- micropoint::runpointmodel(climdata_reg, reqhgt = h, vegparams,
                                       paii, grndparams, lat = lat, long = lon)
-    message("Point model run completed.")
+
+    # try plotprofile
+    ppout <- plotprofile(climdata_reg, hr = 4029, "tair",
+                         vegparams, paii = paii, grndparams, lat = lat, long= lon)
+
+
+    immediateMessage("Point model run completed.")
 
     # Which variables to save
     if (i == 1 & x == 1 & y == 1) {
@@ -225,9 +250,10 @@ process_cell <- function(x, y) {
     }
   }
 
-  saveRDS(res, paste0(outdir, "/v2_mc_x", x, "_y", y, ".rds"))
+  # Save result
+  saveRDS(res, output_file)
   end_time_cell <- Sys.time()
-  message(paste("Finished cell:", x, y, "in", round(end_time_cell - start_time_cell, 2), "seconds"))
+  immediateMessage(paste("Finished cell:", output_file, "in", round(end_time_cell - start_time_cell, 2), "seconds"))
 
   TRUE
 }
