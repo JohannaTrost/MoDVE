@@ -167,7 +167,7 @@ outdir <- "/Users/johanna/Uni/masterarbeit/data/mc_output"
 
 # Save heights of MC simulations
 in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
-vegp_reg <- readRDS(paste(in_dir, "vegp_mof3d_ptm_v2.RDS", sep = "/"))
+vegp_reg <- readRDS(paste(in_dir, "vegp_mof3d_ptm_v3.RDS", sep = "/"))
 max_veg_height <- max(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE)
 heights <- seq(0.5, max_veg_height + 1)
 saveRDS(heights, paste0(outdir, "/v2_mc_heights.rds"))
