@@ -93,6 +93,7 @@ indices2coords <- function(x, y, raster, crs_out = "EPSG:4326") {
   return(coords_proj)
 }
 
+# --- Prep data
 
 # vegp 1m resolution
 # dtm 1m resolution
@@ -109,12 +110,6 @@ vegp_reg <- readRDS(paste(in_dir, "vegp_mof3d_ptm_v2.RDS", sep = "/"))
 soilc_reg <- readRDS(paste(in_dir, "soilc_v2.RDS", sep = "/"))
 climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2024_v2.csv", sep = "/"))
 
-# Get PAI
-microhab_file <- "/Users/johanna/Uni/masterarbeit/code/output/modev_zach_25_01_07/MicrohabitatMatrix98.rds"
-pai <- readRDS(microhab_file)[,,,5]
-paii <- apply(pai[,,1:max(vegparams$h, 0.5)], c(3), mean, na.rm = TRUE)
-#paii <- pai[25, 25, 1:max(vegparams$h, 0.5)]
-
 # Get coordiantes
 coords <- indices2coords(x, y, terra::unwrap(vegp_reg$pai))[c("x", "y")]
 lon <- coords[[1]]
@@ -124,8 +119,16 @@ lat <- coords[[2]]
 vegparams <- extract_params(vegp_reg, lon, lat)
 grndparams <- extract_params(soilc_reg, lon, lat)
 
+# Get PAI
+microhab_file <- "/Users/johanna/Uni/masterarbeit/code/output/modev_zach_25_01_07/MicrohabitatMatrix98.rds"
+pai <- readRDS(microhab_file)[,,,5]
+paii <- apply(pai[,,1:max(vegparams$h, 0.5)], c(3), mean, na.rm = TRUE)
+#paii <- pai[25, 25, 1:max(vegparams$h, 0.5)]
+
 # Replace PAI
 vegparams$pai <- sum(paii)
+
+# --- Simulate microclimate
 
 # Veg heights
 max_veg_height <- max(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE)
@@ -144,69 +147,78 @@ mc_sim <- data.frame(
   relhum = mout$relhum
 )
 
+# --- Load empirical data
 
-# Define the empirical directories
-emp_dirs <- c("3600m, 446mASL", "3800m, 387mASL", "3650m, 438mASL",
-              "3850m, 387mASL waterfall reference", "3700m, 433mASL")
-
-# Path to empirical data
+# Define paths
 emp_path <- "/Users/johanna/Uni/masterarbeit/data/empirical/Datalogger 400m elevation REGUA understory Trilha Verde"
 
-# Function to process and compare one logger
-process_logger <- function(emp_dir) {
-  emp_file <- file.path(emp_path, emp_dir, "mc_data.xlsx")
+# Define logger directories
+emp_dirs <- c("3600m, 446mASL", "3800m, 387mASL", "3650m, 438mASL", "3700m, 433mASL")
+macro_dir <- "3850m, 387mASL waterfall reference"  # This is the macroclimate reference
 
-  # Read and process empirical data
-  emp_data <- read_excel(emp_file) %>%
+# Function to load and process a logger file
+load_logger_data <- function(dir_name) {
+  file_path <- file.path(emp_path, dir_name, "mc_data.xlsx")
+
+  read_excel(file_path) %>%
     select("Date-Time (Brazil Standard Time)", "Temperature (°C)", "RH (%)") %>%
-    rename(
-      obs_time = "Date-Time (Brazil Standard Time)",
-      tair_emp = "Temperature (°C)",
-      relhum_emp = "RH (%)"
-    ) %>%
-    mutate(
-      obs_time = force_tz(as.POSIXct(obs_time), tzone = "America/Sao_Paulo"),
-      obs_time_utc = with_tz(obs_time, tzone = "UTC"),
-      obs_hour_utc = floor_date(obs_time_utc, unit = "hour")
-    ) %>%
-    group_by(obs_hour_utc) %>%
-    summarise(
-      tair_emp = mean(tair_emp, na.rm = TRUE),
-      relhum_emp = mean(relhum_emp, na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    rename(obs_time = obs_hour_utc)
+    rename(obs_time = "Date-Time (Brazil Standard Time)",
+           tair = "Temperature (°C)",
+           relhum = "RH (%)")
+}
 
-  # Join with simulation data
-  joined <- left_join(emp_data, mc_sim, by = "obs_time")
+# Load macroclimate data
+macro_data <- load_logger_data(macro_dir) %>%
+  rename(tair_macro = tair, relhum_macro = relhum)
 
-  # Compute metrics
-  summarise(joined,
-    logger = emp_dir,
-    mae_relhum = mean(abs(relhum_emp - relhum), na.rm = TRUE),
-    cor_relhum = cor(relhum_emp, relhum, use = "complete.obs"),
-    mae_tair = mean(abs(tair_emp - tair), na.rm = TRUE),
-    cor_tair = cor(tair_emp, tair, use = "complete.obs")
+# --- Compare empirical data against model and macroclimate
+
+# Function to compare one logger against model and macroclimate
+process_comparison <- function(dir_name) {
+  emp_data <- load_logger_data(dir_name) %>%
+    rename(tair_emp = tair, relhum_emp = relhum)
+
+  # Join with model and macro
+  joined <- emp_data %>%
+    left_join(mc_sim, by = "obs_time") %>%
+    left_join(macro_data, by = "obs_time")
+
+  tibble(
+    logger = dir_name,
+
+    # Model vs Empirical
+    mae_tair_model = mean(abs(joined$tair_emp - joined$tair), na.rm = TRUE),
+    cor_tair_model = cor(joined$tair_emp, joined$tair, use = "complete.obs"),
+    mae_relhum_model = mean(abs(joined$relhum_emp - joined$relhum), na.rm = TRUE),
+    cor_relhum_model = cor(joined$relhum_emp, joined$relhum, use = "complete.obs"),
+
+    # Macroclimate vs Empirical (skip if same as macro reference)
+    mae_tair_macro = if (dir_name != macro_dir) mean(abs(joined$tair_emp - joined$tair_macro), na.rm = TRUE) else NA_real_,
+    cor_tair_macro = if (dir_name != macro_dir) cor(joined$tair_emp, joined$tair_macro, use = "complete.obs") else NA_real_,
+    mae_relhum_macro = if (dir_name != macro_dir) mean(abs(joined$relhum_emp - joined$relhum_macro), na.rm = TRUE) else NA_real_,
+    cor_relhum_macro = if (dir_name != macro_dir) cor(joined$relhum_emp, joined$relhum_macro, use = "complete.obs") else NA_real_
   )
 }
 
-# Apply the function to all loggers and bind the results
-results <- map_dfr(emp_dirs, process_logger)
+# Apply to all loggers
+results <- map_dfr(emp_dirs, process_comparison)
 
-# Sort by lowest MAE (e.g., for tair)
-results_sorted <- results %>% arrange(mae_tair)
-
-# View results
+# View sorted by model RH MAE
+results_sorted <- results %>% arrange(mae_relhum_model)
 print(results_sorted)
 
-# Aggregate across loggers
-results_sorted %>%
+# --- Show results of the comparison (MAE and correlation)
+
+# Summarize across loggers (excluding macro itself)
+summary_stats <- results %>%
+  filter(logger != macro_dir) %>%
   summarise(across(where(is.numeric), list(mean = mean, sd = sd), na.rm = TRUE)) %>%
-  t(.) %>%
-  round(., 2)
+  t() %>%
+  round(2)
 
+print(summary_stats)
 
-# Assuming emp_sim_data is already loaded and is a tibble
+# --- Some plots
 
 # First plot: Air temperature (empirical vs. simulated)
 plot_airt <- ggplot(emp_sim_data, aes(x = obs_time)) +
