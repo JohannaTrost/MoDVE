@@ -1,6 +1,7 @@
 # Create microhabitat matrices
 source("utils.R")
 
+library(data.table)
 
 config <- parse_config()
 
@@ -145,9 +146,11 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
         Mat_leafArea_per_cell <- array(rep(0, dimX * dimY * dimZ), dim=c(dimX, dimY, dimZ))
 
         # Get all branch segments that die during time step
-        DeadSegments <- ShootsBegin$shootID[!is.element(ShootsBegin$shootID, ShootsEnd$shootID)]
-        DeadSegments1 <- is.element(DeadSegments, ShootsBegin$shootID)
-        locDeadSegments <- match(DeadSegments, ShootsBegin$shootID)  # nomatch=0?
+        DeadSegments <- ShootsBegin$shootID[!is.element(ShootsBegin$treeID, ShootsEnd$treeID)]
+        DeadShootSet <- data.table(shootID=DeadSegments)
+        ShootsDT <- data.table(shootID=ShootsBegin$shootID)
+        ShootsDT <- ShootsDT[, is_dead := shootID %in% DeadShootSet$shootID] # faster than match
+        locDeadSegments <- which(ShootsDT$is_dead)
         CounterDead <- 1
         TotalDead <- length(locDeadSegments)
 
@@ -184,7 +187,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 
                         # If branch is lost during this time step, add it to lost surface
                         if (SurfaceAreaLossOpt == 1) {
-                            if (j == locDeadSegments[CounterDead]) {
+                            if (j == locDeadSegments[CounterDead] & TotalDead > 0) {
                                 CounterDead <- min(TotalDead, CounterDead + 1)
 
                                 lost_surface <- (ShootsBegin$length[j] / (numX*numY*numZ)) * ShootsBegin$diameter[j] * pi/2
@@ -216,8 +219,10 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
         # Loop through all trunks and calculate total surface area, surface loss and weighted angles
         # Get all trees that die during time step
         DeadSegments <- TrunksBegin$treeID[!is.element(TrunksBegin$treeID, TrunksEnd$treeID)]
-        DeadSegments1 <- is.element(DeadSegments, TrunksBegin$treeID)
-        locDeadSegments <- match(DeadSegments, TrunksBegin$treeID)  # nomatch=0?
+        DeadTrunkSet <- data.table(treeID=DeadSegments)
+        TrunksDT <- data.table(treeID=TrunksBegin$treeID)
+        TrunksDT <- TrunksDT[, is_dead := treeID %in% DeadTrunkSet$treeID] # faster than match
+        locDeadSegments <- which(TrunksDT$is_dead)
         CounterDead <- 1
         TotalDead <- length(locDeadSegments)
 
@@ -247,7 +252,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 
                 # If trunk is lost during this time step, add it to lost surface
                 if (SurfaceAreaLossOpt == 1) {
-                    if (j == locDeadSegments[CounterDead]) {
+                    if (j == locDeadSegments[CounterDead] & TotalDead > 0) {
                         CounterDead <- min(TotalDead, CounterDead + 1)
                         Mat_surfaceloss_per_cell[X, Y, Z] <- Mat_surfaceloss_per_cell[X, Y, Z] + SurfaceAreaInVoxel
                     }
