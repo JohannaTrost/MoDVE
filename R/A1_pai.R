@@ -4,6 +4,7 @@ source("utils.R")
 library(data.table)
 
 config <- parse_config()
+#config <- read.config(file="tests/config_a1.toml")
 
 # ------------------- Parameters ----------------------- #
 # Parameters that need to be specified/checked before running this script
@@ -107,6 +108,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
     }
 
     for (i in int_seq(from=timeStepStart, to=timeStepEnd, by=1)) {
+
         print(paste("Time step", i))
         start_time <- Sys.time()
 
@@ -187,7 +189,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 
                         # If branch is lost during this time step, add it to lost surface
                         if (SurfaceAreaLossOpt == 1) {
-                            if (j == locDeadSegments[CounterDead] & TotalDead > 0) {
+                            if (j == locDeadSegments[CounterDead] & totalDead > 0) {
                                 CounterDead <- min(TotalDead, CounterDead + 1)
 
                                 lost_surface <- (ShootsBegin$length[j] / (numX*numY*numZ)) * ShootsBegin$diameter[j] * pi/2
@@ -251,8 +253,9 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
                 }
 
                 # If trunk is lost during this time step, add it to lost surface
-                if (SurfaceAreaLossOpt == 1) {
-                    if (j == locDeadSegments[CounterDead] & TotalDead > 0) {
+                print(paste0("Total dead: ", TotalDead))
+                if (SurfaceAreaLossOpt == 1 & TotalDead > 0) {
+                    if (j == locDeadSegments[CounterDead]) {
                         CounterDead <- min(TotalDead, CounterDead + 1)
                         Mat_surfaceloss_per_cell[X, Y, Z] <- Mat_surfaceloss_per_cell[X, Y, Z] + SurfaceAreaInVoxel
                     }
@@ -284,9 +287,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
             Voxels$z <- Voxels$z + 1
 
             # Store information on leaf area in matrix
-            for (j in seq_len(nrow(Voxels))) {
-                Mat_leafArea_per_cell[Voxels$x[j], Voxels$y[j], Voxels$z[j]] <- Voxels$leafarea[j]
-            }
+            Mat_leafArea_per_cell[cbind(Voxels$x, Voxels$y, Voxels$z)] <- Voxels$leafarea
 
             # Calculate single column light conditions based on leaf area distribution
             for (x in seq_len(dimX)) {
@@ -324,17 +325,19 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 
         }
 
-
         # Store information in Microhabitat matrix and save matrix for this
         # timestep
         # possibly only 5 dimensions to save space
-        Microhabitat <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * MatrixDimension), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], MatrixDimension))
+        Microhabitat <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * (MatrixDimension+1)), dim=c(dimPlot[1], dimPlot[2], dimPlot[3], (MatrixDimension+1)))
 
         idx1 <- int_seq(from=corridor+1, to=dimX-corridor, by=1)
         idx2 <- int_seq(from=corridor+1, to=dimY-corridor, by=1)
         idx3 <- seq_len(dimZ)
 
         if (TotalSurfaceAreaOpt == 1) {
+            # Compute PAI
+            Mat_plantArea_per_cell <- Mat_surface_per_cell + (Mat_leafArea_per_cell / 10000)
+            Microhabitat[ , , , MatrixDimension+1] <- Mat_plantArea_per_cell[idx1, idx2, idx3]
             Microhabitat[ , , , 1] <- Mat_surface_per_cell[idx1, idx2, idx3]
         }
 

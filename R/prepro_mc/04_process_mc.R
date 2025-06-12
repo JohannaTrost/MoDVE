@@ -96,68 +96,69 @@ process_single_cell <- function(x, y, timestamps, x_dim, y_dim, max_hgt, n_temp_
   start_time_cell <- Sys.time()
 
   # Load microclimate data
-  mc_file <- paste0("/Users/johanna/Uni/masterarbeit/data/mc_output/v2_mc_x", x, "_y", y, ".rds")
+  mc_file <- paste0("/Users/johanna/Uni/masterarbeit/data/mc_output/v3_mc_x", x, "_y", y, ".rds")
 
   if (!file.exists(mc_file)) {
     warning(paste("File not found:", mc_file))
-    return(NULL)
+    # return(NULL)
+  } else {
+
+    mc <- readRDS(mc_file)
+    actual_max_hgt <- dim(mc$tair)[1]
+
+    # Pre-allocate result matrix for this cell
+    cell_matrix <- array(NA, dim = c(actual_max_hgt, n_temp_metrics))
+
+    # Verify data dimensions
+    if (dim(mc$tair)[2] != length(timestamps)) {
+      stop(paste("Timestamp mismatch in file:", mc_file))
+    }
+
+    # Process all heights simultaneously where possible
+
+    # 1. Mean annual temperature (vectorized)
+    cell_matrix[, 1] <- apply(mc$tair, 1, mean, na.rm = TRUE)
+
+    # 2. Mean diurnal temperature range (vectorized)
+    cell_matrix[, 2] <- mean_diurnal_temp_vectorized(mc$tair, timestamps)
+
+    # Convert to daily medians for remaining calculations
+    daily_tair <- hourly_to_daily_medians(mc$tair, timestamps)
+    daily_relhum <- hourly_to_daily_medians(mc$relhum, timestamps)
+    daily_windspeed <- hourly_to_daily_medians(mc$windspeed, timestamps)
+
+    # 3-6. Temperature statistics (vectorized)
+    tair_stats <- month_stats_vectorized(daily_tair$data, daily_tair$timestamps)
+    cell_matrix[, 3] <- tair_stats$annual_range
+    cell_matrix[, 4] <- tair_stats$max_value
+    cell_matrix[, 5] <- tair_stats$min_value
+    cell_matrix[, 6] <- (cell_matrix[, 2] / tair_stats$annual_range) * 100  # Isothermality
+
+    # 7-10. Humidity statistics (vectorized)
+    relhum_stats <- month_stats_vectorized(daily_relhum$data, daily_relhum$timestamps)
+    cell_matrix[, 7] <- apply(daily_relhum$data, 1, mean, na.rm = TRUE)
+    cell_matrix[, 8] <- relhum_stats$annual_range
+    cell_matrix[, 9] <- relhum_stats$max_value
+    cell_matrix[, 10] <- relhum_stats$min_value
+
+    # 11-14. Wind speed statistics (vectorized)
+    ws_stats <- month_stats_vectorized(daily_windspeed$data, daily_windspeed$timestamps)
+    cell_matrix[, 11] <- apply(daily_windspeed$data, 1, mean, na.rm = TRUE)
+    cell_matrix[, 12] <- ws_stats$annual_range
+    cell_matrix[, 13] <- ws_stats$max_value
+    cell_matrix[, 14] <- ws_stats$min_value
+
+    end_time_cell <- Sys.time()
+    processing_time <- end_time_cell - start_time_cell
+    #cat("Finished processing cell:", x, y, "in", round(processing_time, 2), "seconds\n")
+
+    return(list(
+      x = x,
+      y = y,
+      data = cell_matrix,
+      processing_time = processing_time
+    ))
   }
-
-  mc <- readRDS(mc_file)
-  actual_max_hgt <- dim(mc$tair)[1]
-
-  # Pre-allocate result matrix for this cell
-  cell_matrix <- array(NA, dim = c(actual_max_hgt, n_temp_metrics))
-
-  # Verify data dimensions
-  if (dim(mc$tair)[2] != length(timestamps)) {
-    stop(paste("Timestamp mismatch in file:", mc_file))
-  }
-
-  # Process all heights simultaneously where possible
-
-  # 1. Mean annual temperature (vectorized)
-  cell_matrix[, 1] <- apply(mc$tair, 1, mean, na.rm = TRUE)
-
-  # 2. Mean diurnal temperature range (vectorized)
-  cell_matrix[, 2] <- mean_diurnal_temp_vectorized(mc$tair, timestamps)
-
-  # Convert to daily medians for remaining calculations
-  daily_tair <- hourly_to_daily_medians(mc$tair, timestamps)
-  daily_relhum <- hourly_to_daily_medians(mc$relhum, timestamps)
-  daily_windspeed <- hourly_to_daily_medians(mc$windspeed, timestamps)
-
-  # 3-6. Temperature statistics (vectorized)
-  tair_stats <- month_stats_vectorized(daily_tair$data, daily_tair$timestamps)
-  cell_matrix[, 3] <- tair_stats$annual_range
-  cell_matrix[, 4] <- tair_stats$max_value
-  cell_matrix[, 5] <- tair_stats$min_value
-  cell_matrix[, 6] <- (cell_matrix[, 2] / tair_stats$annual_range) * 100  # Isothermality
-
-  # 7-10. Humidity statistics (vectorized)
-  relhum_stats <- month_stats_vectorized(daily_relhum$data, daily_relhum$timestamps)
-  cell_matrix[, 7] <- apply(daily_relhum$data, 1, mean, na.rm = TRUE)
-  cell_matrix[, 8] <- relhum_stats$annual_range
-  cell_matrix[, 9] <- relhum_stats$max_value
-  cell_matrix[, 10] <- relhum_stats$min_value
-
-  # 11-14. Wind speed statistics (vectorized)
-  ws_stats <- month_stats_vectorized(daily_windspeed$data, daily_windspeed$timestamps)
-  cell_matrix[, 11] <- apply(daily_windspeed$data, 1, mean, na.rm = TRUE)
-  cell_matrix[, 12] <- ws_stats$annual_range
-  cell_matrix[, 13] <- ws_stats$max_value
-  cell_matrix[, 14] <- ws_stats$min_value
-
-  end_time_cell <- Sys.time()
-  processing_time <- end_time_cell - start_time_cell
-  #cat("Finished processing cell:", x, y, "in", round(processing_time, 2), "seconds\n")
-
-  return(list(
-    x = x,
-    y = y,
-    data = cell_matrix,
-    processing_time = processing_time
-  ))
 }
 
 # Main processing function with optional parallelization
@@ -237,148 +238,13 @@ process_microclimate_data <- function(x_dim = 50, y_dim = 50, use_parallel = TRU
 
 # Usage examples:
 # Sequential processing:
-#mc_matrix <- process_microclimate_data(x_dim = 50, y_dim = 50, use_parallel = FALSE)
+mc_matrix <- process_microclimate_data(x_dim = 1, y_dim = 1, use_parallel = FALSE)
 
 # Parallel processing (recommended):
-mc_matrix <- process_microclimate_data(x_dim = 50, y_dim = 50, use_parallel = TRUE)
+#mc_matrix <- process_microclimate_data(x_dim = 50, y_dim = 50, use_parallel = TRUE)
 
 # For testing with smaller subset:
 #mc_matrix <- process_microclimate_data(x_dim = 5, y_dim = 5, use_parallel = TRUE)
 
 # Save the result
-saveRDS(mc_matrix, "/Users/johanna/Uni/masterarbeit/data/mc_output/v2_mc_matrix.rds")
-
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-library(gridExtra)
-
-# Define variable names and units for better labeling
-var_names <- c(
-  "Mean Annual Temperature (°C)",
-  "Mean Diurnal Temperature Range (°C)",
-  "Annual Temperature Range (°C)",
-  "Max Temperature of Warmest Month (°C)",
-  "Min Temperature of Coldest Month (°C)",
-  "Isothermality (%)",
-  "Mean Annual Relative Humidity (%)",
-  "Annual Humidity Range (%)",
-  "Max Humidity (%)",
-  "Min Humidity (%)",
-  "Mean Annual Wind Speed (m/s)",
-  "Annual Wind Speed Range (m/s)",
-  "Max Wind Speed (m/s)",
-  "Min Wind Speed (m/s)"
-)
-
-# Convert height index to actual height in meters
-# Height 1 = 0.5m, then increases by 1m: 0.5, 1.5, 2.5, ..., 58.5
-heights <- seq(0.5, 58.5, by = 1)
-
-# Create a function to plot individual vertical profiles
-plot_vertical_profile <- function(var_index, x_coord, y_coord) {
-  # Extract data for this variable
-  values <- mc_profile[x_coord, y_coord, 1:length(heights), var_index]
-
-  # Create data frame
-  profile_data <- data.frame(
-    height = heights,
-    value = values
-  )
-
-  # Create the plot
-  ggplot(profile_data, aes(x = value, y = height)) +
-    geom_line(color = "blue", size = 1) +
-    geom_point(color = "red", size = 1.5, alpha = 0.7) +
-    labs(
-      title = var_names[var_index],
-      x = "Value",
-      y = "Height (m)"
-    ) +
-    theme_minimal() +
-    theme(
-      plot.title = element_text(size = 10, hjust = 0.5),
-      axis.title = element_text(size = 9),
-      axis.text = element_text(size = 8)
-    ) +
-    scale_y_continuous(breaks = seq(0, 60, by = 10))
-}
-
-# Create all 14 plots (assuming x and y coordinates - you'll need to specify these)
-# For demonstration, I'll use x = 25, y = 25 (middle of your 50x50 grid)
-x_coord <- 1  # Change this to your desired x coordinate
-y_coord <- 1  # Change this to your desired y coordinate
-
-mc_profile <- array(rep(NA, 1 * 1 * 80 * n_temp_metrics),
-                     dim = c(1, 1, 80, n_temp_metrics))
-mc_profile[1, 1, , ] <- apply(mc_matrix, c(3, 4), mean, na.rm = TRUE)
-
-# Generate all plots
-plot_list <- list()
-for (i in 1:14) {
-  plot_list[[i]] <- plot_vertical_profile(i, x_coord, y_coord)
-}
-
-# Option 1: Display all plots in a grid (might be crowded)
-grid_plot <- grid.arrange(grobs = plot_list, ncol = 4, nrow = 4)
-
-# Option 2: Create separate plots for different variable groups
-# Temperature variables (1-6)
-temp_plots <- grid.arrange(grobs = plot_list[1:6], ncol = 3, nrow = 2,
-                          top = "Temperature Variables - Vertical Profiles")
-
-# Humidity variables (7-10)
-humidity_plots <- grid.arrange(grobs = plot_list[7:10], ncol = 2, nrow = 2,
-                              top = "Humidity Variables - Vertical Profiles")
-
-# Wind speed variables (11-14)
-wind_plots <- grid.arrange(grobs = plot_list[11:14], ncol = 2, nrow = 2,
-                          top = "Wind Speed Variables - Vertical Profiles")
-
-# Option 3: Create a combined data frame for faceted plotting
-create_combined_data <- function(x_coord, y_coord) {
-  combined_data <- data.frame()
-
-  for (i in 1:14) {
-    values <- mc_profile[x_coord, y_coord, 1:max_hgt, i]
-    temp_data <- data.frame(
-      height = heights,
-      value = values,
-      variable = var_names[i],
-      var_group = case_when(
-        i <= 6 ~ "Temperature",
-        i <= 10 ~ "Humidity",
-        TRUE ~ "Wind Speed"
-      )
-    )
-    combined_data <- rbind(combined_data, temp_data)
-  }
-  return(combined_data)
-}
-
-# Create faceted plot
-combined_data <- create_combined_data(x_coord, y_coord)
-
-faceted_plot <- ggplot(combined_data, aes(x = value, y = height)) +
-  geom_line(color = "blue", size = 0.8) +
-  geom_point(color = "red", size = 1, alpha = 0.7) +
-  facet_wrap(~ variable, scales = "free_x", ncol = 4) +
-  labs(
-    title = paste("Vertical Profiles of Microclimate Variables (Grid Point:", x_coord, ",", y_coord, ")"),
-    x = "Value",
-    y = "Height (m)"
-  ) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(size = 12, hjust = 0.5),
-    strip.text = element_text(size = 8),
-    axis.title = element_text(size = 10),
-    axis.text = element_text(size = 8)
-  ) +
-  scale_y_continuous(breaks = seq(0, 60, by = 20))
-
-print(faceted_plot)
-
-pdf("../../figs/mc_output/mc_plot_avg_metrics.pdf")
-print(faceted_plot)
-dev.off()
+saveRDS(mc_matrix, "/Users/johanna/Uni/masterarbeit/data/mc_output/v3_mc_matrix.rds")
