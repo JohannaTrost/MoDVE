@@ -26,6 +26,7 @@ jobs:
           Rscript -e 'install.packages("foreach", repos="http://cran.uk.r-project.org")'
           Rscript -e 'install.packages("doParallel", repos="http://cran.uk.r-project.org")'
           Rscript -e 'install.packages("doRNG", repos="http://cran.uk.r-project.org")'
+          Rscript -e 'install.packages("data.table", repos="http://cran.uk.r-project.org")'
 
       - name: Run and test A1 script
         run: |
