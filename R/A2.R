@@ -6,6 +6,11 @@ AgeMaturityMetabolic <- function(InterceptAgeMaturity, ScalingAgeMaturity, Mass)
     return(InterceptAgeMaturity * (Mass^ScalingAgeMaturity))
 }
 
+Height2Light <- function(Height, kL, LAI, Imax) {
+    # Convert height to light
+    return(Imax * exp(-kL * LAI * (1 - Height)))
+}
+
 # Parse input configuration file
 config <- parse_config()
 
@@ -63,9 +68,23 @@ RecruitmentNormalizeAtSize1Random <- config$RecruitmentNormalizeAtSize1Random  #
 RecruitmentInvestmentRelMeanRandom <- config$RecruitmentInvestmentRelMeanRandom  # Not that the effective recruitment is RecruitmentNormalizeAtSize1Random*RecruitmentInvestmentRelMeanRandom
 RecruitmentIncRandom <- config$RecruitmentIncRandom
 MassAtMaturityRelativeRandom <- config$MassAtMaturityRelativeRandom  # Relative mass in relation to maximum Size
-HeightBreadthRandom <- config$HeightBreadthRandom  # Relative height
 DispersalKernelRandom <- config$DispersalKernelRandom  # The higher this values, the more local is the dispersal
 DispersalKernelAsymmetryRandom <- config$DispersalKernelAsymmetryRandom  # The trait describes the relative proportion of seed dispersed below the mother (i.e. 0.5=> symmetric dispersal kernel)
+
+# Microclimate parameters
+HeightModel <- config$HeightModel  # Flag to indicate if MC niches shall be inferred from height
+HeightBreadthRandom <- config$HeightBreadthRandom  # Relative height
+LightBreadthRandom <- config$LightBreadthRandom
+HumBreadthRandom <- config$HumBreadthRandom  # Relative humidity
+TempBreadthRandom <- config$TempBreadthRandom  # Temperature in degrees Celsius
+WindBreadthRandom <- config$WindBreadthRandom  # Wind speed in m/s
+
+# If random light breadth is not defined, infer it from the random height breadth
+if (length(LightBreadthRandom) == 0) {
+    MinLightRandom <- Height2Light(HeightBreadthRandom[1], kL, LAI, Imax)
+    MaxLightRandom <- Height2Light(HeightBreadthRandom[2], kL, LAI, Imax)
+    LightBreadthRandom <- c(MinLightRandom, MaxLightRandom)
+}
 
 # ============================================================================
 # Define which trait is varied if a sequential species pool(SpeciesPoolType=1) is choose.
@@ -124,12 +143,99 @@ DispersalKernelAsymmetryRandom <- config$DispersalKernelAsymmetryRandom  # The t
 SaveDirectory <- file.path(MainOutputDirectory)
 dir.create(SaveDirectory, recursive=TRUE)
 
-ColumnHeaders <- c("SpeciesID", "MaximumMass", "MassAtMaturity", "GrowthRate",
+# === Species trait matrix headers ===
+
+if (HeightModel) {
+    # Height niche included -> will determine MC niches
+    ColumnHeaders <- c("SpeciesID", "MaximumMass", "MassAtMaturity", "GrowthRate",
+               "DispersalKernel", "DispersalKernelAsymmetry", "RecruitmentInvestmentRel",
+               "RecruitmentInc",
+               "MaxRecruitsAtMaxMass", "MaxRecruitsAtMassAtMaturity", "AgeAtMaturity",
+               "MinLight", "MaxLight", "OptimumLight",
+               "LightResponseA", "LightResponseB", "LightResponseC",
+               "MinHum", "MaxHum", "OptimumHum",
+               "MinTemp", "MaxTemp", "OptimumTemp",
+               "MinWind", "MaxWind", "OptimumWind",
+               "MinHeightRel", "MaxHeightRel", "MeanHeightRel", "HeightBreadth"
+    )
+} else {
+    # MC niches not based on height niche
+    ColumnHeaders <- c("SpeciesID", "MaximumMass", "MassAtMaturity", "GrowthRate",
                    "DispersalKernel", "DispersalKernelAsymmetry", "RecruitmentInvestmentRel",
-                   "RecruitmentInc", "MinLight", "MaxLight", "OptimumLight", "LightBreadth",
-                   "LightResponseA", "LightResponseB", "LightResponseC", "MinHeightRel",
-                   "MaxHeightRel", "MeanHeightRel", "HeightBreadth", "MaxRecruitsAtMaxMass",
-                   "MaxRecruitsAtMassAtMaturity", "AgeAtMaturity")
+                   "RecruitmentInc",
+                   "MaxRecruitsAtMaxMass", "MaxRecruitsAtMassAtMaturity", "AgeAtMaturity",
+                   "MinLight", "MaxLight", "OptimumLight",
+                   "LightResponseA", "LightResponseB", "LightResponseC",
+                   "MinHum", "MaxHum", "OptimumHum",
+                   "MinTemp", "MaxTemp", "OptimumTemp",
+                   "MinWind", "MaxWind", "OptimumWind")
+}
+
+# ===== Init random MC niches parameters =====
+
+if (!HeightModel) { # Don't use height to determine MC niches, draw randomly
+
+    # Store the breadth variables in a list
+    breadths <- list(
+      Hum = HumBreadthRandom,
+      Temp = TempBreadthRandom,
+      Wind = WindBreadthRandom,
+      Light = LightBreadthRandom
+    )
+
+    # Initialize empty lists to store outputs
+    OptValues <- list()
+    MinValues <- list()
+    MaxValues <- list()
+
+    # Loop through each environmental variable
+    for (var in names(breadths)) {
+
+        # Sum of min and max breadth
+        Lower <- breadths[[var]][1]
+        Upper <- breadths[[var]][2]
+
+        # Define how lower and upper bounds for optimal values are determined
+        if (var == "Wind") {  # The less wind, the better
+            LowerOpt <- 0
+            UpperOpt <- 0.05
+        } else {
+            LowerOpt <- 0.25
+            UpperOpt <- 0.75
+        }
+
+        # Generate optimal values within 1st and 3rd quartile
+        Opt <- array(
+        runif(numSpeciesPools * NumberOfSpecies,
+              min = Lower + (Upper - Lower) * LowerOpt,
+              max = Lower + (Upper - Lower) * UpperOpt),
+        dim = c(numSpeciesPools, NumberOfSpecies)
+        )
+
+        # Generate min values
+        Min <- array(
+        runif(length(Opt), min = Lower, max = as.vector(Opt)),
+        dim = dim(Opt)
+        )
+
+        # Generate max values
+        Max <- array(
+        runif(length(Opt), min = as.vector(Opt), max = Upper),
+        dim = dim(Opt)
+        )
+
+        # Ensure that min < opt < max
+        Min[Min >= Opt] <- Opt[Min >= Opt] - 1e-6
+        Max[Max <= Opt] <- Opt[Max <= Opt] + 1e-6
+        # Ensure the minimum is > 0
+        Min[Min < 0] <- 0
+
+        # Store results
+        OptValues[[var]] <- Opt
+        MinValues[[var]] <- Min
+        MaxValues[[var]] <- Max
+    }
+}
 
 # Main loop (for random generation of species pool)
 for (Num in seq_len(numSpeciesPools)) {
@@ -190,32 +296,14 @@ for (Num in seq_len(numSpeciesPools)) {
         DispersalKernelAsymmetry <- runif(1, min=DispersalKernelAsymmetryRandom[1], max=DispersalKernelAsymmetryRandom[2])
 
         # ============================================================================
-        # Traits of ecologcial niche
-        # 1. Randomly choose mean height and height breadth
-        MeanHeight <- runif(1, min=0, max=1)  # realtive height in relation to canopy height
-        HeightBreadthTheoretical <- runif(1, min=HeightBreadthRandom[1], max=HeightBreadthRandom[2])
-
-        # Minimum and maximum height under which the species is
-        # able to survive
-        MinHeight <- max(c(0, MeanHeight - (HeightBreadthTheoretical / 2)))
-        MaxHeight <- min(c(1, MeanHeight + (HeightBreadthTheoretical / 2)))
-        HeightBreadth <- MaxHeight - MinHeight
-
-        # 2. Convert heigth ranges to light ranges
-        # For this, a standard forest with the following parameters is
-        # assumed
-        MinLight <- Imax * exp(-kL * LAI * (1 - MinHeight))
-        MaxLight <- Imax * exp(-kL * LAI * (1 - MaxHeight))
-        OptimumLight <- (MaxLight + MinLight) / 2
-        LightBreadth <- MaxLight - MinLight
-
-        # 3. Calculate parameters of parabolic response curve y=ax^2+bx+c
+        # Traits of ecologcial light niche
+        # Calculate parameters of parabolic response curve y=ax^2+bx+c
         # We assume that the function is a paraboloid which goes trough
         # three points (MinLight/0) (MaxLight/0) (OptimumLight/1)
 
-        x1 <- MinLight
-        x2 <- MaxLight
-        x3 <- OptimumLight
+        x1 <- MinValues$Light[Num, NumSpecies]
+        x2 <- MaxValues$Light[Num, NumSpecies]
+        x3 <- OptValues$Light[Num, NumSpecies]
 
         y1 <- 0
         y2 <- 0
@@ -227,7 +315,9 @@ for (Num in seq_len(numSpeciesPools)) {
         # In the model, based on these parameters the light response for each species can be calculated:
         # Parabol=@(a,b,c,x) a*x^2+b*x+c;
 
+
         # ============================================================================
+
         # Assign trait values for each species
         SpeciesTraitMatrix[NumSpecies, 1] <- NumSpecies  # Species or functional type
         SpeciesTraitMatrix[NumSpecies, 2] <- MaxMass  # Maximum mass
@@ -237,21 +327,24 @@ for (Num in seq_len(numSpeciesPools)) {
         SpeciesTraitMatrix[NumSpecies, 6] <- DispersalKernelAsymmetry  # Dispersal: factor b in negative exp funtion
         SpeciesTraitMatrix[NumSpecies, 7] <- RecruitmentInvestmentRel  # anual reproductive allocation in relation to vegetative biomass
         SpeciesTraitMatrix[NumSpecies, 8] <- RecruitmentInc  # Increase in realtive reproductive allocation with mass 0: no increase; 1: doubling
-        SpeciesTraitMatrix[NumSpecies, 9] <- MinLight  # Min Light conditions
-        SpeciesTraitMatrix[NumSpecies, 10] <- MaxLight  # Max Light conditions
-        SpeciesTraitMatrix[NumSpecies, 11] <- OptimumLight  # Optimum Light conditions
-        SpeciesTraitMatrix[NumSpecies, 12] <- LightBreadth  # Realised Light breadth
-        SpeciesTraitMatrix[NumSpecies, 13] <- a  # Factor a of light response function
-        SpeciesTraitMatrix[NumSpecies, 14] <- b  # Factor b of light response function
-        SpeciesTraitMatrix[NumSpecies, 15] <- c  # Factor c of light response function
-        SpeciesTraitMatrix[NumSpecies, 16] <- MinHeight  # Relative minimum height in a uniform standard forest
-        SpeciesTraitMatrix[NumSpecies, 17] <- MaxHeight  # Relative maximum height in a uniform standard forest
-        SpeciesTraitMatrix[NumSpecies, 18] <- MeanHeight  # Relative optimum height in a uniform standard forest
-        SpeciesTraitMatrix[NumSpecies, 19] <- HeightBreadth  # Niche Breadth Height
-        SpeciesTraitMatrix[NumSpecies, 20] <- (InterceptRecruitment)*RecruitmentInvestmentRel  # Potential maximum number of recruits at maximum mass
-        SpeciesTraitMatrix[NumSpecies, 21] <- (InterceptRecruitment+SlopeRecruitment*MassAtMaturity)*RecruitmentInvestmentRel  # Potential maximum number of recruits at mass at maturity
-        SpeciesTraitMatrix[NumSpecies, 22] <- AgeAtMaturity  # Average age at maturity under optimal conditions
-
+        SpeciesTraitMatrix[NumSpecies, 9] <- (InterceptRecruitment)*RecruitmentInvestmentRel  # Potential maximum number of recruits at maximum mass
+        SpeciesTraitMatrix[NumSpecies, 10] <- (InterceptRecruitment+SlopeRecruitment*MassAtMaturity)*RecruitmentInvestmentRel  # Potential maximum number of recruits at mass at maturity
+        SpeciesTraitMatrix[NumSpecies, 11] <- AgeAtMaturity  # Average age at maturity under optimal conditions
+        SpeciesTraitMatrix[NumSpecies, 12] <- MinValues$Light[Num, NumSpecies]  # Min Light conditions
+        SpeciesTraitMatrix[NumSpecies, 13] <- MaxValues$Light[Num, NumSpecies]  # Max Light conditions
+        SpeciesTraitMatrix[NumSpecies, 14] <- OptValues$Light[Num, NumSpecies]  # Optimum Light conditions
+        SpeciesTraitMatrix[NumSpecies, 15] <- a  # Factor a of light response function
+        SpeciesTraitMatrix[NumSpecies, 16] <- b  # Factor b of light response function
+        SpeciesTraitMatrix[NumSpecies, 17] <- c  # Factor c of light response function
+        SpeciesTraitMatrix[NumSpecies, 18] <- MinValues$Hum[Num, NumSpecies]  # Relative minimum humidity
+        SpeciesTraitMatrix[NumSpecies, 19] <- MaxValues$Hum[Num, NumSpecies]  # Relative maximum humidity
+        SpeciesTraitMatrix[NumSpecies, 20] <- OptValues$Hum[Num, NumSpecies]  # Relative optimum humidity
+        SpeciesTraitMatrix[NumSpecies, 21] <- MinValues$Temp[Num, NumSpecies]  # Minimum temperature in degrees Celsius
+        SpeciesTraitMatrix[NumSpecies, 22] <- MaxValues$Temp[Num, NumSpecies]  # Maximum temperature in degrees Celsius
+        SpeciesTraitMatrix[NumSpecies, 23] <- OptValues$Temp[Num, NumSpecies]  # Optimum temperature in degrees Celsius
+        SpeciesTraitMatrix[NumSpecies, 24] <- MinValues$Wind[Num, NumSpecies]  # Minimum wind speed in m/s
+        SpeciesTraitMatrix[NumSpecies, 25] <- MaxValues$Wind[Num, NumSpecies]  # Maximum wind speed in m/s
+        SpeciesTraitMatrix[NumSpecies, 26] <- OptValues$Wind[Num, NumSpecies]  # Optimum wind speed in m/s
     }
 
     # ============================================================================
@@ -267,7 +360,7 @@ for (Num in seq_len(numSpeciesPools)) {
 
     # ============================================================================
     # Save trait ranges used to generate the species pool
-    TraitRanges <- matrix(0, 20, 2)
+    TraitRanges <- matrix(0, 24, 2)
 
     TraitRanges[1, ] <- SlopeRecruitment
     TraitRanges[2, ] <- InterceptRecruitment
@@ -285,10 +378,16 @@ for (Num in seq_len(numSpeciesPools)) {
     TraitRanges[14, ] <- RecruitmentInvestmentRelMeanRandom
     TraitRanges[15, ] <- RecruitmentIncRandom
     TraitRanges[16, ] <- MassAtMaturityRelativeRandom
-    TraitRanges[17, ] <- HeightBreadthRandom
-    TraitRanges[18, ] <- DispersalKernelRandom
-    TraitRanges[19, ] <- DispersalKernelAsymmetryRandom
-    TraitRanges[20, ] <- MaxMassLogScaleRandom
+    TraitRanges[17, ] <- DispersalKernelRandom
+    TraitRanges[18, ] <- DispersalKernelAsymmetryRandom
+    TraitRanges[19, ] <- MaxMassLogScaleRandom
+    TraitRanges[20, ] <- HumBreadthRandom
+    TraitRanges[21, ] <- TempBreadthRandom
+    TraitRanges[22, ] <- WindBreadthRandom
+    TraitRanges[23, ] <- LightBreadthRandom
+    if (HeightModel) {
+        TraitRanges[24, ] <- HeightBreadthRandom
+    }
 
     write.table(
         TraitRanges,

@@ -75,6 +75,12 @@ ColumnHeaders <- c(colnames(SpeciesPool), c("X", "Y", "Z", "Mass", "Status", "In
 # Get numbers of columns used in this script
 ColMinLight <- match("MinLight", ColumnHeaders)
 ColMaxLight <- match("MaxLight", ColumnHeaders)
+ColMinHum <- match("MinHum", ColumnHeaders)
+ColMaxHum <- match("MaxHum", ColumnHeaders)
+ColMinTemp <- match("MinTemp", ColumnHeaders)
+ColMaxTemp <- match("MaxTemp", ColumnHeaders)
+ColMinWind <- match("MinWind", ColumnHeaders)
+ColMaxWind <- match("MaxWind", ColumnHeaders)
 
 # Get number of total individuals for each replicate
 TotalIndividuals <- NumberSpecies * IndividualsPerSpecies
@@ -157,9 +163,21 @@ if (SingleSpeciesModel == 1) {
                 # Calculate potential voxels for for each species which fullfil
                 # their niche requirments (to save time they are precomputed here)
                 comp1 <- Microhabitat[, , , 1] > 0
-                comp2 <- Microhabitat[, , , 3] >= SpeciesPool$MinLight[numSpecies]
-                comp3 <- Microhabitat[, , , 3] <= SpeciesPool$MaxLight[numSpecies]
-                ids <- arrayInd(which(comp1 & comp2 & comp3), dim(Microhabitat))
+                # Verify suitable Microclimate for the species
+                compMinLight <- Microhabitat[, , , 3] >= SpeciesPool$MinLight[numSpecies]
+                compMaxLight <- Microhabitat[, , , 3] <= SpeciesPool$MaxLight[numSpecies]
+                compMinHum <- Microhabitat[, , , 5] >= SpeciesPool$MinHum[numSpecies]
+                compMaxHum <- Microhabitat[, , , 5] <= SpeciesPool$MaxHum[numSpecies]
+                compMinTemp <- Microhabitat[, , , 6] >= SpeciesPool$MinTemp[numSpecies]
+                compMaxTemp <- Microhabitat[, , , 6] <= SpeciesPool$MaxTemp[numSpecies]
+                compMinWind <- Microhabitat[, , , 7] >= SpeciesPool$MinWind[numSpecies]
+                compMaxWind <- Microhabitat[, , , 7] <= SpeciesPool$MaxWind[numSpecies]
+
+                ids <- arrayInd(
+                  which(comp1 & compMinLight & compMaxLight & compMinHum & compMaxHum &
+                        compMinTemp & compMaxTemp & compMinWind & compMaxWind),
+                  dim(Microhabitat)
+                )
                 x <- ids[, 1]
                 y <- ids[, 2]
                 z <- ids[, 3]
@@ -273,6 +291,12 @@ if (SingleSpeciesModel == 0) {
                 # Find all suitable voxels for this individual
                 MinLightInd <- IntitalEpiphyteMatrix[NumIndRand, ColMinLight]
                 MaxLightInd <- IntitalEpiphyteMatrix[NumIndRand, ColMaxLight]
+                MinHumInd <- IntitalEpiphyteMatrix[NumIndRand, ColMinHum]
+                MaxHumInd <- IntitalEpiphyteMatrix[NumIndRand, ColMaxHum]
+                MinTempInd <- IntitalEpiphyteMatrix[NumIndRand, ColMinTemp]
+                MaxTempInd <- IntitalEpiphyteMatrix[NumIndRand, ColMaxTemp]
+                MinWindInd <- IntitalEpiphyteMatrix[NumIndRand, ColMinWind]
+                MaxWindInd <- IntitalEpiphyteMatrix[NumIndRand, ColMaxWind]
                 AreaNeededInd <- IntitalEpiphyteMatrix[NumIndRand, SizeSpeciesPool[2] + 7]
 
                 # 1. Get the postions of all voxels fullfilling the
@@ -280,7 +304,13 @@ if (SingleSpeciesModel == 0) {
                 tmp1 <- AvailableSurfaceArea[, , ] > AreaNeededInd
                 tmp2 <- Microhabitat[, , , 3] >= MinLightInd
                 tmp3 <- Microhabitat[, , , 3] <= MaxLightInd
-                SuitableVoxels <- which(tmp1 & tmp2 & tmp3)
+                tmp4 <- Microhabitat[, , , 5] >= MinHumInd
+                tmp5 <- Microhabitat[, , , 5] <= MaxHumInd
+                tmp6 <- Microhabitat[, , , 6] >= MinTempInd
+                tmp7 <- Microhabitat[, , , 6] <= MaxTempInd
+                tmp8 <- Microhabitat[, , , 7] >= MinWindInd
+                tmp9 <- Microhabitat[, , , 7] <= MaxWindInd
+                SuitableVoxels <- which(tmp1 & tmp2 & tmp3 & tmp4 & tmp5 & tmp6 & tmp7 & tmp8 & tmp9)
 
                 # Choose one of the suitable voxels based on the specified
                 # Method (if suitable voxels are available)

@@ -66,6 +66,82 @@ Parabol <- function(a, b, c, x) {
     return((a * x^2) + (b * x) + c)
 }
 
+#' Compute Environmental Suitability Using the Beta Function
+#'
+#' This function calculates environmental suitability scores based on the asymmetric beta function
+#' described by Yan and Hunt (1999), which is a simplified version of the function originally proposed
+#' by Yin et al. (1995). The suitability is 0 outside the defined environmental range
+#' (between MinEnvVar and MaxEnvVar) and peaks at OptEnvVar.
+#'
+#' The formula used is:
+#' \deqn{
+#'   suitability = \left( \frac{V_{max} - V_{env}}{V_{max} - V_{opt}} \right)
+#'                 \cdot \left( \frac{V_{env} - V_{min}}{V_{opt} - V_{min}} \right)^{\frac{V_{opt} - V_{min}}{V_{max} - V_{opt}}}
+#' }
+#'
+#' where:
+#' - \eqn{V_{env}} is the environmental value at a given time/location
+#' - \eqn{V_{min}}, \eqn{V_{opt}}, and \eqn{V_{max}} are the minimum, optimum, and maximum values for suitability
+#'
+#' @param MinEnvVar Array minimum tolerated environmental values (no. species x no. env. variables).
+#' @param MaxEnvVar Array maximum tolerated environmental values (no. species x no. env. variables).
+#' @param OptEnvVar Array optimal environmental values (no. species x no. env. variables).
+#' @param EnvVar A numeric array of actual environmental values (length x depth x height).
+#'
+#' @return A numeric array of shape length x depth x height x no. species x no. env. variables,
+#'         with suitability values in the range [0, 1].
+#'
+#' @references
+#' Yan, Weikai, and L. A. Hunt (1999). An equation for modelling the temperature response of plants using only
+#' the cardinal temperatures. *Annals of Botany*, 84(5), 607–614. \doi{10.1006/anbo.1999.0955}
+#'
+#' Yin, X., Kropff, M. J., McLaren, G., & Visperas, R. M. (1995). A nonlinear model for crop development
+#' as a function of temperature. *Agricultural and Forest Meteorology*, 77(1-2), 1–16.
+#'
+#' @examples
+#' # Simple example with arrays
+#' MinEnvVar <- array(14, dim = c(100, 2))
+#' MaxEnvVar <- array(29, dim = c(100, 2))
+#' OptEnvVar <- array(21, dim = c(100, 2))
+#' EnvVar <- array(rnorm(50 * 50 * 60, mean = 21, sd = 12), dim = c(50, 50, 60))
+#' compute_suitability(MinEnvVar, MaxEnvVar, OptEnvVar, EnvVar)
+SuitabilityScore <- function (MinEnvVar, MaxEnvVar, OptEnvVar, EnvVar) {
+  # Dimensions
+  spatial_dim <- dim(EnvVar)  # [50, 50, 60]
+  n_species <- dim(MinEnvVar)[1]  # 100
+  n_vars <- dim(MinEnvVar)[2]     # 2
+
+  # Expand EnvVar to [50, 50, 60, 100, 2]
+  EnvVar_exp <- array(EnvVar, dim = c(spatial_dim, 1, 1))
+  EnvVar_exp <- array(EnvVar_exp, dim = c(spatial_dim[1], spatial_dim[2], spatial_dim[3], n_species, n_vars))
+
+  # Expand Min/Opt/MaxEnvVar to [50, 50, 60, 100, 2]
+  MinEnvVar_exp <- array(MinEnvVar, dim = c(1, 1, 1, n_species, n_vars))
+  MinEnvVar_exp <- array(MinEnvVar_exp, dim = c(spatial_dim[1], spatial_dim[2], spatial_dim[3], n_species, n_vars))
+
+  MaxEnvVar_exp <- array(MaxEnvVar, dim = c(1, 1, 1, n_species, n_vars))
+  MaxEnvVar_exp <- array(MaxEnvVar_exp, dim = c(spatial_dim[1], spatial_dim[2], spatial_dim[3], n_species, n_vars))
+
+  OptEnvVar_exp <- array(OptEnvVar, dim = c(1, 1, 1, n_species, n_vars))
+  OptEnvVar_exp <- array(OptEnvVar_exp, dim = c(spatial_dim[1], spatial_dim[2], spatial_dim[3], n_species, n_vars))
+
+  # Create zero array for output
+  suitability <- array(0.0, dim = c(spatial_dim, n_species, n_vars))  # [50, 50, 60, 100, 2]
+
+  # Valid mask: within bounds
+  valid <- (EnvVar_exp > MinEnvVar_exp) & (EnvVar_exp < MaxEnvVar_exp)
+
+  # Compute suitability only for valid entries
+  num   <- (MaxEnvVar_exp[valid] - EnvVar_exp[valid]) / (MaxEnvVar_exp[valid] - OptEnvVar_exp[valid])
+  denom <- (EnvVar_exp[valid] - MinEnvVar_exp[valid]) / (OptEnvVar_exp[valid] - MinEnvVar_exp[valid])
+  expo  <- (OptEnvVar_exp[valid] - MinEnvVar_exp[valid]) / (MaxEnvVar_exp[valid] - OptEnvVar_exp[valid])
+
+  suitability[valid] <- num * denom^expo
+
+  return(suitability)  # shape: [50, 50, 60, 100, 2]
+}
+
+
 
 dispersal <- function(NumberOfSpecies,
                       E,
