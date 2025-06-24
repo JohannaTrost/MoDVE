@@ -36,8 +36,10 @@ compute_prob_matrix_norm <- function(centralPoint, dimX, dimY, dimZ, NumberOfSpe
     for (i in seq_len(NumberOfSpecies)) {
         exponentE <- SpeciesPool$DispersalKernel[i]
         dispersalAsymmetry <- SpeciesPool$DispersalKernelAsymmetry[i]
+        dispersalWindEffect <- SpeciesPool$DispersalWindEffect[i]
 
-        #exponentE = exponentE / (1 + alpha * windSpeed)
+        # Scale the dispersal kernel by wind speed (depending on species specific wind dispersal)
+        exponentE <- exponentE / (1 + dispersalWindEffect * windSpeed)
 
         ProbabilityMatrix[, , , i] <- exp(-DistanceMatrix * exponentE)  # call to negExp(DistanceMatrix(:,:,:),exponentE) in matlab
 
@@ -60,6 +62,69 @@ compute_prob_matrix_norm <- function(centralPoint, dimX, dimY, dimZ, NumberOfSpe
     return(ProbabilityMatrixNormalized)
 }
 
+
+ComputeSuitabilityUnscaled <- function (timeSteps,
+                                   DirectoryMicrohabitat,
+                                   SpeciesPool,
+                                   InitialTimeStep,
+                                   Imax,
+                                   LightResponseFct) {
+    globalMaxSuitability <- -Inf
+
+    for (t in seq_len(timeSteps)) {
+
+        MHPath <- file.path(DirectoryMicrohabitat,
+                            paste0("MicrohabitatMatrix", InitialTimeStep + t - 1, ".rds"))
+        Microhabitat <- readRDS(MHPath)
+        Microhabitat[, , , 3] <- Microhabitat[, , , 3] * Imax
+
+        # Check which light response function to use and set variables for suitability calculation
+        if (LightResponseFct == "Yan and Hunt") {
+            EnvScoreVars <- c("Hum", "Temp", "Wind", "Light")
+            MHIdx <- c(5:7, 3)
+        } else {
+            EnvScoreVars <- c("Hum", "Temp", "Wind")
+            MHIdx <- 5:7
+        }
+        # Extract environmental variables from the species pool
+        MinEnvVar <- as.matrix(SpeciesPool[paste0("Min", EnvScoreVars)])
+        MaxEnvVar <- as.matrix(SpeciesPool[paste0("Max", EnvScoreVars)])
+        OptEnvVar <- as.matrix(SpeciesPool[paste0("Optimum", EnvScoreVars)])
+
+        # -- Compute the score for each environmental variable
+        spatialDim <- dim(Microhabitat)
+        # Initialize the array for environmental suitability scores with zeros
+        EnvSuitabilityVars <- array(
+          rep(0, spatialDim[1] * spatialDim[2] * spatialDim[3] * length(SpeciesPool) * 4),
+          dim=c(spatialDim[1], spatialDim[2], spatialDim[3], length(SpeciesPool), 4))
+        # Compute score for either Hum, Temp, Wind, and Light or only Hum, Temp, and Wind
+        EnvSuitabilityVars[, , , , 1:length(EnvScoreVars)] <- SuitabilityScore(
+          MinEnvVar, MaxEnvVar, OptEnvVar, Microhabitat[ , , , MHIdx])
+
+        if (LightResponseFct == "Parabolic") {
+            EnvSuitabilityVars[, , , , 4] <- Parabol(
+              SpeciesPool$LightResponseA, SpeciesPool$LightResponseB,
+              SpeciesPool$LightResponseC, Microhabitat[ , , , 3])
+        }
+
+        # Combine the suitability probabilities for all environmental variables
+        EnvSuitability <- apply(EnvSuitabilityVars, c(1, 2, 3, 4), prod)
+
+        # Get the maximum suitability for this time step for later scaling
+        maxThisStep <- max(EnvSuitability, na.rm = TRUE)
+        if (maxThisStep > globalMaxSuitability) {
+            globalMaxSuitability <- maxThisStep
+        }
+
+        # Save to disk
+        saveRDS(EnvSuitability,
+                file.path(DirectoryModelResultsRun, paste0("EnvSuitability_t", t, ".rds")))
+    }
+
+    return(globalMaxSuitability) # Return the global maximum suitability for scaling
+}
+
+
 # Functions used in the model
 
 # Bertalanffy Growth
@@ -69,8 +134,31 @@ GrowthRate <- function(MaxMass, Mass, K) {
 
 # Parabolic Optimum function
 Parabol <- function(a, b, c, x) {
-    return((a * x^2) + (b * x) + c)
+
+    if (length(a) > 1 & length(b) > 1 & length(c) > 1 & length(x) > 1) {
+        n_species <- length(a)
+        spatial_dim <- length(x)
+
+        # Expand dimensions to match -> (length, depth, height, n_species)
+        a_exp <- array(a, dim = c(1, 1, 1, n_species))
+        a_exp <- array(a_exp, dim = c(spatial_dim, n_species))
+        b_exp <- array(b, dim = c(1, 1, 1, n_species))
+        b_exp <- array(b_exp, dim = c(spatial_dim, n_species))
+        c_exp <- array(c, dim = c(1, 1, 1, n_species))
+        c_exp <- array(c_exp, dim = c(spatial_dim, n_species))
+        x_exp <- array(x, dim = c(spatial_dim, 1))
+        x_exp <- array(x_exp, dim = c(spatial_dim, n_species))
+
+        return((a_exp * x_exp^2) + (b_exp * x_exp) + c_exp)
+
+    } else {
+        return((a * x^2) + (b * x) + c)
+    }
 }
+
+
+    MinEnvVar_exp <- array(MinEnvVar, dim = c(1, 1, 1, n_species, n_vars))
+    MinEnvVar_exp <- array(MinEnvVar_exp, dim = c(spatial_dim, n_species, n_vars))
 
 #' Compute Environmental Suitability Using the Beta Function
 #'
@@ -86,13 +174,13 @@ Parabol <- function(a, b, c, x) {
 #' }
 #'
 #' where:
-#' - \eqn{V_{env}} is the environmental value at a given time/location
+#' - \eqn{V_{env}} is the environmental value at a given time
 #' - \eqn{V_{min}}, \eqn{V_{opt}}, and \eqn{V_{max}} are the minimum, optimum, and maximum values for suitability
 #'
 #' @param MinEnvVar Array minimum tolerated environmental values (no. species x no. env. variables).
 #' @param MaxEnvVar Array maximum tolerated environmental values (no. species x no. env. variables).
 #' @param OptEnvVar Array optimal environmental values (no. species x no. env. variables).
-#' @param EnvVar A numeric array of actual environmental values (length x depth x height).
+#' @param EnvVar A numeric array of actual environmental values (length x depth x height x env. variables).
 #'
 #' @return A numeric array of shape length x depth x height x no. species x no. env. variables,
 #'         with suitability values in the range [0, 1].
@@ -106,47 +194,58 @@ Parabol <- function(a, b, c, x) {
 #'
 #' @examples
 #' # Simple example with arrays
-#' MinEnvVar <- array(14, dim = c(100, 2))
+#' MinEnvVar <- array(14, dim = c(100, 2)) # 100 species, 2 environmental variables
 #' MaxEnvVar <- array(29, dim = c(100, 2))
 #' OptEnvVar <- array(21, dim = c(100, 2))
-#' EnvVar <- array(rnorm(50 * 50 * 60, mean = 21, sd = 12), dim = c(50, 50, 60))
-#' compute_suitability(MinEnvVar, MaxEnvVar, OptEnvVar, EnvVar)
+#' EnvVar <- array(rnorm(50 * 50 * 60 * 2, mean = 21, sd = 12), dim = c(50, 50, 60, 2))
+#' SuitabilityScore(MinEnvVar, MaxEnvVar, OptEnvVar, EnvVar)
 SuitabilityScore <- function (MinEnvVar, MaxEnvVar, OptEnvVar, EnvVar) {
-  # Dimensions
-  spatial_dim <- dim(EnvVar)  # [50, 50, 60]
-  n_species <- dim(MinEnvVar)[1]  # 100
-  n_vars <- dim(MinEnvVar)[2]     # 2
+    # Dimensions
+    spatial_dim <- dim(EnvVar)[1:3]  # [50, 50, 60]
+    n_species <- dim(MinEnvVar)[1]  # 100
+    n_vars <- dim(MinEnvVar)[2]     # 2
 
-  # Expand EnvVar to [50, 50, 60, 100, 2]
-  EnvVar_exp <- array(EnvVar, dim = c(spatial_dim, 1, 1))
-  EnvVar_exp <- array(EnvVar_exp, dim = c(spatial_dim[1], spatial_dim[2], spatial_dim[3], n_species, n_vars))
+    # Expand EnvVar to [50, 50, 60, 100, 2]
+    EnvVar_exp <- array(EnvVar, dim = c(dim(EnvVar), 1))
+    EnvVar_exp <- array(EnvVar_exp, dim = c(dim(EnvVar), n_species))
+    EnvVar_exp <- aperm(EnvVar_exp, c(1, 2, 3, 5, 4))
 
-  # Expand Min/Opt/MaxEnvVar to [50, 50, 60, 100, 2]
-  MinEnvVar_exp <- array(MinEnvVar, dim = c(1, 1, 1, n_species, n_vars))
-  MinEnvVar_exp <- array(MinEnvVar_exp, dim = c(spatial_dim[1], spatial_dim[2], spatial_dim[3], n_species, n_vars))
+    # Expand Min/Opt/MaxEnvVar to [50, 50, 60, 100, 2]
+    MinEnvVar_exp <- array(MinEnvVar, dim = c(1, 1, 1, n_species, n_vars))
+    MinEnvVar_exp <- array(MinEnvVar_exp, dim = c(spatial_dim, n_species, n_vars))
 
-  MaxEnvVar_exp <- array(MaxEnvVar, dim = c(1, 1, 1, n_species, n_vars))
-  MaxEnvVar_exp <- array(MaxEnvVar_exp, dim = c(spatial_dim[1], spatial_dim[2], spatial_dim[3], n_species, n_vars))
+    MaxEnvVar_exp <- array(MaxEnvVar, dim = c(1, 1, 1, n_species, n_vars))
+    MaxEnvVar_exp <- array(MaxEnvVar_exp, dim = c(spatial_dim[1], spatial_dim[2], spatial_dim[3], n_species, n_vars))
 
-  OptEnvVar_exp <- array(OptEnvVar, dim = c(1, 1, 1, n_species, n_vars))
-  OptEnvVar_exp <- array(OptEnvVar_exp, dim = c(spatial_dim[1], spatial_dim[2], spatial_dim[3], n_species, n_vars))
+    OptEnvVar_exp <- array(OptEnvVar, dim = c(1, 1, 1, n_species, n_vars))
+    OptEnvVar_exp <- array(OptEnvVar_exp, dim = c(spatial_dim[1], spatial_dim[2], spatial_dim[3], n_species, n_vars))
 
-  # Create zero array for output
-  suitability <- array(0.0, dim = c(spatial_dim, n_species, n_vars))  # [50, 50, 60, 100, 2]
+    # Create zero array for output
+    suitability <- array(0.0, dim = c(spatial_dim, n_species, n_vars))  # [50, 50, 60, 100, 2]
 
-  # Valid mask: within bounds
-  valid <- (EnvVar_exp > MinEnvVar_exp) & (EnvVar_exp < MaxEnvVar_exp)
+    # Valid mask: within bounds
+    valid <- (EnvVar_exp > MinEnvVar_exp) & (EnvVar_exp < MaxEnvVar_exp)
 
-  # Compute suitability only for valid entries
-  num   <- (MaxEnvVar_exp[valid] - EnvVar_exp[valid]) / (MaxEnvVar_exp[valid] - OptEnvVar_exp[valid])
-  denom <- (EnvVar_exp[valid] - MinEnvVar_exp[valid]) / (OptEnvVar_exp[valid] - MinEnvVar_exp[valid])
-  expo  <- (OptEnvVar_exp[valid] - MinEnvVar_exp[valid]) / (MaxEnvVar_exp[valid] - OptEnvVar_exp[valid])
+    # Compute suitability only for valid entries
+    num   <- (MaxEnvVar_exp[valid] - EnvVar_exp[valid]) / (MaxEnvVar_exp[valid] - OptEnvVar_exp[valid])
+    denom <- (EnvVar_exp[valid] - MinEnvVar_exp[valid]) / (OptEnvVar_exp[valid] - MinEnvVar_exp[valid])
+    expo  <- (OptEnvVar_exp[valid] - MinEnvVar_exp[valid]) / (MaxEnvVar_exp[valid] - OptEnvVar_exp[valid])
 
-  suitability[valid] <- num * denom^expo
+    valid[is.na(valid)] <- TRUE # Make sure NA values are stored (i.e., they are no NAs in the mask)
+    suitability[valid] <- num * denom^expo
 
-  return(suitability)  # shape: [50, 50, 60, 100, 2]
+    return(suitability)  # shape: [50, 50, 60, 100, 2]
 }
 
+
+# Calculate suitability only where all components are not NA
+not_na <- !is.na(num) & !is.na(denom) & !is.na(expo)
+
+# Create a temporary flat index of valid positions
+valid_idx <- which(valid)
+
+# Only update those indices where everything is non-NA
+suitability[valid_idx[not_na]] <- num[not_na] * denom[not_na]^expo[not_na]
 
 
 dispersal <- function(NumberOfSpecies,
@@ -220,7 +319,11 @@ dispersal <- function(NumberOfSpecies,
                 # Matix containing all voxel for which the light requirements are fulfilled
                 # We use the first row from MatureIndividulsPerSpecies. Since its elements have the same SpeciesID
                 # then the MinLight and MaxLight is the same for all rows.
-                pot_habitat <- ifelse((Microhabitat[, , , 3] >= MatureIndividulsPerSpecies$MinLight[1]) & (Microhabitat[, , , 3] <= MatureIndividulsPerSpecies$MaxLight[1]), 1, 0)
+                LightSuitable <- (Microhabitat[, , , 3] >= MatureIndividulsPerSpecies$MinLight[1]) & (Microhabitat[, , , 3] <= MatureIndividulsPerSpecies$MaxLight[1])
+                HumSuitable <- (Microhabitat[, , , 5] >= MatureIndividulsPerSpecies$MinHum[1]) & (Microhabitat[, , , 5] <= MatureIndividulsPerSpecies$MaxHum[1])
+                TempSuitable <- (Microhabitat[, , , 6] >= MatureIndividulsPerSpecies$MinTemp[1]) & (Microhabitat[, , , 6] <= MatureIndividulsPerSpecies$MaxTemp[1])
+                WindSuitable <- (Microhabitat[, , , 7] >= MatureIndividulsPerSpecies$MinWind[1]) & (Microhabitat[, , , 7] <= MatureIndividulsPerSpecies$MaxWind[1])
+                pot_habitat <- LightSuitable & HumSuitable & TempSuitable & WindSuitable
 
                 # Final probabiliy matrix for new recruits
                 probability_recruits <- ProbabilityMatrixPerSpecies * pot_habitat * AvailableSurfaceArea
@@ -365,6 +468,9 @@ main <- function() {
     # are entirely filled. 1:size (small individuals are outcompetet by larger ones); 2:random competition
     CompetitionMethod <- config$CompetitionMethod
 
+    # Specifying light response function for growth
+    LightResponseFct <- config$LightResponseFct
+
     # Mortality method (complete random or scaling with mass according to metabolic theory);
     MortalityMethod <- config$MortalityMethod  # 0: random mortality; 1: scaling with mass to the exponent -1/4
     MortRateRandom <- config$MortRateRandom
@@ -431,22 +537,22 @@ main <- function() {
     ColSMinLight <- 17
     ColSMaxLight <- 18
     ColSMeanLight <- 19
-    ColSMinHeight <- 20
-    ColSMaxHeight <- 21
-    ColSMeanHeight <- 22
+    # ColSMinHeight <- 20
+    # ColSMaxHeight <- 21
+    # ColSMeanHeight <- 22
     # Climate mortality columns
-    ColSNumberMortalityHum <- 23
-    ColSNumberMortalityTemp <- 24
-    ColSNumberMortalityWind <- 25
-    ColSMinHum <- 26
-    ColSMaxHum <- 27
-    ColSMeanHum <- 28
-    ColSMinTemp <- 29
-    ColSMaxTemp <- 30
-    ColSMeanTemp <- 31
-    ColSMinWind <- 32
-    ColSMaxWind <- 33
-    ColSMeanWind <- 34
+    ColSNumberMortalityHum <- 20
+    ColSNumberMortalityTemp <- 21
+    ColSNumberMortalityWind <- 22
+    ColSMinHum <- 23
+    ColSMaxHum <- 24
+    ColSMeanHum <- 25
+    ColSMinTemp <- 26
+    ColSMaxTemp <- 27
+    ColSMeanTemp <- 28
+    ColSMinWind <- 29
+    ColSMaxWind <- 30
+    ColSMeanWind <- 31
 
     TotalColsSpeciesMatrix <- ColSMeanWind
 
@@ -496,6 +602,16 @@ main <- function() {
         SpeciesPoolFileName <- paste0("SpeciesPool", numPool, ".csv")
         SpeciesPool <- read.csv(file.path(DirectorySpeciesPools, SpeciesPoolFileName), sep=",", header=TRUE)
         NumberOfSpecies <- nrow(SpeciesPool)  # number of species per 25X25m plot
+
+        if (MicrohabitatType == 1) {  # Dynamic forest
+            # Precompute unscaled env. suitabilities and get the global maximum suitability for scaling
+            globalMaxSuitability <- ComputeSuitabilityUnscaled(timeSteps,
+                                                               DirectoryMicrohabitat,
+                                                               SpeciesPool,
+                                                               InitialTimeStep,
+                                                               Imax,
+                                                               LightResponseFct)
+        }
 
         ###########################################################################
         # Erzeugen der Distanzmatrix und der Wahrscheinlichkeitsmatrix für jede Art
@@ -552,10 +668,15 @@ main <- function() {
             if (MicrohabitatType == 1) {
                 Microhabitat <- readRDS(file.path(DirectoryMicrohabitat, paste0("MicrohabitatMatrix", InitialTimeStep + t - 1, ".rds")))
                 Microhabitat[, , , 3] <- Microhabitat[, , , 3] * Imax  # In the microhabitat matrix, the realtive light extinction is stored: convert to light values in ?mol*m-2*s-1
-                d1 <- dim(Microhabitat)[1]
-                d2 <- dim(Microhabitat)[2]
-                d3 <- dim(Microhabitat)[3]
-                pot_habitat <- array(rep(0, d1 * d2 * d3), dim=c(d1, d2, d3))
+
+                # Compute scaled suitability scores for the microhabitat
+                file <- file.path(DirectoryModelResultsRun, paste0("EnvSuitability_t", t, ".rds"))
+                if (file.exists(file)) {
+                    EnvSuitability <- readRDS(file)
+                    ScaledEnvSuitability <- EnvSuitability / globalMaxSuitability
+                } else {
+                    stop("EnvSuitability file does not exist for time step ", t)
+                }
             }
 
             ###############################################################################
@@ -607,9 +728,9 @@ main <- function() {
             for (i in seq_len(nrow(E))) {
                 # maybe it is faster if I do not use the if statement => speed testing
                 if (E$Status[i] == 1) {
-                    tmp1 <- GrowthRate(E$MaximumMass[i], E$Mass[i], E$GrowthRate[i])
-                    tmp2 <- Parabol(E$LightResponseA[i], E$LightResponseB[i], E$LightResponseC[i], Microhabitat[E$X[i], E$Y[i], E$Z[i], 3])
-                    E$Mass[i] <- E$Mass[i] + max(0, tmp1 * tmp2)
+                    GrowthR <- GrowthRate(E$MaximumMass[i], E$Mass[i], E$GrowthRate[i])
+                    SuitabilityIndividual <- ScaledEnvSuitability[E$X[i], E$Y[i], E$Z[i], E$SpeciesID[i]]
+                    E$Mass[i] <- E$Mass[i] + max(0, GrowthR * SuitabilityIndividual)
                 }
 
                 # Add information about the voxel to the epiphyte matrix
