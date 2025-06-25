@@ -1,0 +1,11 @@
+TotalSurfaceAreaOpt = 1
+SurfaceAreaLossOpt = 1
+LightNicheOpt = 1
+AverageWeightedAngles = 0
+HumNicheOpt = 1
+TempNicheOpt = 1
+WindNicheOpt = 1
+DirectoryMicrohabitat = "tests/data/microhabitat"
+DirectoryMicroclimate = "tests/data/microclimate"
+timeStepStart = 1
+timeStepEnd = 3
