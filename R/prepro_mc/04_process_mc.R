@@ -91,7 +91,7 @@ hourly_to_daily_medians <- function(data_matrix, timestamps) {
 }
 
 # Optimized processing function for a single cell
-process_single_cell <- function(x, y, timestamps, x_dim, y_dim, max_hgt, n_temp_metrics) {
+process_single_cell <- function(x, y, timestamps, n_temp_metrics) {
 
   start_time_cell <- Sys.time()
 
@@ -100,7 +100,7 @@ process_single_cell <- function(x, y, timestamps, x_dim, y_dim, max_hgt, n_temp_
 
   if (!file.exists(mc_file)) {
     warning(paste("File not found:", mc_file))
-    # return(NULL)
+    return(NULL)
   } else {
 
     mc <- readRDS(mc_file)
@@ -168,7 +168,7 @@ process_microclimate_data <- function(x_dim = 50, y_dim = 50, use_parallel = TRU
   timestamps <- seq(ymd_h("2024-01-01 00"), ymd_h("2024-12-31 23"), by = "hour")
 
   # Initialize the microclimate matrix
-  max_hgt <- 80
+  max_hgt <- 59
   n_temp_metrics <- 14
   mc_matrix <- array(rep(NA, x_dim * y_dim * max_hgt * n_temp_metrics),
                      dim = c(x_dim, y_dim, max_hgt, n_temp_metrics))
@@ -186,8 +186,7 @@ process_microclimate_data <- function(x_dim = 50, y_dim = 50, use_parallel = TRU
 
     # Process cells in parallel
     results <- mclapply(1:nrow(coords), function(i) {
-      process_single_cell(coords$x[i], coords$y[i], timestamps,
-                         x_dim, y_dim, max_hgt, n_temp_metrics)
+      process_single_cell(coords$x[i], coords$y[i], timestamps, n_temp_metrics)
     }, mc.cores = n_cores)
 
   } else {
@@ -238,13 +237,13 @@ process_microclimate_data <- function(x_dim = 50, y_dim = 50, use_parallel = TRU
 
 # Usage examples:
 # Sequential processing:
-mc_matrix <- process_microclimate_data(x_dim = 1, y_dim = 1, use_parallel = FALSE)
+#mc_matrix <- process_microclimate_data(x_dim = 1, y_dim = 1, use_parallel = FALSE)
 
 # Parallel processing (recommended):
-#mc_matrix <- process_microclimate_data(x_dim = 50, y_dim = 50, use_parallel = TRUE)
+mc_matrix <- process_microclimate_data(x_dim = 50, y_dim = 50, use_parallel = TRUE)
 
 # For testing with smaller subset:
 #mc_matrix <- process_microclimate_data(x_dim = 5, y_dim = 5, use_parallel = TRUE)
 
 # Save the result
-saveRDS(mc_matrix, "/Users/johanna/Uni/masterarbeit/data/mc_output/v3_mc_matrix.rds")
+saveRDS(mc_matrix, "/Users/johanna/Uni/masterarbeit/data/mc_output/v3_2024_regua_mc_matrix.rds")
