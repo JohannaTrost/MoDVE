@@ -4,7 +4,7 @@ source("utils.R")
 library(data.table)
 
 config <- parse_config()
-#config <- read.config(file="tests/config_a1.toml")
+#config <- read.config(file="tests/config_a1_1.toml")
 
 # ------------------- Parameters ----------------------- #
 # Parameters that need to be specified/checked before running this script
@@ -24,7 +24,7 @@ DistVoxToConsider <- config$DistVoxToConsider  # How many ring around focal voxe
 # 0: do not use it
 TotalSurfaceAreaOpt <- config$TotalSurfaceAreaOpt
 SurfaceAreaLossOpt <- config$SurfaceAreaLossOpt
-LightConditionsOpt <- config$LightConditionsOpt
+LightNicheOpt <- config$LightNicheOpt
 AverageWeightedAngles <- config$AverageWeightedAngles
 
 # Parameters that need to be specified if MicrohabitatType=1 or MicrohabitatType=2
@@ -59,7 +59,7 @@ voxelFile <- paste("voxel_replicate_", ReplicateForest, "_time_step_", sep="")
 
 C <- c(0, 0, 1)  # Vector orthogonal to plane of X and Y
 TotalVoxels <- (DistVoxToConsider * 2 + 1) ^ 2  # Total number of adjacent voxels considered
-MatrixDimension <- sum(c(TotalSurfaceAreaOpt, SurfaceAreaLossOpt, LightConditionsOpt, AverageWeightedAngles))
+MatrixDimension <- sum(c(TotalSurfaceAreaOpt, SurfaceAreaLossOpt, LightNicheOpt, AverageWeightedAngles))
 
 # Other parameters created during porting to R
 # Those are needed because of GroIMPs output dir structure
@@ -272,7 +272,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 
 
         # Calculate light conditions in voxels (relative light conditions)
-        if (LightConditionsOpt == 1) {
+        if (LightNicheOpt == 1) {
 
             # Load file containing information about leaf area per voxel
             voxelsFileName <- paste(voxelFile, i, ".txt", sep="")
@@ -352,7 +352,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
             }
         }
 
-        if (LightConditionsOpt == 1) {
+        if (LightNicheOpt == 1) {
             Microhabitat[ , , , 3] <- Mat_light_per_cell[idx1, idx2, idx3]
         }
 

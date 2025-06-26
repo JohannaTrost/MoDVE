@@ -76,13 +76,16 @@ for (TimeStep in int_seq(from=timeStepStart, to=timeStepEnd, by=1)) {
   HeightDiff <- MicrohabDims[3] - MicroclimDims[3]
 
   if (HeightDiff > 0) { # if microhabitat is taller than microclimate vertical range
-    # Fill missing above canopy climate with the last available microclimate layer values
-    Microclimate <- abind::abind(
+    # Fill missing above canopy climate
+    Microclimate <- abind::abind( # Combine Mc with repeated last layer
       Microclimate,
-      array(Microclimate[,,MicroclimDims[3],],
-            dim = c(MicrohabDims[1:2], HeightDiff, MicroclimDims[4])),
+      array(  # Repeat last vertical layer as many times as required for Microhabitat height
+        rep(Microclimate[,,MicroclimDims[3],], each = HeightDiff),
+        dim = c(MicrohabDims[1:2], HeightDiff, MicroclimDims[4])
+      ),
       along = 3
     )
+
   } else if (HeightDiff < 0) {  # Typically this should not happen, but if it does:
     # Trim microclimate to match microhabitat height
     Microclimate <- Microclimate[,,1:MicrohabDims[3],]

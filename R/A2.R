@@ -156,7 +156,7 @@ if (HeightModel) {
                "MinHum", "MaxHum", "OptimumHum",
                "MinTemp", "MaxTemp", "OptimumTemp",
                "MinWind", "MaxWind", "OptimumWind",
-               "MinHeightRel", "MaxHeightRel", "MeanHeightRel", "HeightBreadth"
+               "MinHeightRel", "MaxHeightRel", "MeanHeightRel", "HeightBreadth", "DispersalKernelWindEffect"
     )
 } else {
     # MC niches not based on height niche
@@ -168,7 +168,9 @@ if (HeightModel) {
                    "LightResponseA", "LightResponseB", "LightResponseC",
                    "MinHum", "MaxHum", "OptimumHum",
                    "MinTemp", "MaxTemp", "OptimumTemp",
-                   "MinWind", "MaxWind", "OptimumWind")
+                   "MinWind", "MaxWind", "OptimumWind",
+                   "DispersalKernelWindEffect"
+    )
 }
 
 # ===== Init random MC niches parameters =====
@@ -292,8 +294,10 @@ for (Num in seq_len(numSpeciesPools)) {
             RecruitmentInc <- runif(1, min=RecruitmentIncRandom[1], max=RecruitmentIncRandom[2])  # Not meaningful if no correlation
         }
 
+        # Draw dispersal traits randomly
         DispersalKernel <- runif(1, min=DispersalKernelRandom[1], max=DispersalKernelRandom[2])
         DispersalKernelAsymmetry <- runif(1, min=DispersalKernelAsymmetryRandom[1], max=DispersalKernelAsymmetryRandom[2])
+        DispersalKernelWindEffect <- runif(1, min = 0, max = 1)
 
         # ============================================================================
         # Traits of ecologcial light niche
@@ -345,6 +349,7 @@ for (Num in seq_len(numSpeciesPools)) {
         SpeciesTraitMatrix[NumSpecies, 24] <- MinValues$Wind[Num, NumSpecies]  # Minimum wind speed in m/s
         SpeciesTraitMatrix[NumSpecies, 25] <- MaxValues$Wind[Num, NumSpecies]  # Maximum wind speed in m/s
         SpeciesTraitMatrix[NumSpecies, 26] <- OptValues$Wind[Num, NumSpecies]  # Optimum wind speed in m/s
+        SpeciesTraitMatrix[NumSpecies, 27] <- DispersalKernelWindEffect  # Wind effect on dispersal kernel [0, 1]
     }
 
     # ============================================================================

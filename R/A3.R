@@ -332,7 +332,8 @@ if (SingleSpeciesModel == 0) {
                 tmp7 <- Microhabitat[, , , TempIdx] <= MaxTempInd
                 tmp8 <- Microhabitat[, , , WindIdx] >= MinWindInd
                 tmp9 <- Microhabitat[, , , WindIdx] <= MaxWindInd
-                SuitableVoxels <- which(tmp1 & tmp2 & tmp3 & tmp4 & tmp5 & tmp6 & tmp7 & tmp8 & tmp9)
+                SuitableVoxels <- which(tmp1 & tmp2 & tmp3)
+                                      #& tmp4 & tmp5 & tmp6 & tmp7 & tmp8 & tmp9)
 
                 # Choose one of the suitable voxels based on the specified
                 # Method (if suitable voxels are available)
