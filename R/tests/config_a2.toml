@@ -1,7 +1,8 @@
 seed = 42
-MainOutputDirectory = "tests/data/output_a2/"
-numSpeciesPools = 5
-NumberOfSpecies = 7
+MainOutputDirectory = "tests/data/species_pools/"
+numSpeciesPools = 2
+NumberOfSpecies = 100
+
 CorrelationMassRecruitment = 1
 InterceptAgeMaturity = 2
 ScalingAgeMaturity = 0.25
@@ -21,6 +22,14 @@ RecruitmentNormalizeAtSize1Random = [1, 20]
 RecruitmentInvestmentRelMeanRandom = [0.07, 0.12]
 RecruitmentIncRandom = [0, 0]
 MassAtMaturityRelativeRandom = [0.5, 0.7]
-HeightBreadthRandom = [0.15, 0.7]
 DispersalKernelRandom = [0.03, 0.5]
 DispersalKernelAsymmetryRandom = [0.5, 0.95]
+
+HeightModel = 0 # 0 = using random MC niches, 1 = inferring MC niches from height breadth
+
+# Define overall microclimate ranges used to initialize epiphyte species niches
+HeightBreadthRandom = [0.15, 0.7]  # Used for height niche model, or to infer LightBreadthRandom
+LightBreadthRandom = [42.2, 305.6]  # If you want to use HeightBreadthRandom for light breadth, set to []
+HumBreadthRandom = [30, 99.9]  # Humidity breadth in percent - TODO finde empirical values for epiphytes
+TempBreadthRandom = [12, 29]  # Temperature breadth in Celsius - TODO finde empirical values for epiphytes
+WindBreadthRandom = [0, 32]  # Wind breadth (max is violent storm on Beaufort scale) in m/s - TODO finde empirical values for epiphytes
