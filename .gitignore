@@ -4,7 +4,7 @@
 .Ruserdata
 MoDVE.Rproj
 
-tests/data/*
+R/tests/data/*
 .DS_Store
 */.DS_Store
 .idea/
