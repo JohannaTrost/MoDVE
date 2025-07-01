@@ -6,5 +6,4 @@ MoDVE.Rproj
 
 R/tests/data/*
 .DS_Store
-*/.DS_Store
 .idea/
