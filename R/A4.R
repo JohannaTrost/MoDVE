@@ -110,11 +110,18 @@ ComputeSuitabilityUnscaled <- function (timeSteps,
                                    Imax,
                                    LightResponseFct,
                                    Inds,
-                                   DirectoryOutput) {
+                                   DirectoryOutput,
+                                   Overwrite = FALSE) {
     NSpecies <- nrow(SpeciesPool)
     globalMaxSuitability <- rep(-Inf, NSpecies)
 
     for (t in seq_len(timeSteps)) {
+
+        envSuitPath <- file.path(DirectoryOutput, paste0("EnvSuitability_t", t, ".rds"))
+
+        if (!Overwrite & file.exists(envSuitPath)) { # Skip iteration if EnvSUitability already exists
+            next
+        }
 
         MHPath <- file.path(DirectoryMicrohabitat,
                             paste0("MicrohabitatMatrix", InitialTimeStep + t - 1, ".rds"))
@@ -161,8 +168,7 @@ ComputeSuitabilityUnscaled <- function (timeSteps,
         globalMaxSuitability[isNewMax] <- maxThisStep[isNewMax]
 
         # Save to disk
-        saveRDS(EnvSuitability,
-                file.path(DirectoryOutput, paste0("EnvSuitability_t", t, ".rds")))
+        saveRDS(EnvSuitability, envSuitPath)
     }
 
     return(globalMaxSuitability) # Return the global maximum suitability for scaling
@@ -680,7 +686,8 @@ main <- function() {
                                                                Imax,
                                                                LightResponseFct,
                                                                Inds,
-                                                               DirectoryModelResultsRun)
+                                                               DirectoryModelResultsRun,
+                                                               Overwrite = FALSE)
         }
 
         # Load initial epiphyte distribution
@@ -814,12 +821,12 @@ main <- function() {
 
                 # Add information about the voxel to the epiphyte matrix
                 E$SurfaceAreaOccupied[i] <- (E$Mass[i]^(2/3)) / SurfaceBiomassScaling
-                E$TotalSurfaceInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], 1]  # Total surface in voxel
-                E$SurfaceLossInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]  # Percentage surface loss in this year
-                E$LightInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], 3]  # Light conditions in voxel
-                E$HumInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], 5]  # Humidity in voxel
-                E$TempInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], 6]  # Temperature in voxel
-                E$WindInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], 7]  # Wind in voxel
+                E$TotalSurfaceInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["TotalSurfaceAreaOpt"]]  # Total surface in voxel
+                E$SurfaceLossInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["SurfaceAreaLossOpt"]]  # Percentage surface loss in this year
+                E$LightInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["LightNicheOpt"]]  # Light conditions in voxel
+                E$HumInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["HumNicheOpt"]]  # Humidity in voxel
+                E$TempInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["TempNicheOpt"]]  # Temperature in voxel
+                E$WindInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["WindNicheOpt"]]  # Wind in voxel
             }
             ###############################################################################
 
@@ -832,7 +839,8 @@ main <- function() {
                     # because Microhabitat contains NaNs in some entries and
                     # in R a comparison with a NaN returns NA, not a boolean.
                     # Note: We call runif repeatedly intentionally. See Issue #16 on Github
-                    if (!is.nan(Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]) && runif(1, min=0, max=1) < Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]) {  # Mortality due to branch fall
+                    if (!is.nan(Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["SurfaceAreaLossOpt"]]) &&
+                      runif(1, min=0, max=1) < Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["SurfaceAreaLossOpt"]]) {  # Mortality due to branch fall
                         E$Status[i] <- 3
                     } else if (E$LightInVoxel[i] < E$MinLight[i] | E$LightInVoxel[i] > E$MaxLight[i]) {  # Mortality due to changing light conditions
                         E$Status[i] <- 4
@@ -880,7 +888,7 @@ main <- function() {
                 }
 
                 CumulativeSumOfSurface <- cumsum(EpisInVoxel$SurfaceAreaOccupied)
-                CumulativeSumOfSurfaceSum <- length(which(CumulativeSumOfSurface <= Microhabitat[IndX[i], IndY[i], IndZ[i], 1]))
+                CumulativeSumOfSurfaceSum <- length(which(CumulativeSumOfSurface <= Microhabitat[IndX[i], IndY[i], IndZ[i], Inds["TotalSurfaceAreaOpt"]]))
 
                 if (CumulativeSumOfSurfaceSum < nrow(EpisInVoxel)) {
                     E[is.element(E$IndividualID, EpisInVoxel[int_seq(CumulativeSumOfSurfaceSum + 1, nrow(EpisInVoxel)), "IndividualID"]), "Status"] <- 2
