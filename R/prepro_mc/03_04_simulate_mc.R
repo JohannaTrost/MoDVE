@@ -254,14 +254,16 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
 
   out_path <- paste0(out_dir, "/v3_mc_x", x, "_y", y, ".rds")
   if (file.exists(out_path)) {
-    immediateMessage(paste("Output file already exists for cell:", x, y))
     agg_res <- readRDS(out_path)
-    return(list(
-      x = x,
-      y = y,
-      data = agg_res,
-      processing_time = Sys.time() - start_time
-    ))
+    if (!is.null(agg_res$data)) {
+      immediateMessage(paste("Output file already exists for cell:", x, y))
+      return(list(
+        x = x,
+        y = y,
+        data = agg_res$data,
+        processing_time = agg_res$processing_time
+      ))
+    }
   }
 
   library(microclimf) # Have to load inside the function otherwise there is "future" error
@@ -325,7 +327,6 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
       res[[var]][i, ] <- mout[[var]]
     }
   }
-
   # aggregate yearly microclimate data
   agg_res <- aggregate_mc(res, timestamps, n_temp_metrics)
 
@@ -339,7 +340,7 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
   return(list(
     x = x,
     y = y,
-    data = agg_res,
+    data = agg_res$data,
     processing_time = processing_time
   ))
 }
@@ -361,7 +362,7 @@ outdir <- "/Users/johanna/Uni/masterarbeit/data/mc_output"
 
 # Save heights of MC simulations
 in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
-microhab_path <- "/Users/johanna/Uni/masterarbeit/code/output/modev_zach_25_01_07/MicrohabitatMatrix99.rds"
+microhab_path <- "/Users/johanna/Uni/masterarbeit/output/modev_zach_25_01_07/MicrohabitatMatrix99.rds"
 vegp_path <- paste(in_dir, "vegp_mof3d_ptm_v3.RDS", sep = "/")
 soilc_path <- paste(in_dir, "soilc_v2.RDS", sep = "/")
 climdata_path <- paste(in_dir, "era5_climdata_2024_v2.csv", sep = "/")
@@ -413,5 +414,6 @@ for (result in results) {
           round(avg_time, 3), "seconds\n")
     }
   }
+}
 
 Sys.time()
