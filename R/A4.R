@@ -117,7 +117,7 @@ ComputeSuitabilityUnscaled <- function (timeSteps,
 
     for (t in seq_len(timeSteps)) {
 
-        envSuitPath <- file.path(DirectoryOutput, paste0("EnvSuitability_t", t, ".rds"))
+        envSuitPath <- file.path(DirectoryOutput, paste0("EnvSuitability_t", InitialTimeStep + t - 1, ".rds"))
 
         if (!Overwrite & file.exists(envSuitPath)) { # Skip iteration if EnvSUitability already exists
             next
@@ -679,15 +679,9 @@ main <- function() {
             # Filter species pool to only include initialized species
 
             # Precompute unscaled env. suitabilities and get the global maximum suitability for scaling
-            SpeciesMaxSuitability <- ComputeSuitabilityUnscaled(timeSteps,
-                                                               DirectoryMicrohabitat,
-                                                               SpeciesPool,
-                                                               InitialTimeStep,
-                                                               Imax,
-                                                               LightResponseFct,
-                                                               Inds,
-                                                               DirectoryModelResultsRun,
-                                                               Overwrite = FALSE)
+            SpeciesMaxSuitability <- ComputeSuitabilityUnscaled(
+              timeSteps, DirectoryMicrohabitat, SpeciesPool, InitialTimeStep, Imax,
+              LightResponseFct, Inds, DirectoryModelResultsRun, Overwrite = FALSE)
         }
 
         # Load initial epiphyte distribution
