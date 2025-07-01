@@ -1,6 +1,8 @@
 options(warn=-1)  # Suppress warnings
 options(digits.secs=3)  # 3 decimal digits for seconds
 
+#setwd("/home/jtrost_ext/MoDVE/R/")
+
 # Epiphte IBM - Model
 # This model simulates the development of the entire epiphyte community
 source("utils.R")
@@ -115,6 +117,16 @@ ComputeSuitabilityUnscaled <- function (timeSteps,
     NSpecies <- nrow(SpeciesPool)
     globalMaxSuitability <- rep(-Inf, NSpecies)
 
+    # Check which light response function to use and set variables for suitability calculation
+    if (LightResponseFct == "Yan and Hunt") {
+        EnvScoreVars <- c("Hum", "Temp", "Wind", "Light")
+    } else {
+        EnvScoreVars <- c("Hum", "Temp", "Wind")
+    }
+
+    MhIdx <- Inds[paste0(EnvScoreVars, "NicheOpt")]
+    LightIdx <- Inds["LightNicheOpt"]
+
     for (t in seq_len(timeSteps)) {
 
         envSuitPath <- file.path(DirectoryOutput, paste0("EnvSuitability_t", InitialTimeStep + t - 1, ".rds"))
@@ -126,17 +138,7 @@ ComputeSuitabilityUnscaled <- function (timeSteps,
         MHPath <- file.path(DirectoryMicrohabitat,
                             paste0("MicrohabitatMatrix", InitialTimeStep + t - 1, ".rds"))
         Microhabitat <- readRDS(MHPath)
-        LightIdx <- Inds["LightNicheOpt"]
         Microhabitat[, , , LightIdx] <- Microhabitat[, , , LightIdx] * Imax
-
-        # Check which light response function to use and set variables for suitability calculation
-        if (LightResponseFct == "Yan and Hunt") {
-            EnvScoreVars <- c("Hum", "Temp", "Wind", "Light")
-        } else {
-            EnvScoreVars <- c("Hum", "Temp", "Wind")
-        }
-
-        MhIdx <- Inds[paste0(EnvScoreVars, "NicheOpt")]
 
         # Extract environmental variables from the species pool
         MinEnvVar <- as.matrix(SpeciesPool[paste0("Min", EnvScoreVars)])
@@ -270,15 +272,24 @@ SuitabilityScore <- function (MinEnvVar, MaxEnvVar, OptEnvVar, EnvVar) {
     # Valid mask: within bounds
     valid <- (EnvVar_exp > MinEnvVar_exp) & (EnvVar_exp < MaxEnvVar_exp)
 
+    ValidMaxEnvVar_exp <- MaxEnvVar_exp[valid]
+    ValidOptEnvVar_exp <- OptEnvVar_exp[valid]
+    ValidMinEnvVar_exp <- MinEnvVar_exp[valid]
+    ValidEnvVar <- EnvVar_exp[valid]
+
+    # Pre-compute denominators
+    MaxOptDiff <- ValidMaxEnvVar_exp - ValidOptEnvVar_exp
+    OptMinDiff <- ValidOptEnvVar_exp - ValidMinEnvVar_exp
+
     # Compute suitability only for valid entries
-    num   <- (MaxEnvVar_exp[valid] - EnvVar_exp[valid]) / (MaxEnvVar_exp[valid] - OptEnvVar_exp[valid])
-    denom <- (EnvVar_exp[valid] - MinEnvVar_exp[valid]) / (OptEnvVar_exp[valid] - MinEnvVar_exp[valid])
-    expo  <- (OptEnvVar_exp[valid] - MinEnvVar_exp[valid]) / (MaxEnvVar_exp[valid] - OptEnvVar_exp[valid])
+    num <- (ValidMaxEnvVar_exp - ValidEnvVar) / MaxOptDiff
+    denom <- (ValidEnvVar - ValidMinEnvVar_exp) / OptMinDiff
+    expo  <- OptMinDiff / MaxOptDiff
 
     valid[is.na(valid)] <- TRUE # Make sure NA values are stored (i.e., they are no NAs in the mask)
     suitability[valid] <- num * denom^expo
 
-    return(suitability)  # shape: [50, 50, 60, 100, 2]
+    return(suitability)  # shape: e.g. [50, 50, 60, 100, 2]
 }
 
 
@@ -726,7 +737,7 @@ main <- function() {
                 Microhabitat[, , , Inds["LightNicheOpt"]] <- Microhabitat[, , , Inds["LightNicheOpt"]] * Imax  # In the microhabitat matrix, the realtive light extinction is stored: convert to light values in ?mol*m-2*s-1
 
                 # Compute scaled suitability scores for the microhabitat
-                file <- file.path(DirectoryModelResultsRun, paste0("EnvSuitability_t", t, ".rds"))
+                file <- file.path(DirectoryModelResultsRun, paste0("EnvSuitability_t", InitialTimeStep + t - 1, ".rds"))
                 if (file.exists(file)) {
                     EnvSuitability <- readRDS(file)
                     # Scale the suitability scores by the global specoes maximum suitability
