@@ -8,6 +8,7 @@ library(purrr)
 library(ggplot2)
 library(forcats)
 library(tidyverse)
+library(patchwork)
 
 PlotSpeciesHeightAbundance <- function(res) {
   abundance_df <- res %>%
@@ -80,10 +81,11 @@ ComputeDivTurnover <- function(data) {
 
 DirectoryModelResults <- "tests/data/output_a4/"
 DirectoryPlots <- "../../../figs/a5_plots_test/"
-numSpeciesPools <- c(1, 2)
+numSpeciesPools <- c(1)
 replicatePerSpeciesPool <- 1
-timeStepStart <- 2
-timeStepEnd <- 3
+timeStepStart <- 101
+timeStepEnd <- 129
+stepSize <- 5
 
 divMetricsDf <- tibble(
   SpeciesPool = integer(),
@@ -153,6 +155,8 @@ for (rep in seq_len(replicatePerSpeciesPool)) {
       speciesHeightMatrix <- divTurnover$speciesHeightMatrix
       adjacentTurnover <- divTurnover$adjacentTurnover
 
+      print(timeStep)
+
       # Add to the turnover tibble
       turnoverDf <- turnoverDf %>%
               add_row(SpeciesPool = numSpeciesPool,
@@ -160,16 +164,17 @@ for (rep in seq_len(replicatePerSpeciesPool)) {
                       TimeStep = timeStep,
                       LowerHeight = speciesHeightMatrix$height[-length(speciesHeightMatrix$height)],
                       UpperHeight = speciesHeightMatrix$height[-1],
-                      BetaDivTurnover = adjacentTurnover,
-                      Richness = )
+                      BetaDivTurnover = adjacentTurnover)
 
     }
 
     # 1. Color coded plot of speciesHeightMatrix (height on x-axis, SpeciesID on y-axis, color = abundance)
     #    Last time step only
-    pdf(paste0(DirectoryPlots, "SpeciesPool_", numSpeciesPool, "_Replicate_", rep, "_SpeciesAbundance.pdf"))
+    abundancePlotPath <- paste0(DirectoryPlots, "SpeciesPool_", numSpeciesPool, "_Replicate_", rep, "_SpeciesAbundance.pdf")
+    pdf(abundancePlotPath)
     print(PlotSpeciesHeightAbundance(res))
     dev.off()
+    print(abundancePlotPath)
   }
 }
 
@@ -230,7 +235,7 @@ for (df in split_data) {
   filename <- paste0(DirectoryPlots, "SpeciesPool_", sp, "_Replicate_", rep, "_HeightDistribution.pdf")
 
   # Save plot to PDF
-  pdf(filename, width = 6, height = 5)
+  pdf(filename, width = 18, height = 9)
   print(p)
   dev.off()
 }
@@ -239,6 +244,7 @@ for (df in split_data) {
 #    each time step shouls have one line and it should have a color gradient (e.g. shapes of blue light to dark)
 
 turnoverPlot <- turnoverDf %>%
+  filter(TimeStep %% 5 == 0) %>%
   # Calculate midpoint height for plotting
   mutate(MidHeight = (LowerHeight + UpperHeight) / 2) %>%
   ggplot(aes(x = BetaDivTurnover, y = MidHeight, color = factor(TimeStep))) +
@@ -276,6 +282,7 @@ dev.off()
 # --- 4. Richness per height plot
 
 speciesRichnessPlot <- speciesHeight %>%
+  filter(TimeStep %% 5 == 0) %>%
   group_by(Replicate, SpeciesPool, TimeStep, height) %>%
   summarise(Richness = n_distinct(SpeciesID), .groups = "drop") %>%
   ggplot(aes(x = Richness, y = height, color = factor(TimeStep))) +
@@ -307,4 +314,62 @@ filename <- paste0(DirectoryPlots, "SpeciesPool_", sp, "_Replicate_", rep, "_Ver
 
 pdf(filename)
 print(speciesRichnessPlot)
+dev.off()
+
+# --- 4. Richness and abundance over time (overall and per height bins)
+
+overallStats <- speciesHeight %>%
+  group_by(TimeStep) %>%
+  summarize(
+    Richness = length(unique(SpeciesID)),
+    Abundance = n()
+  )
+
+# Assuming your tibble is named `df`
+# Example: df <- tibble::tibble(TimeStep = ..., Richness = ..., Abundance = ...)
+
+# Plot for Richness over Time
+p1 <- ggplot(overallStats, aes(x = TimeStep, y = Richness)) +
+  geom_line(color = "steelblue", size = 1) +
+  labs(x = "Time Step", y = "Richness") +
+  theme_minimal()
+
+# Plot for Abundance over Time
+p2 <- ggplot(overallStats, aes(x = TimeStep, y = Abundance)) +
+  geom_line(color = "darkgreen", size = 1) +
+  labs(x = "Time Step", y = "Abundance") +
+  theme_minimal()
+
+# Combine plots side by side
+filename <- paste0(DirectoryPlots, "SpeciesPool_", sp, "_Replicate_", rep, "_OverallRichnessAbundance.pdf")
+pdf(filename, width = 8, height = 4)
+print(p1 + p2)
+dev.off()
+
+# --- 5. Analysis of mortality and recruits
+
+ComSum <- read_csv(paste0(DirectoryModelResults, "ID_SpeciesP_", sp, "_Rep_", rep, "/CommunitySummary.csv"))
+
+# Reshape data to long format
+ComSumLong <- ComSum %>%
+  select(timeStep, Recruits, starts_with("Mortality")) %>%
+  pivot_longer(
+    cols = -timeStep,
+    names_to = "Type",
+    values_to = "Count"
+  )
+
+# Create the ggplot
+DemogPlot <- ggplot(ComSumLong, aes(x = timeStep, y = Count, color = Type)) +
+  geom_line(linewidth = 0.3, alpha = 0.5) +
+  labs(
+    x = "Time Step",
+    y = "Count",
+    color = "Event Type"
+  ) +
+  theme_minimal()
+
+filename <- paste0(DirectoryPlots, "SpeciesPool_", sp, "_Replicate_", rep, "_Demography.pdf")
+pdf(filename, width = 8, height = 4)
+print(DemogPlot)
 dev.off()
