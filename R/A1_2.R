@@ -1,6 +1,8 @@
 # Add Microclimate to Microhabitat Matrix
 source("utils.R")
 
+library("fs")
+
 Mc2MhMatrix <- function(MicrohabDims, MicroclimDims, Microhabitat, Microclimate, indices) {
   newD4 <- MicrohabDims[4] + MicroclimDims[4]  # new size of 4th dimension
 
@@ -30,6 +32,7 @@ timeStepEnd <- config$timeStepEnd
 # Directory paths
 DirectoryMicrohabitat <- config$DirectoryMicrohabitat
 DirectoryMicroclimate <- config$DirectoryMicroclimate
+DirectoryNewMicrohabitat <- config$DirectoryNewMicrohabitat
 
 # Define option flags as a named list
 options_list <- list(
@@ -63,7 +66,7 @@ for (TimeStep in int_seq(from=timeStepStart, to=timeStepEnd, by=1)) {
   Microhabitat <- readRDS(FileMatrix)
 
   # Load microclimate matrix
-  McFile <- paste("MicroclimateMatrix", TimeStep, ".rds", sep="")
+  McFile <- paste("MicroclimateMatrix", "1", ".rds", sep="")
   FileMcMatrix <- file.path(DirectoryMicroclimate, McFile)
   Microclimate <- readRDS(FileMcMatrix)
 
@@ -106,5 +109,20 @@ for (TimeStep in int_seq(from=timeStepStart, to=timeStepEnd, by=1)) {
   )
 
   # 4. Update microhabitat matrix
-  saveRDS(NewMhMatrix, file = FileMatrix)
+  NewMhFileMatrix <- file.path(DirectoryNewMicrohabitat, MhFile)
+  saveRDS(NewMhMatrix, file = NewMhFileMatrix)
 }
+
+# Copy necessary forest files
+file_copy(
+  file.path(DirectoryMicrohabitat, "Forest_param_global.txt"),
+  file.path(DirectoryNewMicrohabitat, "Forest_param_global.txt")
+)
+file_copy(
+  file.path(DirectoryMicrohabitat, "Forest_param_pass0.txt"),
+  file.path(DirectoryNewMicrohabitat, "Forest_param_pass0.txt")
+)
+file_copy(
+  file.path(DirectoryMicrohabitat, "dimPlot.rds"),
+  file.path(DirectoryNewMicrohabitat, "dimPlot.rds")
+)
