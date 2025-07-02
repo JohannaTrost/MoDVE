@@ -35,7 +35,7 @@ fill_edge_na <- function(array3d, startX, startY, startZ, endX, endY, endZ) {
 }
 
 
-compute_prob_matrix_norm <- function(centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool, WindSpeed) {
+compute_prob_matrix_norm <- function(centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool, WindSpeed = NULL) {
     # Erzeugen der Distanzmatrix mit allen Distanzen zum
     DistanceMatrix <- array(rep(0, dimX * dimY * dimZ), dim=c(dimX, dimY, dimZ))
 
@@ -49,21 +49,27 @@ compute_prob_matrix_norm <- function(centralPoint, dimPlot, dimX, dimY, dimZ, Nu
         }
     }
 
-    # Modify the windspeed matrix to match the larger distance matrix
-    WindSpeedFull <- array(NA, dim = c(dimX, dimY, dimZ))
+    # This is in case no wind dispersal was specified by the user
+    if (!is.null(WindSpeed)) {
+        # Modify the windspeed matrix to match the larger distance matrix
+        WindSpeedFull <- array(NA, dim = c(dimX, dimY, dimZ))
 
-    # Coordinates to insert original wind field in center
-    startX <- floor(dimX / 2) - floor(dimPlot[1] / 2) + 1
-    startY <- floor(dimY / 2) - floor(dimPlot[2] / 2) + 1
-    startZ <- floor(dimZ / 2) - floor(dimPlot[3] / 2) + 1
-    endX <- startX + dimPlot[1] - 1
-    endY <- startY + dimPlot[2] - 1
-    endZ <- startZ + dimPlot[3] - 1
+        # Coordinates to insert original wind field in center
+        startX <- floor(dimX / 2) - floor(dimPlot[1] / 2) + 1
+        startY <- floor(dimY / 2) - floor(dimPlot[2] / 2) + 1
+        startZ <- floor(dimZ / 2) - floor(dimPlot[3] / 2) + 1
+        endX <- startX + dimPlot[1] - 1
+        endY <- startY + dimPlot[2] - 1
+        endZ <- startZ + dimPlot[3] - 1
 
-    # Embed the original wind field into the center
-    WindSpeedFull[startX:endX,
-                  startY:endY,
-                  startZ:endZ] <- WindSpeed
+        # Embed the original wind field into the center
+        WindSpeedFull[startX:endX,
+                      startY:endY,
+                      startZ:endZ] <- WindSpeed
+    } else {
+        # No effect of wind on dispersal by setting wind speed to 0
+        WindSpeedFull <- 0
+    }
 
     # Erzeugen der Wahrschienlichkeitsmatrix anhand der Distanzmatrix und dem
     # artspezischien Wert bb aus der Epiphytenmatrix
@@ -520,6 +526,7 @@ main <- function() {
 
     SurfaceBiomassScaling <- config$SurfaceBiomassScaling  # cm^2 per m^2
     Imax <- config$Imax  # maximum light above canopy
+    UseWindDispersal <- config$UseWindDispersal  # Use wind dispersal (TRUE/FALSE)
 
     # Competition Methods; defines which individuals are removed in voxels which
     # are entirely filled. 1:size (small individuals are outcompetet by larger ones); 2:random competition
@@ -753,10 +760,15 @@ main <- function() {
             # 1. Dispersal
 
             # Create probability matrix for each species
-            ProbabilityMatrixNormalized <- compute_prob_matrix_norm(
-              centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool,
-              Microhabitat[,,,Inds["WindNicheOpt"]]
-            )
+            if (UseWindDispersal) {
+                ProbabilityMatrixNormalized <- compute_prob_matrix_norm(
+                  centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool,
+                  Microhabitat[,,,Inds["WindNicheOpt"]])
+            } else {
+                ProbabilityMatrixNormalized <- compute_prob_matrix_norm(
+                  centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool
+                )
+            }
 
             # Generate dispersal/recruitment matrix
             disp_items <- dispersal(

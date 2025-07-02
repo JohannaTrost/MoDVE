@@ -11,6 +11,8 @@ numSpeciesPools = [1, 2]
 replicatePerSpeciesPool = 1
 SurfaceBiomassScaling = 100
 Imax = 900
+UseWindDispersal = 0
+
 CompetitionMethod = 1
 MortalityMethod = 1
 LightResponseFct = "Yan and Hunt"  # optionas ("Yan and Hunt", "Parabolic")
