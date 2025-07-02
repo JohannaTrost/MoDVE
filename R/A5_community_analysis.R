@@ -71,20 +71,25 @@ ComputeDivTurnover <- function(data) {
     as.matrix()
 
   # 2. Get turnover between adjacent heights
-  adjacentTurnover <- sapply(1:(nrow(betaMatrix) - 1), function(i) {
-    betaMatrix[i, i + 1]
-  })
+  if (nrow(betaMatrix) > 1) {
+    adjacentTurnover <- sapply(1:(nrow(betaMatrix) - 1), function(i) {
+      betaMatrix[i, i + 1]
+    })
+  } else {
+    adjacentTurnover <- numeric(0)  # No adjacent heights to compare
+  }
+
 
   return(list(adjacentTurnover = adjacentTurnover,
               speciesHeightMatrix = speciesHeightMatrix))
 }
 
-DirectoryModelResults <- "tests/data/output_a4/"
+DirectoryModelResults <- "/Users/johanna/Uni/masterarbeit/output/MoDEV_test_v3/output_a4_mc_model/"
 DirectoryPlots <- "../../../figs/a5_plots_test/"
-numSpeciesPools <- c(1)
+numSpeciesPools <- c(2)
 replicatePerSpeciesPool <- 1
 timeStepStart <- 101
-timeStepEnd <- 129
+timeStepEnd <- 198
 stepSize <- 5
 
 divMetricsDf <- tibble(
@@ -128,6 +133,11 @@ for (rep in seq_len(replicatePerSpeciesPool)) {
       res <- read_csv(modelResultsPath)
       res <- res[res$Status == 1,]  # We are only interested in individuals that survived
 
+      if (nrow(res) == 0) {
+        message("No individuals survived at time step ", timeStep, " for Species Pool ", numSpeciesPool, " and Replicate ", rep)
+        next
+      }
+
       # Collect species height data
       res["height"] <- res$Z - 0.5
       speciesHeight <- speciesHeight %>%
@@ -168,13 +178,15 @@ for (rep in seq_len(replicatePerSpeciesPool)) {
 
     }
 
-    # 1. Color coded plot of speciesHeightMatrix (height on x-axis, SpeciesID on y-axis, color = abundance)
-    #    Last time step only
-    abundancePlotPath <- paste0(DirectoryPlots, "SpeciesPool_", numSpeciesPool, "_Replicate_", rep, "_SpeciesAbundance.pdf")
-    pdf(abundancePlotPath)
-    print(PlotSpeciesHeightAbundance(res))
-    dev.off()
-    print(abundancePlotPath)
+    if (nrow(res) > 0) {
+      # 1. Color coded plot of speciesHeightMatrix (height on x-axis, SpeciesID on y-axis, color = abundance)
+      #    Last time step only
+      abundancePlotPath <- paste0(DirectoryPlots, "SpeciesPool_", numSpeciesPool, "_Replicate_", rep, "_SpeciesAbundance.pdf")
+      pdf(abundancePlotPath)
+      print(PlotSpeciesHeightAbundance(res))
+      dev.off()
+      print(abundancePlotPath)
+    }
   }
 }
 
@@ -248,7 +260,7 @@ turnoverPlot <- turnoverDf %>%
   # Calculate midpoint height for plotting
   mutate(MidHeight = (LowerHeight + UpperHeight) / 2) %>%
   ggplot(aes(x = BetaDivTurnover, y = MidHeight, color = factor(TimeStep))) +
-  geom_path(aes(group = TimeStep), size = 1) +
+  geom_path(aes(group = TimeStep), linewidth = 1) +
   geom_point(size = 2, alpha = 0.8) +
   scale_color_manual(
     name = "Time Step",
