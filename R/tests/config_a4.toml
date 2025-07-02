@@ -1,25 +1,20 @@
-seed = 42
 DirectoryMicrohabitat = "/Users/johanna/Uni/masterarbeit/data/modve_input/microhabitat_lowland_zach_mh_2024_mc"
 DirectorySpeciesPools = "tests/data/species_pools"
-DirectoryModelResults = "tests/data/output_a4"
+DirectoryModelMain = "tests/data/output_a3"
+DirectoryOutput = "tests/data/output_a4"
 
 MicrohabitatType = 1
-timeSteps = 68
-StopCriterionHa = 3000000
+timeSteps = 2
 numSpeciesPools = [1, 2]
-replicatePerSpeciesPool = 1
-SurfaceBiomassScaling = 100
-Imax = 900
-UseWindDispersal = 0
+numReplicate = 1
 
-CompetitionMethod = 1
-MortalityMethod = 1
+Imax = 900
 LightResponseFct = "Yan and Hunt"  # optionas ("Yan and Hunt", "Parabolic")
-MortRateRandom = 0.1
-MortRateMass = 0.1
-MortRateMassScaling = -0.25
+
 InitialTimeStep = 131
 
 # Microhabitat variable settings
 # - Variables: TotalSurfaceAreaOpt, SurfaceAreaLossOpt, LightNicheOpt, AverageWeightedAngles, HumNicheOpt, TempNicheOpt, WindNicheOpt
 MicrohabitatVariableFlags = [1, 1, 1, 0, 1, 1, 1]
+
+
