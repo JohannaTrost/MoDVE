@@ -5,7 +5,7 @@
 # correct interpretation of relative paths within the script.
 
 dir_expected <- "tests/data/growth_simulation"
-dir_received <- "tests/data/output_a4"
+dir_received <- "data/output_a5"
 
 # Test simulation output files
 timesteps <- c(2, 3)

@@ -234,7 +234,7 @@ InitialTimeStep = 1  # Time step for which the Initial distribution is generated
 Run the following command, replacing `path/to/toml` with the actual path to your `config.toml` file:
 
 ```bash
-Rscript A4.R -i "path/to/toml"
+Rscript A5.R -i "path/to/toml"
 ```
 
 This script leverages parallel processing to efficiently process all possible pairs of species pools and replicates for each species. It automatically detects the number of available cores in the system and distributes the workload across them. Importantly, the loops are independent, meaning that the results of one loop do not affect the others. This ensures that the parallel execution produces the same results as a sequential one.
