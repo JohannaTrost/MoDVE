@@ -36,12 +36,16 @@ ComputeSuitabilityUnscaled <- function (timeSteps,
     # Output file
     envSuitMatName <- paste0("UnscaledEnvSuitability_t", InitialTimeStep, "-t",
                              InitialTimeStep + timeSteps - 1)
+    scaledSuitMatName <- paste0("ScaledEnvSuitability_t", InitialTimeStep, "-t",
+                             InitialTimeStep + timeSteps - 1)
     envSuitPath <- file.path(DirectoryOutput, paste0(envSuitMatName, ".h5"))
+    scaledSuitPath <- file.path(DirectoryOutput, paste0(scaledSuitMatName, ".h5"))
     maxSuitPath <- file.path(DirectoryOutput,
                              paste0("MaxSuitability_t", InitialTimeStep, "-t",
-                                    InitialTimeStep + timeSteps - 1, ".rds"))
+                                    InitialTimeStep + timeSteps - 1, ".txt"))
 
     rhdf5::h5createFile(envSuitPath)
+    rhdf5::h5createFile(scaledSuitPath)
 
     fullEnvSuitability <- array(0, dim = c(spacialDim, NSpecies, timeSteps))
 
@@ -62,7 +66,8 @@ ComputeSuitabilityUnscaled <- function (timeSteps,
           dim=c(spatialDim[1], spatialDim[2], spatialDim[3], NSpecies, 4))
         # Compute score for either Hum, Temp, Wind, and Light or only Hum, Temp, and Wind
         EnvSuitabilityVars[, , , , seq_along(EnvScoreVars)] <- SuitabilityScore(
-          MinEnvVar, MaxEnvVar, OptEnvVar, Microhabitat[ , , , MhIdx])
+          MinEnvVar, MaxEnvVar, OptEnvVar,
+          Microhabitat[ , , , Inds[paste0(EnvScoreVars, "NicheOpt")]])
 
         if (LightResponseFct == "Parabolic") {
             EnvSuitabilityVars[, , , , 4] <- Parabol(
@@ -95,6 +100,15 @@ ComputeSuitabilityUnscaled <- function (timeSteps,
 
     # Save the global maximum suitability for scaling to a txt file
     write.table(globalMaxSuitability, maxSuitPath, row.names = FALSE, col.names = FALSE)
+
+    # Scale the suitability scores by the global maximum suitability
+    for (s in seq_len(NSpecies)) {
+        # Scale the suitability scores for each species
+        fullEnvSuitability[,,,s,] <- fullEnvSuitability[,,,s,] / globalMaxSuitability[s]
+    }
+    # Save the env suitability for this time step
+    rhdf5::h5write(fullEnvSuitability, scaledSuitPath, scaledSuitMatName)
+    print(paste0("Saving scaled env. suitability to: ", scaledSuitPath))
 
     return(globalMaxSuitability) # Return the global maximum suitability for scaling
 }
@@ -177,7 +191,9 @@ SuitabilityScore <- function (MinEnvVar, MaxEnvVar, OptEnvVar, EnvVar) {
     denom <- (ValidEnvVar - ValidMinEnvVar_exp) / OptMinDiff
     expo  <- OptMinDiff / MaxOptDiff
 
-    valid[is.na(valid)] <- TRUE # Make sure NA values are stored (i.e., they are no NAs in the mask)
+    if (anyNA(valid)) {
+      valid[is.na(valid)] <- TRUE # Make sure NA values are stored (i.e., they are no NAs in the mask)
+    }
     suitability[valid] <- num * denom^expo
 
     return(suitability)  # shape: e.g. [50, 50, 60, 100, 2]
@@ -229,7 +245,6 @@ main <- function() {
     DirectoryMicrohabitat <- config$DirectoryMicrohabitat
     DirectorySpeciesPools <- config$DirectorySpeciesPools
     DirectoryOutput <- config$DirectoryOutput
-    DirectoryModelMain <- config$DirectoryModelMain
     MicrohabitatType <- config$MicrohabitatType  # Define which type of forest the microhabitat belongs to. 1: dynamic forest, 2: static forest, 3: uniform forest
     timeSteps <- config$timeSteps  # Model for timeSteps beginning at the time step given by the initial distribution
     InitialTimeStep <- config$InitialTimeStep
@@ -266,15 +281,6 @@ main <- function() {
     output <- foreach (numPool=seq(numSpeciesPools),
                        .export=c("ComputeSuitabilityUnscaled", "int_seq", "Parabol", "SuitabilityScore")) %dorng% {
 
-        # Check if a initial distribution for the species pool exists. If not, move on to the next species pool
-        FileNameInitalDistribution <- file.path(DirectoryModelMain, paste0("ID_SpeciesP_", numPool, "_Rep_", numReplicate, ".csv"))
-        if (!file.exists(FileNameInitalDistribution)) {
-            print(paste0("Initial distribution file ", FileNameInitalDistribution,
-                         " does not exist. Skipping species pool ", numPool, ", replicate ",
-                         numReplicate, "."))
-            return(NULL)
-        }
-
         # First step: create probability matrices for each species
         # Load species pool
         SpeciesPoolFileName <- paste0("SpeciesPool", numPool, ".csv")
@@ -293,20 +299,10 @@ main <- function() {
           LightResponseFct,
           MhIdx,
           EnvScoreVars,
-          DirectoryOutput,
+          DirectoryOutputSpeciesPool,
           dimPlot
         )
   }
 }
 
 main()
-
-
-# DEBUG
-
-# Uncomment the following line to run the main function directly
-
-# suitNew <- h5read("/Users/johanna/Uni/masterarbeit/code/MoDVE/R/tests/data/output_a4/UnscaledEnvSuitability_t131-t133.h5",
-#        "UnscaledEnvSuitability_t131-t133")
-#
-# old131 <- readRDS("/Users/johanna/Uni/masterarbeit/output/MoDEV_test_v3/output_a4_mc_model/ID_SpeciesP_1_Rep_1/EnvSuitability_t131.rds")
