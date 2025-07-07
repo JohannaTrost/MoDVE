@@ -59,18 +59,26 @@ ComputeSuitabilityUnscaled <- function (timeSteps,
         Microhabitat[, , , LightIdx] <- Microhabitat[, , , LightIdx] * Imax
 
         # -- Compute the score for each environmental variable
+
         spatialDim <- dim(Microhabitat)
+        # Get the number of variables for environmental suitability
+        if (LightResponseFct != "Parabolic") {
+            numVars <- length(EnvScoreVars) # Num of vars for individuals scores == total no. vars.
+        } else {
+            numVars <- length(EnvScoreVars) + 1  # Add one for Light
+        }
+
         # Initialize the array for environmental suitability scores with zeros
         EnvSuitabilityVars <- array(
-          rep(0, spatialDim[1] * spatialDim[2] * spatialDim[3] * NSpecies * 4),
-          dim=c(spatialDim[1], spatialDim[2], spatialDim[3], NSpecies, 4))
+          rep(0, spatialDim[1] * spatialDim[2] * spatialDim[3] * NSpecies * numVars),
+          dim=c(spatialDim[1], spatialDim[2], spatialDim[3], NSpecies, numVars))
         # Compute score for either Hum, Temp, Wind, and Light or only Hum, Temp, and Wind
         EnvSuitabilityVars[, , , , seq_along(EnvScoreVars)] <- SuitabilityScore(
           MinEnvVar, MaxEnvVar, OptEnvVar,
           Microhabitat[ , , , Inds[paste0(EnvScoreVars, "NicheOpt")]])
 
         if (LightResponseFct == "Parabolic") {
-            EnvSuitabilityVars[, , , , 4] <- Parabol(
+            EnvSuitabilityVars[, , , , numVars] <- Parabol(
               SpeciesPool$LightResponseA, SpeciesPool$LightResponseB,
               SpeciesPool$LightResponseC, Microhabitat[ , , , 3])
         }
@@ -82,7 +90,7 @@ ComputeSuitabilityUnscaled <- function (timeSteps,
         fullEnvSuitability[,,,, t] <- EnvSuitability
 
         # Get the maximum suitability for this time step for later scaling
-        maxThisStep <- apply(EnvSuitability, c(4), max, na.rm = TRUE)
+        maxThisStep <- apply(EnvSuitability, 4, max, na.rm = TRUE)
         isNewMax <- maxThisStep > globalMaxSuitability
         globalMaxSuitability[isNewMax] <- maxThisStep[isNewMax]
 
@@ -109,6 +117,14 @@ ComputeSuitabilityUnscaled <- function (timeSteps,
     # Save the env suitability for this time step
     rhdf5::h5write(fullEnvSuitability, scaledSuitPath, scaledSuitMatName)
     print(paste0("Saving scaled env. suitability to: ", scaledSuitPath))
+
+    # Save a histogram of the fullenvironmental suitability scores
+    histSuitability <- hist(fullEnvSuitability)
+    histPath <- file.path(DirectoryOutput, paste0("EnvSuitabilityHistogram_t", InitialTimeStep, "-t",
+                                                  InitialTimeStep + timeSteps - 1, ".png"))
+    png(histPath)
+    print(histSuitability)
+    dev.off()
 
     return(globalMaxSuitability) # Return the global maximum suitability for scaling
 }
@@ -254,6 +270,11 @@ main <- function() {
     LightResponseFct <- config$LightResponseFct
     numReplicate <- config$numReplicate
     Imax <- config$Imax  # Maximum light intensity
+    # Get niches to include in the suitability calculation
+    LightNicheOpt <- config$LightNicheOpt
+    HumNicheOpt <- config$HumNicheOpt
+    TempNicheOpt <- config$TempNicheOpt
+    WindNicheOpt <- config$WindNicheOpt
 
     # Load plot dimensions
     dimPlot <- readRDS(file.path(DirectoryMicrohabitat, "dimPlot.rds"))
@@ -267,10 +288,12 @@ main <- function() {
     # Assign indices
     Inds <- setNames(seq_along(ActiveOpts), ActiveOpts)
     # Check which light response function to use and get Mh indices for suitability calculation in correct order
-    if (LightResponseFct == "Yan and Hunt") {
-        EnvScoreVars <- c("Hum", "Temp", "Wind", "Light")
-    } else {
-        EnvScoreVars <- c("Hum", "Temp", "Wind")
+    nicheFlags <- c(Hum = HumNicheOpt, Temp = TempNicheOpt, Wind = WindNicheOpt, Light = LightNicheOpt)
+    # Filter names where value is 1
+    EnvScoreVars <- names(nicheFlags[nicheFlags == 1])
+
+    if (LightResponseFct != "Yan and Hunt") {
+        EnvScoreVars <- EnvScoreVars[EnvScoreVars != "Light"]
     }
     MhIdx <- Inds[paste0(EnvScoreVars, "NicheOpt")]
 
