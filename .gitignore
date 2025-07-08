@@ -5,5 +5,6 @@
 MoDVE.Rproj
 
 R/tests/data/*
+R/tests/*
 .DS_Store
 .idea/
