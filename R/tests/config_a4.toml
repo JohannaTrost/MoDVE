@@ -1,17 +1,21 @@
-DirectoryMicrohabitat = "/Users/johanna/Uni/masterarbeit/data/modve_input/microhabitat_lowland_zach_mh_2024_mc"
-DirectorySpeciesPools = "tests/data/species_pools"
-DirectoryModelMain = "tests/data/output_a3"
-DirectoryOutput = "tests/data/output_a4"
+DirectoryMicrohabitat = "/Users/johanna/Uni/masterarbeit/code/MoDVE/R/tests/data/mh_test_a1"
+DirectorySpeciesPools = "tests/data/output_a2_100spec_rand_v2"
+DirectoryOutput = "tests/data/output_a4_100spec_rand_test_v2"
 
 MicrohabitatType = 1
 timeSteps = 2
-numSpeciesPools = [1, 2]
+numSpeciesPools = [1]
 numReplicate = 1
 
 Imax = 900
 LightResponseFct = "Yan and Hunt"  # optionas ("Yan and Hunt", "Parabolic")
 
-InitialTimeStep = 131
+InitialTimeStep = 1
+
+LightNicheOpt = 1
+HumNicheOpt = 1
+TempNicheOpt = 1
+WindNicheOpt = 1
 
 # Microhabitat variable settings
 # - Variables: TotalSurfaceAreaOpt, SurfaceAreaLossOpt, LightNicheOpt, AverageWeightedAngles, HumNicheOpt, TempNicheOpt, WindNicheOpt

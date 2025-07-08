@@ -22,7 +22,8 @@ ComputeSuitabilityUnscaled <- function (timeSteps,
                                    Inds,
                                    EnvScoreVars,
                                    DirectoryOutput,
-                                   spacialDim) {
+                                   spacialDim,
+                                   Scale = FALSE) {
     NSpecies <- nrow(SpeciesPool)
     globalMaxSuitability <- rep(-Inf, NSpecies)
 
@@ -56,7 +57,9 @@ ComputeSuitabilityUnscaled <- function (timeSteps,
         MHPath <- file.path(DirectoryMicrohabitat,
                             paste0("MicrohabitatMatrix", InitialTimeStep + t - 1, ".rds"))
         Microhabitat <- readRDS(MHPath)
-        Microhabitat[, , , LightIdx] <- Microhabitat[, , , LightIdx] * Imax
+        if (!is.na(LightIdx)) {
+            Microhabitat[, , , LightIdx] <- Microhabitat[, , , LightIdx] * Imax
+        }
 
         # -- Compute the score for each environmental variable
 
@@ -78,9 +81,18 @@ ComputeSuitabilityUnscaled <- function (timeSteps,
           Microhabitat[ , , , Inds[paste0(EnvScoreVars, "NicheOpt")]])
 
         if (LightResponseFct == "Parabolic") {
-            EnvSuitabilityVars[, , , , numVars] <- Parabol(
-              SpeciesPool$LightResponseA, SpeciesPool$LightResponseB,
-              SpeciesPool$LightResponseC, Microhabitat[ , , , 3])
+            result <- Parabol(
+              SpeciesPool$LightResponseA,
+              SpeciesPool$LightResponseB,
+              SpeciesPool$LightResponseC,
+              Microhabitat[, , , 3]
+            )
+
+            # Normalize to range [0, 1]
+            scaled_result <- (result - min(result)) / (max(result) - min(result))
+            scaled_result <- array(scaled_result, dim = c(3, 3, 3, 4))
+
+            EnvSuitabilityVars[, , , , numVars] <- scaled_result
         }
 
         # Combine the suitability probabilities for all environmental variables
@@ -109,21 +121,33 @@ ComputeSuitabilityUnscaled <- function (timeSteps,
     # Save the global maximum suitability for scaling to a txt file
     write.table(globalMaxSuitability, maxSuitPath, row.names = FALSE, col.names = FALSE)
 
-    # Scale the suitability scores by the global maximum suitability
-    for (s in seq_len(NSpecies)) {
-        # Scale the suitability scores for each species
-        fullEnvSuitability[,,,s,] <- fullEnvSuitability[,,,s,] / globalMaxSuitability[s]
+    print(summary(fullEnvSuitability))
+
+    if (Scale) {  # For testing purposes
+        # Scale the suitability scores by the global maximum suitability
+        for (s in seq_len(NSpecies)) {
+            # Scale the suitability scores for each species
+            fullEnvSuitability[,,,s,] <- fullEnvSuitability[,,,s,] / globalMaxSuitability[s]
+            if (globalMaxSuitability[s] == 0) {
+                fullEnvSuitability[,,,s,] <- 0  # Avoid division by zero
+            }
+        }
+        # Save the env suitability for this time step
+        rhdf5::h5write(fullEnvSuitability, scaledSuitPath, scaledSuitMatName)
+        print(paste0("Saving scaled env. suitability to: ", scaledSuitPath))
+
+        prefix <- "Scaled"
+    } else {
+        prefix <- "Unscaled"
     }
-    # Save the env suitability for this time step
-    rhdf5::h5write(fullEnvSuitability, scaledSuitPath, scaledSuitMatName)
-    print(paste0("Saving scaled env. suitability to: ", scaledSuitPath))
 
     # Save a histogram of the fullenvironmental suitability scores
-    histSuitability <- hist(fullEnvSuitability)
-    histPath <- file.path(DirectoryOutput, paste0("EnvSuitabilityHistogram_t", InitialTimeStep, "-t",
+    histPath <- file.path(DirectoryOutput, paste0(prefix, "EnvSuitabilityHistogram_t", InitialTimeStep, "-t",
                                                   InitialTimeStep + timeSteps - 1, ".png"))
+    print(globalMaxSuitability)
+    print(histPath)
     png(histPath)
-    print(histSuitability)
+    hist(fullEnvSuitability)
     dev.off()
 
     return(globalMaxSuitability) # Return the global maximum suitability for scaling
@@ -177,7 +201,11 @@ SuitabilityScore <- function (MinEnvVar, MaxEnvVar, OptEnvVar, EnvVar) {
     # Expand EnvVar to [50, 50, 60, 100, 2]
     EnvVar_exp <- array(EnvVar, dim = c(dim(EnvVar), 1))
     EnvVar_exp <- array(EnvVar_exp, dim = c(dim(EnvVar), n_species))
-    EnvVar_exp <- aperm(EnvVar_exp, c(1, 2, 3, 5, 4))
+    if (length(dim(EnvVar_exp)) > 4) {
+        EnvVar_exp <- aperm(EnvVar_exp, c(1, 2, 3, 5, 4))
+    } else {
+        EnvVar_exp <- array(EnvVar_exp, dim = c(spatial_dim, n_species, n_vars))
+    }
 
     # Expand Min/Opt/MaxEnvVar to [50, 50, 60, 100, 2]
     MinEnvVar_exp <- array(rep(MinEnvVar, each = prod(spatial_dim)),
@@ -192,6 +220,9 @@ SuitabilityScore <- function (MinEnvVar, MaxEnvVar, OptEnvVar, EnvVar) {
 
     # Valid mask: within bounds
     valid <- (EnvVar_exp > MinEnvVar_exp) & (EnvVar_exp < MaxEnvVar_exp)
+    if (anyNA(valid)) {
+      valid[is.na(valid)] <- FALSE # Make sure NA values are stored (i.e., they are no NAs in the mask)
+    }
 
     ValidMaxEnvVar_exp <- MaxEnvVar_exp[valid]
     ValidOptEnvVar_exp <- OptEnvVar_exp[valid]
@@ -207,9 +238,6 @@ SuitabilityScore <- function (MinEnvVar, MaxEnvVar, OptEnvVar, EnvVar) {
     denom <- (ValidEnvVar - ValidMinEnvVar_exp) / OptMinDiff
     expo  <- OptMinDiff / MaxOptDiff
 
-    if (anyNA(valid)) {
-      valid[is.na(valid)] <- TRUE # Make sure NA values are stored (i.e., they are no NAs in the mask)
-    }
     suitability[valid] <- num * denom^expo
 
     return(suitability)  # shape: e.g. [50, 50, 60, 100, 2]
