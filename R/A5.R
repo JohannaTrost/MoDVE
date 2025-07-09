@@ -583,19 +583,21 @@ main <- function() {
 
                     # Load unscaled Environmental Suitability Scores
                     SuitFileName <- paste0("UnscaledEnvSuitability_t", currTimeStep, "-t",
-                                           batchEnds[which(batchStarts == 100)])
+                                           batchEnds[which(batchStarts == batchStart)])
                     file <- file.path(DirectoryEnvSuitabilityRun, paste0(SuitFileName, ".h5"))
 
                     if (file.exists(file)) {
                         EnvSuitability <- h5read(file, SuitFileName)
-
+                        BatchSize <- dim(EnvSuitability)[5]
                         # Expand matrix of max suitability scores to match the environmental suitability dimensions
                         SpeciesMaxSuitability_ext <- array(rep(as.matrix(SpeciesMaxSuitability),
-                                                               each = prod(dimPlot) * timeSteps),
-                                                          dim = c(dimPlot, timeSteps, NumberOfSpecies))
+                                                               each = prod(dimPlot) * BatchSize),
+                                                          dim = c(dimPlot, BatchSize, NumberOfSpecies))
                         SpeciesMaxSuitability_ext <- aperm(SpeciesMaxSuitability_ext, c(1, 2, 3, 5, 4))
 
                         # Scale the suitability scores by the global specoes maximum suitability
+                        message(dim(SpeciesMaxSuitability_ext))
+                        message(dim(EnvSuitability))
                         ScaledEnvSuitabilityBatch <- EnvSuitability / SpeciesMaxSuitability_ext
                     } else {
                         stop("EnvSuitability file does not exist: ", file,
