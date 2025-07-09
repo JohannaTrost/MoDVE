@@ -202,7 +202,7 @@ dispersal <- function(NumberOfSpecies,
                                  (Microhabitat[, , , IdxTemp] <= MatureIndividulsPerSpecies$MaxTemp[1]))
                 WindSuitable <- ((Microhabitat[, , , IdxWind] >= MatureIndividulsPerSpecies$MinWind[1]) &
                                  (Microhabitat[, , , IdxWind] <= MatureIndividulsPerSpecies$MaxWind[1]))
-                pot_habitat <- LightSuitable & HumSuitable #& TempSuitable & WindSuitable
+                pot_habitat <- LightSuitable & HumSuitable & TempSuitable & WindSuitable
 
                 print(paste("Potential habitat no. voxels:", sum(pot_habitat, na.rm=TRUE)))
 
@@ -324,7 +324,8 @@ main <- function() {
     # Input directories
     DirectoryMicrohabitat <- config$DirectoryMicrohabitat
     DirectorySpeciesPools <- config$DirectorySpeciesPools
-    DirectoryModelMain <- config$DirectoryModelMain
+    DirectoryInitCommunity <- config$DirectoryInitCommunity
+    DirectoryEnvSuitability <- config$DirectoryEnvSuitability
 
     # Output directory
     DirectoryModelResults <- config$DirectoryModelResults
@@ -481,7 +482,7 @@ main <- function() {
         r <- pairs$r[pair_idx]
 
         # Check if a initial distribution for the species pool exists. If not, move on to the next species pool
-        FileNameInitalDistribution <- file.path(DirectoryModelMain, paste0("ID_SpeciesP_", numPool, "_Rep_", r, ".csv"))
+        FileNameInitalDistribution <- file.path(DirectoryInitCommunity, paste0("ID_SpeciesP_", numPool, "_Rep_", r, ".csv"))
         if (!file.exists(FileNameInitalDistribution)) {
             print(paste0("Initial distribution file ", FileNameInitalDistribution,
                          " does not exist. Skipping species pool ", numPool, ", replicate ",
@@ -507,6 +508,9 @@ main <- function() {
         # Create Save-Directory for each each replicate/initialDistribution
         DirectoryModelResultsRun <- file.path(DirectoryModelResults, paste0("ID_SpeciesP_", numPool, "_Rep_", r))
         dir.create(DirectoryModelResultsRun, recursive=TRUE)
+
+        # Get direcory with environmental suitability scores for this species pool and replicate
+        DirectoryEnvSuitabilityRun <- file.path(DirectoryEnvSuitability, paste0("ID_SpeciesP_", numPool, "_Rep_", r))
 
         # Load initial epiphyte distribution
         E <- read.csv(FileNameInitalDistribution, sep=",", header=TRUE)  # E for epiphytes
@@ -537,7 +541,28 @@ main <- function() {
         # Initialize Matrix where speceies parameters are save
         SummaryMatrixSpecies <- array(rep(0, (timeSteps*NumberOfSpecies) * TotalColsSpeciesMatrix), dim=c(timeSteps*NumberOfSpecies, TotalColsSpeciesMatrix))
 
+        # Load all Max suitability scores for later scaling
+        maxSuitPaths <- Sys.glob(file.path(DirectoryEnvSuitabilityRun, "MaxSuitability*.txt"))
+        suitList <- lapply(maxSuitPaths, read.table)
+        SpeciesMaxSuitability <- do.call(pmax, suitList)
+
+        # Get all initial time steps
+        envSuitPaths <- Sys.glob(file.path(DirectoryEnvSuitabilityRun, "UnscaledEnvSuitability*.h5"))
+        # Extract start and end time steps using regular expressions
+        timeStepBatches <- regmatches(envSuitPaths, regexec("t(\\d+)-t(\\d+)", envSuitPaths))
+        timeStepBatches <- do.call(rbind, lapply(timeStepBatches, function(x) as.numeric(x[2:3])))
+        # Sort the time steps
+        indsSorted <- order(timeStepBatches[, 1])
+        batchStarts <- timeStepBatches[indsSorted, 1]
+        batchEnds <- timeStepBatches[indsSorted, 2]
+        # Check if batches are continuous
+        if (all(batchStarts[-1] == batchEnds[-length(batchEnds)] + 1)) {
+            stop("❌ Environmental suitability scores are not provided for all time steps or batches overlap.")
+        }
+
         for (t in seq_len(timeSteps)) {
+
+            currTimeStep <- InitialTimeStep + t - 1  # Current time step in the simulation
 
             # Check if the stop criterion is met
             if (length(which(E$Status == 1)) > StopCriterion) {
@@ -546,19 +571,49 @@ main <- function() {
 
             # Load microhabitat matrix for specific timeStep if dynamic forest is simulated
             if (MicrohabitatType == 1) {
-                Microhabitat <- readRDS(file.path(DirectoryMicrohabitat, paste0("MicrohabitatMatrix", InitialTimeStep + t - 1, ".rds")))
+                Microhabitat <- readRDS(file.path(DirectoryMicrohabitat, paste0("MicrohabitatMatrix", currTimeStep, ".rds")))
                 Microhabitat[, , , Inds["LightNicheOpt"]] <- Microhabitat[, , , Inds["LightNicheOpt"]] * Imax  # In the microhabitat matrix, the realtive light extinction is stored: convert to light values in ?mol*m-2*s-1
 
-                # Compute scaled suitability scores for the microhabitat
-                file <- file.path(DirectoryModelResultsRun, paste0("EnvSuitability_t", InitialTimeStep + t - 1, ".rds"))
-                if (file.exists(file)) {
-                    EnvSuitability <- readRDS(file)
-                    # Scale the suitability scores by the global specoes maximum suitability
-                    SpeciesMaxSuitability_ext <- array(rep(SpeciesMaxSuitability, each = prod(dimPlot)),
-                                                      dim = c(dimPlot, NumberOfSpecies))
-                    ScaledEnvSuitability <- EnvSuitability / SpeciesMaxSuitability_ext
-                } else {
-                    stop("EnvSuitability file does not exist for time step ", t)
+                if (currTimeStep %in% batchStarts) {  # Check if the current time step is the start of a batch
+
+                    message(paste("Starting batch with initial time step:", currTimeStep))
+
+                    batchStart <- currTimeStep
+
+                    # Load unscaled Environmental Suitability Scores
+                    SuitFileName <- paste0("UnscaledEnvSuitability_t", currTimeStep, "-t",
+                                           batchEnds[which(batchStarts == 100)])
+                    file <- file.path(DirectoryEnvSuitabilityRun, paste0(SuitFileName, ".h5"))
+
+                    if (file.exists(file)) {
+                        EnvSuitability <- h5read(file, SuitFileName)
+
+                        # Expand matrix of max suitability scores to match the environmental suitability dimensions
+                        SpeciesMaxSuitability_ext <- array(rep(as.matrix(SpeciesMaxSuitability),
+                                                               each = prod(dimPlot) * timeSteps),
+                                                          dim = c(dimPlot, timeSteps, NumberOfSpecies))
+                        SpeciesMaxSuitability_ext <- aperm(SpeciesMaxSuitability_ext, c(1, 2, 3, 5, 4))
+
+                        # Scale the suitability scores by the global specoes maximum suitability
+                        ScaledEnvSuitabilityBatch <- EnvSuitability / SpeciesMaxSuitability_ext
+                    } else {
+                        stop("EnvSuitability file does not exist: ", file,
+                             ". Check specified timesteps and initial time step of input configuration.")
+                    }
+                }
+                batchIndex <- currTimeStep - batchStart + 1
+                ScaledEnvSuitability <- ScaledEnvSuitabilityBatch[,,,, batchIndex]
+
+                # For debugging print number of zeros TODO: remove later
+                noNAs <- sum(is.na(ScaledEnvSuitability))
+                noZeros <- sum(ScaledEnvSuitability == 0)
+                if (noNAs > 0) {
+                    warning(paste0("There are ", noNAs, " NA values in the ScaledEnvSuitability matrix.",
+                                   "(", currTimeStep, ", ", batchIndex, ")"))
+                }
+                if (noZeros > 0) {
+                    warning(paste("There are", noZeros, "zero values in the ScaledEnvSuitability matrix.",
+                                  "(", currTimeStep, ", ", batchIndex, ")"))
                 }
             }
 
@@ -805,13 +860,13 @@ main <- function() {
                     # SummaryMatrixSpecies[rowIndex, ColSMeanHeight] <- NaN
                 }
 
-                SummaryMatrixSpeciesSave[rowIndex, 1] <- InitialTimeStep + t - 1
+                SummaryMatrixSpeciesSave[rowIndex, 1] <- currTimeStep
                 SummaryMatrixSpeciesSave[rowIndex, int_seq(2, TotalColsSpeciesMatrix + 1)] <- SummaryMatrixSpecies[rowIndex, ]
             }
 
             ###############################################################################
             # Store information in SummaryMatrixCommunity
-            SummaryMatrixCommunity$timeStep[t] <- InitialTimeStep + t - 1  # TimeStep
+            SummaryMatrixCommunity$timeStep[t] <- currTimeStep  # TimeStep
             SummaryMatrixCommunity$NumberSpeciesBeginning[t] <- InitialNumberSpecies  # NumberOfSpecies at beginning
             SummaryMatrixCommunity$NumberSpeciesEnd[t] <- length(unique(E$SpeciesID[E$Status == 1]))  # NumberOfSpecies at end
             SummaryMatrixCommunity$NumberIndividualsBeginning[t] <- IntialNumberIndividualsTotal  # NumberIndividuals at beginning
@@ -832,7 +887,7 @@ main <- function() {
             information <- "--------------------------------------------"
             information <- paste(information, paste0("Species Pool: ", numPool), sep="\n")
             information <- paste(information, paste0("Replicate: ", r), sep="\n")
-            information <- paste(information, paste0("Time step: ", InitialTimeStep + t - 1), sep="\n")
+            information <- paste(information, paste0("Time step: ", currTimeStep), sep="\n")
             information <- paste(information, paste0("Number of individuals: ", SummaryMatrixCommunity$NumberIndividualsEnd[t]), sep="\n")
             information <- paste(information, paste0("Number of species: ", SummaryMatrixCommunity$NumberSpeciesEnd[t]), sep="\n")
             information <- paste(information, paste0("Number of recruits: ", NumberRecruits), sep="\n")
@@ -850,7 +905,7 @@ main <- function() {
             # Saving
             # Save Epiphyte matrix for every time step
             ColumsToSave <- c("SpeciesID", "IndividualID", "Status", "Mass", "Age", "X", "Y", "Z", "TotalSurfaceInVoxel", "SurfaceLossInVoxel", "LightInVoxel", "HumInVoxel", "TempInVoxel", "WindInVoxel")
-            write.csv(E[, ColumsToSave], file.path(DirectoryModelResultsRun, paste0("IndividualMatrixTimeStep", InitialTimeStep + t - 1, ".csv")), row.names=FALSE)
+            write.csv(E[, ColumsToSave], file.path(DirectoryModelResultsRun, paste0("IndividualMatrixTimeStep", currTimeStep, ".csv")), row.names=FALSE)
 
             # Create dataframe from matrix (including headers)
             SummaryMatrixSpeciesSave_df <- as.data.frame(SummaryMatrixSpeciesSave)

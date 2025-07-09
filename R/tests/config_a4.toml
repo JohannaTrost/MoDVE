@@ -1,16 +1,17 @@
-DirectoryMicrohabitat = "/Users/johanna/Uni/masterarbeit/code/MoDVE/R/tests/data/mh_test_a1"
-DirectorySpeciesPools = "tests/data/output_a2_100spec_rand_v2"
-DirectoryOutput = "tests/data/output_a4_100spec_rand_test_v2"
+#DirectoryMicrohabitat = "/Users/johanna/Uni/masterarbeit/code/MoDVE/R/tests/data/mh_test_a1"
+DirectoryMicrohabitat = "/Users/johanna/Uni/masterarbeit/data/modve_input/microhabitat_lowland_zach_mh_2024_mc"
+DirectorySpeciesPools = "tests/data/output_a2_100spec_real"
+DirectoryOutput = "/Users/johanna/Uni/masterarbeit/data/a4_output/v1_real_niches"
 
 MicrohabitatType = 1
-timeSteps = 2
+timeSteps = 25
 numSpeciesPools = [1]
 numReplicate = 1
 
 Imax = 900
 LightResponseFct = "Yan and Hunt"  # optionas ("Yan and Hunt", "Parabolic")
 
-InitialTimeStep = 1
+InitialTimeStep = 100
 
 LightNicheOpt = 1
 HumNicheOpt = 1

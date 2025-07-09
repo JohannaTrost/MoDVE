@@ -37,16 +37,12 @@ ComputeSuitabilityUnscaled <- function (timeSteps,
     # Output file
     envSuitMatName <- paste0("UnscaledEnvSuitability_t", InitialTimeStep, "-t",
                              InitialTimeStep + timeSteps - 1)
-    scaledSuitMatName <- paste0("ScaledEnvSuitability_t", InitialTimeStep, "-t",
-                             InitialTimeStep + timeSteps - 1)
     envSuitPath <- file.path(DirectoryOutput, paste0(envSuitMatName, ".h5"))
-    scaledSuitPath <- file.path(DirectoryOutput, paste0(scaledSuitMatName, ".h5"))
     maxSuitPath <- file.path(DirectoryOutput,
                              paste0("MaxSuitability_t", InitialTimeStep, "-t",
                                     InitialTimeStep + timeSteps - 1, ".txt"))
 
     rhdf5::h5createFile(envSuitPath)
-    rhdf5::h5createFile(scaledSuitPath)
 
     fullEnvSuitability <- array(0, dim = c(spacialDim, NSpecies, timeSteps))
 
@@ -124,6 +120,11 @@ ComputeSuitabilityUnscaled <- function (timeSteps,
     print(summary(fullEnvSuitability))
 
     if (Scale) {  # For testing purposes
+        scaledSuitMatName <- paste0("ScaledEnvSuitability_t", InitialTimeStep, "-t",
+                             InitialTimeStep + timeSteps - 1)
+        scaledSuitPath <- file.path(DirectoryOutput, paste0(scaledSuitMatName, ".h5"))
+        rhdf5::h5createFile(scaledSuitPath)
+
         # Scale the suitability scores by the global maximum suitability
         for (s in seq_len(NSpecies)) {
             # Scale the suitability scores for each species
