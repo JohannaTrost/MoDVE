@@ -1,7 +1,7 @@
 options(warn=-1)  # Suppress warnings
 options(digits.secs=3)  # 3 decimal digits for seconds
 
-#setwd("/home/jtrost_ext/MoDVE/R/")
+setwd("/home/jtrost_ext/MoDVE/R/")
 
 # Epiphte IBM - Model
 # This model simulates the development of the entire epiphyte community
@@ -10,6 +10,7 @@ source("utils.R")
 library("foreach")
 library("doParallel")
 library("doRNG")
+library("rhdf5")
 
 ###############################################################################
 
@@ -556,7 +557,7 @@ main <- function() {
         batchStarts <- timeStepBatches[indsSorted, 1]
         batchEnds <- timeStepBatches[indsSorted, 2]
         # Check if batches are continuous
-        if (all(batchStarts[-1] == batchEnds[-length(batchEnds)] + 1)) {
+        if (all(batchStarts[-1] != batchEnds[-length(batchEnds)] + 1)) {
             stop("❌ Environmental suitability scores are not provided for all time steps or batches overlap.")
         }
 
