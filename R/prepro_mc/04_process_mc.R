@@ -93,6 +93,8 @@ hourly_to_daily_medians <- function(data_matrix, timestamps) {
 # Optimized processing function for a single cell
 process_single_cell <- function(x, y, timestamps, n_temp_metrics) {
 
+  print(paste(x, y))
+
   start_time_cell <- Sys.time()
 
   # Load microclimate data
@@ -195,8 +197,7 @@ process_microclimate_data <- function(x_dim = 50, y_dim = 50, use_parallel = TRU
 
     results <- vector("list", nrow(coords))
     for (i in 1:nrow(coords)) {
-      results[[i]] <- process_single_cell(coords$x[i], coords$y[i], timestamps,
-                                         x_dim, y_dim, max_hgt, n_temp_metrics)
+      results[[i]] <- process_single_cell(coords$x[i], coords$y[i], timestamps, n_temp_metrics)
       if (i %% 100 == 0) {
         # Print progress every 10 cells
         cat("Processed", i, "of", nrow(coords), "cells\n")
@@ -210,6 +211,7 @@ process_microclimate_data <- function(x_dim = 50, y_dim = 50, use_parallel = TRU
 
   for (result in results) {
     if (!is.null(result)) {
+      print(paste0())
       x <- result$x
       y <- result$y
       actual_heights <- nrow(result$data)
@@ -240,10 +242,12 @@ process_microclimate_data <- function(x_dim = 50, y_dim = 50, use_parallel = TRU
 #mc_matrix <- process_microclimate_data(x_dim = 1, y_dim = 1, use_parallel = FALSE)
 
 # Parallel processing (recommended):
-mc_matrix <- process_microclimate_data(x_dim = 50, y_dim = 50, use_parallel = TRUE)
+mc_matrix <- process_microclimate_data(x_dim = 50, y_dim = 50, use_parallel = FALSE)
 
 # For testing with smaller subset:
 #mc_matrix <- process_microclimate_data(x_dim = 5, y_dim = 5, use_parallel = TRUE)
 
 # Save the result
-saveRDS(mc_matrix, "/Users/johanna/Uni/masterarbeit/data/mc_output/v3_2024_regua_mc_matrix.rds")
+saveRDS(mc_matrix, "/Users/johanna/Uni/masterarbeit/data/mc_output/v4_2024_regua_mc_matrix.rds")
+
+mc_test <- readRDS("/Users/johanna/Uni/masterarbeit/data/mc_output/v4_2024_regua_mc_matrix.rds")

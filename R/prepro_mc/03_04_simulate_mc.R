@@ -1,20 +1,18 @@
-require(devtools)
+#require(devtools)
 # install_github("ilyamaclean/microclimf")
-remotes::install_local("/Users/johanna/Uni/masterarbeit/code/micropoint",
-                       force = TRUE)
+#remotes::install_local("/Users/johanna/Uni/masterarbeit/code/micropoint",
+#                       force = TRUE)
 
 library(micropoint)
 library(terra)
 library(readr)
 library(viridis)
 library(microclimf)
-library(lubridate)
-library(furrr)
-library(future)
-library(parallel)
 library(dplyr)
 library(lubridate)
-library(readr)
+library("foreach")
+library("doParallel")
+library("doRNG")
 
 
 # Vectorized function to calculate mean diurnal temperature range
@@ -208,7 +206,7 @@ get_monthly_mc_stats <- function(min_arr, max_arr, month_labs_mn,
 
 extract_params <- function(raster_list, lon, lat, crs = "EPSG:4326") {
   # Create a SpatVector point in WGS84 (decimal degrees)
-  point <- vect(cbind(lon, lat), crs = crs)
+  point <- terra::vect(cbind(lon, lat), crs = crs)
   
   # Transform the point to the CRS of the rasters 
   target_crs <- crs(unwrap(raster_list[[1]]))
@@ -358,11 +356,11 @@ n_temp_metrics <- 14
 year <- 2024
 
 # Define output directory
-outdir <- "/Users/johanna/Uni/masterarbeit/data/mc_output"
+outdir <- "/home/jtrost_ext/data/mc_output"
 
 # Save heights of MC simulations
-in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
-microhab_path <- "/Users/johanna/Uni/masterarbeit/output/modev_zach_25_01_07/MicrohabitatMatrix99.rds"
+in_dir <- "/home/jtrost_ext/data/input_mc_sim/regua"
+microhab_path <- "/home/jtrost_ext/data/input_mc_sim/MicrohabitatMatrix99.rds"
 vegp_path <- paste(in_dir, "vegp_mof3d_ptm_v3.RDS", sep = "/")
 soilc_path <- paste(in_dir, "soilc_v2.RDS", sep = "/")
 climdata_path <- paste(in_dir, "era5_climdata_2024_v2.csv", sep = "/")
@@ -374,46 +372,68 @@ heights <- seq(0.5, max_veg_height + 1)
 max_hgt <- length(heights)
 saveRDS(heights, paste0(outdir, "/v2_mc_heights.rds"))
 
-# Initialize final microclimate matrix
-mc_matrix <- array(rep(NA, x_dim * y_dim * max_hgt * n_temp_metrics),
-                     dim = c(x_dim, y_dim, max_hgt, n_temp_metrics))
-
-# Create grid of coordinates
-coords <- expand.grid(x = 1:x_dim, y = 1:y_dim)
-
-# Set up parallel processing
-n_cores <- min(detectCores() - 1, nrow(coords))
-
-cat("Processing", nrow(coords), "cells using", n_cores, "cores\n")
-
-# Process cells in parallel
-results <- mclapply(1:nrow(coords), function(i) {
-  process_cell(coords$x[i], coords$y[i], year, n_temp_metrics,
-               microhab_path, vegp_path, soilc_path, climdata_path, outdir)
-}, mc.cores = n_cores)
-
-# Populate the main matrix with results
-total_time <- 0
-successful_cells <- 0
-
-for (result in results) {
-  if (!is.null(result)) {
-    x <- result$x
-    y <- result$y
-    actual_heights <- nrow(result$data)
-
-    # Fill the matrix (up to the actual number of heights)
-    mc_matrix[x, y, 1:actual_heights, ] <- result$data
-
-    total_time <- total_time + result$processing_time
-    successful_cells <- successful_cells + 1
-
-    if (successful_cells %% 100 == 0) {
-      avg_time <- total_time / successful_cells
-      cat("Processed", successful_cells, "cells. Average time per cell:",
-          round(avg_time, 3), "seconds\n")
+missing_x <- c()
+missing_y <- c()
+for (x in seq(50)) {
+    for (y in seq(50)) {
+        out_path <- paste0(outdir, "/v3_mc_x", x, "_y", y, ".rds")
+        mc <- readRDS(out_path)
+        if(is.null(mc$data)) {
+            missing_x <- c(missing_x, x)
+            missing_y <- c(missing_y, y)
+        }
     }
-  }
+}
+message("No. missing cells: ", length(missing_x))
+
+nTasks <- Sys.getenv("SLURM_NTASKS")
+if (nTasks != "") {
+    numCores <- strtoi(nTasks)
+} else {
+    numCores <- detectCores() - 1
 }
 
-Sys.time()
+registerDoParallel(numCores)
+
+output <- foreach (pair_idx=seq_len(length(missing_x)),
+                   .export=c("process_cell", "mean_diurnal_temp_vectorized", "month_stats_vectorized",
+                             "hourly_to_daily_medians", "aggregate_mc", "immediateMessage",
+                             "get_monthly_mc_stats", "extract_params", "indices2coords"
+                   )) %dorng% {
+    x <- missing_x[pair_idx]
+    y <- missing_y[pair_idx]
+
+    c <- process_cell(x, y, year, n_temp_metrics, microhab_path,
+                 vegp_path, soilc_path, climdata_path, outdir)
+
+    out_path <- paste0(outdir, "/v3_mc_x", x, "_y", y, ".rds")
+    mc <- readRDS(out_path)
+    if(is.null(mc$data)) {
+      warning(paste("No data for cell:", x, y))
+    } else {
+      message(paste("Processed cell:", x, y, "with data."))
+    }
+    return(NULL)
+}
+
+# Check for missing cells after processing
+missing_x <- c()
+missing_y <- c()
+for (x in seq(50)) {
+    for (y in seq(50)) {
+        out_path <- paste0(outdir, "/v3_mc_x", x, "_y", y, ".rds")
+        mc <- readRDS(out_path)
+        if(is.null(mc$data)) {
+            missing_x <- c(missing_x, x)
+            missing_y <- c(missing_y, y)
+        }
+        else {
+            # Count nas in data
+            nas_count <- sum(is.na(mc$data))
+            if (nas_count > 0) {
+                message(paste("Cell:", x, y, "has", nas_count, "missing values in data."))
+            }
+        }
+    }
+}
+message("No. missing cells: ", length(missing_x))
