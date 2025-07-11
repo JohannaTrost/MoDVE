@@ -1,7 +1,7 @@
 #require(devtools)
 # install_github("ilyamaclean/microclimf")
-#remotes::install_local("/Users/johanna/Uni/masterarbeit/code/micropoint",
-#                       force = TRUE)
+remotes::install_local("/Users/johanna/Uni/masterarbeit/code/forks/micropoint",
+                       force = TRUE)
 
 library(micropoint)
 library(terra)
@@ -301,13 +301,6 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
     mout <- micropoint::runpointmodel(climdata_reg, reqhgt = h, vegparams,
                                       paii, grndparams, lat = lat, long = lon)
 
-    # try plotprofile
-    # ppout <- plotprofile(climdata_reg, hr = 4029, "tair",
-    #                      vegparams, paii = paii, grndparams, lat = lat, long= lon)
-    #
-    # pmout <- runprofilemodel(climdata_reg, vegparams, paii = paii, grndparams, lat = lat, long= lon)
-
-
     immediateMessage("Point model run completed.")
 
     # Which variables to save
@@ -325,6 +318,7 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
       res[[var]][i, ] <- mout[[var]]
     }
   }
+
   # aggregate yearly microclimate data
   agg_res <- aggregate_mc(res, timestamps, n_temp_metrics)
 
@@ -356,11 +350,11 @@ n_temp_metrics <- 14
 year <- 2024
 
 # Define output directory
-outdir <- "/home/jtrost_ext/data/mc_output"
+outdir <- "/Users/johanna/Uni/masterarbeit/data/mc_output"
 
 # Save heights of MC simulations
-in_dir <- "/home/jtrost_ext/data/input_mc_sim/regua"
-microhab_path <- "/home/jtrost_ext/data/input_mc_sim/MicrohabitatMatrix99.rds"
+in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
+microhab_path <- "/Users/johanna/Uni/masterarbeit/output/modev_zach_25_01_07/MicrohabitatMatrix99.rds"
 vegp_path <- paste(in_dir, "vegp_mof3d_ptm_v3.RDS", sep = "/")
 soilc_path <- paste(in_dir, "soilc_v2.RDS", sep = "/")
 climdata_path <- paste(in_dir, "era5_climdata_2024_v2.csv", sep = "/")
@@ -437,3 +431,121 @@ for (x in seq(50)) {
     }
 }
 message("No. missing cells: ", length(missing_x))
+
+
+# DEEBUG new method
+
+# Load data for one year
+vegp_reg <- readRDS(vegp_path)
+soilc_reg <- readRDS(soilc_path)
+climdata_reg <- read_csv(climdata_path)
+pai <- readRDS(microhab_path)[,,,5]
+
+# Check for missing cells after processing
+nImgs <- 0
+while (nImgs < 4) {
+  x <- sample(1:50, 1)
+  y <- sample(1:50, 1)
+  out_path <- paste0(outdir, "/v3_mc_x", x, "_y", y, ".rds")
+  mc <- readRDS(out_path)
+  if(!is.null(mc$data)) {
+
+      # Veg heights
+      max_veg_height <- max(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE)
+      heights <- seq(0.5, max_veg_height + 1)
+
+      immediateMessage(paste("Processing cell:", x, y))
+
+      coords <- indices2coords(x, y, terra::unwrap(vegp_reg$pai))[c("x", "y")]
+      lon <- coords[[1]]
+      lat <- coords[[2]]
+
+      vegparams <- extract_params(vegp_reg, lon, lat)
+      grndparams <- extract_params(soilc_reg, lon, lat)
+      #paii <- pai[x, y, 1:max(vegparams$h, 0.5)]
+      max_hgt <- max(values(terra::unwrap(vegp_reg$h)))
+      paii <- pai[x, y, 1:max_hgt]
+
+      # try plotprofile
+      ppout <- plotprofile(climdata_reg, hr = 1029, "relhum",
+                            vegparams, paii = paii[1:vegparams$h], grndparams, lat = lat, long= lon)
+      #
+      #pmout <- runprofilemodel(climdata_reg, vegparams,
+      #                           paii = paii[1:vegparams$h], grndparams, lat = lat, long= lon)
+
+      pmout <- micropoint::runpointmodel(climdata_reg, reqhgt = seq(0.5, length(paii)), vegparams,
+                                         paii, grndparams, lat = lat, long = lon)
+
+      # Extract x values from all three line data sources
+      x1 <- ppout$var
+      x2 <- mc$data[1:length(ppout$z), 7] # 1 airt , 7 relhum, 11 windspeed
+      #x3 <- apply(pmout$profile[,,2], 2, mean)
+      x3 <- apply(pmout$relhum, 2, mean)
+
+      # Determine the global x-axis range
+      x_range <- range(c(x2, x3), na.rm = TRUE)
+      y_range <- range(c(ppout$z, seq(length(pmout$height))), na.rm = TRUE)
+
+      pdf(paste0("../../figs/mc_output/test_profile_relhum_cppfct4_comp_", x, "_", y, ".pdf"))
+
+      # Plot the first line with axis labels
+      plot(ppout$z ~ x2, type = "l", xlim = x_range, ylim = y_range,
+           xlab = "Relative Humidity (%)", ylab = "Height (m)")
+
+      # Add the second line
+      lines(pmout$heights ~ x3, col = "red")
+
+      # Add a legend
+      legend("topright",
+             legend = c("Original 'runmodel' for each height", "New cpp 'runmodelProfile'"),
+             col = c("black", "red"), lty = 1, bty = "n")
+
+      dev.off()
+
+      nImgs <- nImgs + 1
+  }
+}
+
+# Benchmarking the speed of the new function
+
+library(microbenchmark)
+
+# Simulate one iteration's data:
+x <- sample(1:50, 1)
+y <- sample(1:50, 1)
+
+coords <- indices2coords(x, y, terra::unwrap(vegp_reg$pai))[c("x", "y")]
+lon <- coords[[1]]
+lat <- coords[[2]]
+
+vegparams <- extract_params(vegp_reg, lon, lat)
+grndparams <- extract_params(soilc_reg, lon, lat)
+max_hgt <- max(values(terra::unwrap(vegp_reg$h)), na.rm = TRUE)
+paii <- pai[x, y, 1:max_hgt]
+heights <- seq(0.5, length(paii))
+
+# Benchmark both approaches
+benchmark_results <- microbenchmark(
+  new_approach = {
+    pmout <- micropoint::runpointmodel(
+      climdata_reg, reqhgt = heights, vegparams,
+      paii, grndparams, lat = lat, long = lon
+    )
+  },
+  old_approach = {
+    for (h in heights) {
+      mout <- micropoint::runpointmodel(
+        climdata_reg, reqhgt = h, vegparams,
+        paii, grndparams, lat = lat, long = lon
+      )
+    }
+  },
+  times = 10L # Repeat 10 times for statistical accuracy
+)
+
+print(benchmark_results)
+
+library(ggplot2)
+pdf("../../figs/benchmarking/mc_benchmarking.pdf")
+autoplot(benchmark_results)
+dev.off()
