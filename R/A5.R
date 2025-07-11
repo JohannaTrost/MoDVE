@@ -129,7 +129,8 @@ dispersal <- function(NumberOfSpecies,
                       ProbabilityMatrixNormalized,
                       SpeciesPool,
                       MaxIndividualID,
-                      Inds) {
+                      Inds,
+                      EnvVarFlags) {
     # Store number of individuals at beginning of time step
     IntialNumberIndividuals <- array(rep(0, NumberOfSpecies))
     for (g in seq_len(NumberOfSpecies)) {
@@ -203,7 +204,9 @@ dispersal <- function(NumberOfSpecies,
                                  (Microhabitat[, , , IdxTemp] <= MatureIndividulsPerSpecies$MaxTemp[1]))
                 WindSuitable <- ((Microhabitat[, , , IdxWind] >= MatureIndividulsPerSpecies$MinWind[1]) &
                                  (Microhabitat[, , , IdxWind] <= MatureIndividulsPerSpecies$MaxWind[1]))
-                pot_habitat <- LightSuitable & HumSuitable & TempSuitable & WindSuitable
+                # Compute potential habitat based on selected flags
+                vars <- c("LightSuitable", "HumSuitable", "TempSuitable", "WindSuitable")
+                pot_habitat <- Reduce("&", mget(vars[as.logical(EnvVarFlags)]))
 
                 print(paste("Potential habitat no. voxels:", sum(pot_habitat, na.rm=TRUE)))
 
@@ -347,6 +350,7 @@ main <- function() {
     SurfaceBiomassScaling <- config$SurfaceBiomassScaling  # cm^2 per m^2
     Imax <- config$Imax  # maximum light above canopy
     UseWindDispersal <- config$UseWindDispersal  # Use wind dispersal (TRUE/FALSE)
+    EnvVarFlags <- config$EnvVarFlags  # Vector of flags for environmental variables (Light, Humidity, Temperature, Wind) to be used in the model
 
     # Competition Methods; defines which individuals are removed in voxels which
     # are entirely filled. 1:size (small individuals are outcompetet by larger ones); 2:random competition
@@ -647,7 +651,8 @@ main <- function() {
                 ProbabilityMatrixNormalized,
                 SpeciesPool,
                 MaxIndividualID,
-                Inds
+                Inds,
+                EnvVarFlags
             )
 
             # Out only.
