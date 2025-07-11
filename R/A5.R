@@ -624,6 +624,8 @@ main <- function() {
                     noNAs <- sum(is.na(ScaledEnvSuitability))
                     noZeros <- sum(ScaledEnvSuitability == 0, na.rm = TRUE)
                     if (noNAs > 0) {
+                        # Replace NAs with zeros
+                        ScaledEnvSuitability[is.na(ScaledEnvSuitability)] <- 0
                         warning(paste0("There are ", (noNAs / prod(dim(ScaledEnvSuitability))) * 100,
                                        "% NA values in the ScaledEnvSuitability matrix.",
                                        "(", currTimeStep, ", ", batchIndex, ")"))
