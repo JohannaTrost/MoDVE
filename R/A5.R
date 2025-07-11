@@ -1,7 +1,7 @@
 options(warn=-1)  # Suppress warnings
 options(digits.secs=3)  # 3 decimal digits for seconds
 
-#setwd("/home/jtrost_ext/MoDVE/R/")
+setwd("/home/jtrost_ext/MoDVE/R/")
 
 # Epiphte IBM - Model
 # This model simulates the development of the entire epiphyte community
@@ -622,13 +622,15 @@ main <- function() {
 
                     # For debugging print number of zeros TODO: remove later
                     noNAs <- sum(is.na(ScaledEnvSuitability))
-                    noZeros <- sum(ScaledEnvSuitability == 0)
+                    noZeros <- sum(ScaledEnvSuitability == 0, na.rm = TRUE)
                     if (noNAs > 0) {
-                        warning(paste0("There are ", noNAs, " NA values in the ScaledEnvSuitability matrix.",
+                        warning(paste0("There are ", (noNAs / prod(dim(ScaledEnvSuitability))) * 100,
+                                       "% NA values in the ScaledEnvSuitability matrix.",
                                        "(", currTimeStep, ", ", batchIndex, ")"))
                     }
                     if (noZeros > 0) {
-                        warning(paste("There are", noZeros, "zero values in the ScaledEnvSuitability matrix.",
+                        warning(paste("There are", (noZeros / prod(dim(ScaledEnvSuitability))) * 100,
+                                      "% zero values in the ScaledEnvSuitability matrix.",
                                       "(", currTimeStep, ", ", batchIndex, ")"))
                     }
                 }
@@ -946,13 +948,8 @@ main <- function() {
             return(NULL)
         },
         error = function(e) {
-          cat("⚠️  Worker failed in time‑step", t,
-              "individual", i, "\n")
+          cat("⚠️  Worker failed in time‑step", t, "\n")
           traceback()
-          saveRDS(list(E = E,
-                       Microhabitat = Microhabitat,
-                       t = t, i = i),
-                  file = file.path(tempdir(), "debug_dump.rds"))
           stop(e)  # re‑throw so foreach marks the task as failed
       })
     }
