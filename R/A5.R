@@ -1,7 +1,7 @@
 options(warn=-1)  # Suppress warnings
 options(digits.secs=3)  # 3 decimal digits for seconds
 
-setwd("/home/jtrost_ext/MoDVE/R/")
+#setwd("/home/jtrost_ext/MoDVE/R/")
 
 # Epiphte IBM - Model
 # This model simulates the development of the entire epiphyte community
@@ -483,453 +483,478 @@ main <- function() {
     # number generation, ensuring reproducible results even in parallel computing environments.
     output <- foreach (pair_idx=seq_len(nrow(pairs)),
                        .export=c("compute_prob_matrix_norm", "int_seq", "dispersal", "GrowthRate")) %dorng% {
-        numPool <- pairs$numPool[pair_idx]
-        r <- pairs$r[pair_idx]
+        tryCatch({
+            numPool <- pairs$numPool[pair_idx]
+            r <- pairs$r[pair_idx]
 
-        # Check if a initial distribution for the species pool exists. If not, move on to the next species pool
-        FileNameInitalDistribution <- file.path(DirectoryInitCommunity, paste0("ID_SpeciesP_", numPool, "_Rep_", r, ".csv"))
-        if (!file.exists(FileNameInitalDistribution)) {
-            print(paste0("Initial distribution file ", FileNameInitalDistribution,
-                         " does not exist. Skipping species pool ", numPool, ", replicate ",
-                         r, "."))
-            return(NULL)
-        }
-
-        # First step: create probability matrices for each species
-        # Load species pool
-        SpeciesPoolFileName <- paste0("SpeciesPool", numPool, ".csv")
-        SpeciesPool <- read.csv(file.path(DirectorySpeciesPools, SpeciesPoolFileName), sep=",", header=TRUE)
-        NumberOfSpecies <- nrow(SpeciesPool)  # number of species per 25X25m plot
-
-        ###########################################################################
-        # Erzeugen der Distanzmatrix und der Wahrscheinlichkeitsmatrix für jede Art
-        # Dimensionen der Dispersal matrix
-        dimX <- dimPlot[1] * 2 + 1
-        dimY <- dimPlot[2] * 2 + 1
-        dimZ <- dimPlot[3] * 2 + 1
-
-        centralPoint <- c(floor(dimX/2) + 1, floor(dimY/2) + 1, floor(dimZ/2) + 1)
-
-        # Create Save-Directory for each each replicate/initialDistribution
-        DirectoryModelResultsRun <- file.path(DirectoryModelResults, paste0("ID_SpeciesP_", numPool, "_Rep_", r))
-        dir.create(DirectoryModelResultsRun, recursive=TRUE)
-
-        # Get direcory with environmental suitability scores for this species pool and replicate
-        DirectoryEnvSuitabilityRun <- file.path(DirectoryEnvSuitability, paste0("ID_SpeciesP_", numPool, "_Rep_", r))
-
-        # Load initial epiphyte distribution
-        E <- read.csv(FileNameInitalDistribution, sep=",", header=TRUE)  # E for epiphytes
-
-        # Add column to E for additional information
-        E[, c("TotalSurfaceInVoxel", "LightInVoxel", "HumInVoxel", "TempInVoxel", "WindInVoxel", "SurfaceLossInVoxel")] <- 0
-
-        MaxIndividualID <- nrow(E)  # to trace individual IDs
-
-        # Initialize Matrix where community parameters are save
-        SummaryMatrixCommunity <- data.frame(matrix(0.0, nrow=timeSteps, ncol=length(SummaryMatrixCommunityHeaders)))
-        colnames(SummaryMatrixCommunity) <- SummaryMatrixCommunityHeaders
-
-        # Load microhabitat matrix if a uniform or static forest is simulated (only needs to be loaded once an not envery timestep)
-        if (MicrohabitatType == 2 || MicrohabitatType == 3) {
-            Microhabitat <- readRDS(file.path(DirectoryMicrohabitat, "MicrohabitatMatrix1.rds"))
-            Microhabitat[, , , Inds["LightNicheOpt"]] <- Microhabitat[, , , Inds["LightNicheOpt"]] * Imax  # In the microhabitat matrix, the realtive light extinction is stored: convert to light values in ?mol*m-2*s-1
-
-            d1 <- dim(Microhabitat)[1]
-            d2 <- dim(Microhabitat)[2]
-            d3 <- dim(Microhabitat)[3]
-            pot_habitat <- array(rep(0, d1 * d2 * d3), dim=c(d1, d2, d3))
-        }
-
-        # Initialize matrices where the aggregated information on species level are saved
-        SummaryMatrixSpeciesSave <- array(rep(0, (timeSteps*NumberOfSpecies) * (TotalColsSpeciesMatrix + 1)), dim=c(timeSteps*NumberOfSpecies, TotalColsSpeciesMatrix + 1))
-
-        # Initialize Matrix where speceies parameters are save
-        SummaryMatrixSpecies <- array(rep(0, (timeSteps*NumberOfSpecies) * TotalColsSpeciesMatrix), dim=c(timeSteps*NumberOfSpecies, TotalColsSpeciesMatrix))
-
-        # Load all Max suitability scores for later scaling
-        maxSuitPaths <- Sys.glob(file.path(DirectoryEnvSuitabilityRun, "MaxSuitability*.txt"))
-        suitList <- lapply(maxSuitPaths, read.table)
-        SpeciesMaxSuitability <- do.call(pmax, suitList)
-
-        # Get all initial time steps
-        envSuitPaths <- Sys.glob(file.path(DirectoryEnvSuitabilityRun, "UnscaledEnvSuitability*.h5"))
-        # Extract start and end time steps using regular expressions
-        timeStepBatches <- regmatches(envSuitPaths, regexec("t(\\d+)-t(\\d+)", envSuitPaths))
-        timeStepBatches <- do.call(rbind, lapply(timeStepBatches, function(x) as.numeric(x[2:3])))
-        # Sort the time steps
-        indsSorted <- order(timeStepBatches[, 1])
-        batchStarts <- timeStepBatches[indsSorted, 1]
-        batchEnds <- timeStepBatches[indsSorted, 2]
-        # Check if batches are continuous
-        if (all(batchStarts[-1] != batchEnds[-length(batchEnds)] + 1)) {
-            stop("❌ Environmental suitability scores are not provided for all time steps or batches overlap.")
-        }
-
-        for (t in seq_len(timeSteps)) {
-
-            currTimeStep <- InitialTimeStep + t - 1  # Current time step in the simulation
-
-            # Check if the stop criterion is met
-            if (length(which(E$Status == 1)) > StopCriterion) {
-                break
+            # Check if a initial distribution for the species pool exists. If not, move on to the next species pool
+            FileNameInitalDistribution <- file.path(DirectoryInitCommunity, paste0("ID_SpeciesP_", numPool, "_Rep_", r, ".csv"))
+            if (!file.exists(FileNameInitalDistribution)) {
+                print(paste0("Initial distribution file ", FileNameInitalDistribution,
+                             " does not exist. Skipping species pool ", numPool, ", replicate ",
+                             r, "."))
+                return(NULL)
             }
 
-            # Load microhabitat matrix for specific timeStep if dynamic forest is simulated
-            if (MicrohabitatType == 1) {
-                Microhabitat <- readRDS(file.path(DirectoryMicrohabitat, paste0("MicrohabitatMatrix", currTimeStep, ".rds")))
+            # First step: create probability matrices for each species
+            # Load species pool
+            SpeciesPoolFileName <- paste0("SpeciesPool", numPool, ".csv")
+            SpeciesPool <- read.csv(file.path(DirectorySpeciesPools, SpeciesPoolFileName), sep = ",", header = TRUE)
+            NumberOfSpecies <- nrow(SpeciesPool)  # number of species per 25X25m plot
+
+            ###########################################################################
+            # Erzeugen der Distanzmatrix und der Wahrscheinlichkeitsmatrix für jede Art
+            # Dimensionen der Dispersal matrix
+            dimX <- dimPlot[1] * 2 + 1
+            dimY <- dimPlot[2] * 2 + 1
+            dimZ <- dimPlot[3] * 2 + 1
+
+            centralPoint <- c(floor(dimX / 2) + 1, floor(dimY / 2) + 1, floor(dimZ / 2) + 1)
+
+            # Create Save-Directory for each each replicate/initialDistribution
+            DirectoryModelResultsRun <- file.path(DirectoryModelResults, paste0("ID_SpeciesP_", numPool, "_Rep_", r))
+            dir.create(DirectoryModelResultsRun, recursive = TRUE)
+
+            # Get direcory with environmental suitability scores for this species pool and replicate
+            DirectoryEnvSuitabilityRun <- file.path(DirectoryEnvSuitability, paste0("ID_SpeciesP_", numPool, "_Rep_", r))
+
+            # Load initial epiphyte distribution
+            E <- read.csv(FileNameInitalDistribution, sep = ",", header = TRUE)  # E for epiphytes
+
+            # Add column to E for additional information
+            E[, c("TotalSurfaceInVoxel", "LightInVoxel", "HumInVoxel", "TempInVoxel", "WindInVoxel", "SurfaceLossInVoxel")] <- 0
+
+            MaxIndividualID <- nrow(E)  # to trace individual IDs
+
+            # Initialize Matrix where community parameters are save
+            SummaryMatrixCommunity <- data.frame(matrix(0.0, nrow = timeSteps, ncol = length(SummaryMatrixCommunityHeaders)))
+            colnames(SummaryMatrixCommunity) <- SummaryMatrixCommunityHeaders
+
+            # Load microhabitat matrix if a uniform or static forest is simulated (only needs to be loaded once an not envery timestep)
+            if (MicrohabitatType == 2 || MicrohabitatType == 3) {
+                Microhabitat <- readRDS(file.path(DirectoryMicrohabitat, "MicrohabitatMatrix1.rds"))
                 Microhabitat[, , , Inds["LightNicheOpt"]] <- Microhabitat[, , , Inds["LightNicheOpt"]] * Imax  # In the microhabitat matrix, the realtive light extinction is stored: convert to light values in ?mol*m-2*s-1
 
-                if (currTimeStep %in% batchStarts) {  # Check if the current time step is the start of a batch
+                d1 <- dim(Microhabitat)[1]
+                d2 <- dim(Microhabitat)[2]
+                d3 <- dim(Microhabitat)[3]
+                pot_habitat <- array(rep(0, d1 * d2 * d3), dim = c(d1, d2, d3))
+            }
 
-                    message(paste("Starting batch with initial time step:", currTimeStep))
+            # Initialize matrices where the aggregated information on species level are saved
+            SummaryMatrixSpeciesSave <- array(rep(0, (timeSteps * NumberOfSpecies) * (TotalColsSpeciesMatrix + 1)), dim = c(timeSteps * NumberOfSpecies, TotalColsSpeciesMatrix + 1))
 
-                    batchStart <- currTimeStep
+            # Initialize Matrix where speceies parameters are save
+            SummaryMatrixSpecies <- array(rep(0, (timeSteps * NumberOfSpecies) * TotalColsSpeciesMatrix), dim = c(timeSteps * NumberOfSpecies, TotalColsSpeciesMatrix))
 
-                    # Load unscaled Environmental Suitability Scores
-                    SuitFileName <- paste0("UnscaledEnvSuitability_t", currTimeStep, "-t",
-                                           batchEnds[which(batchStarts == batchStart)])
-                    file <- file.path(DirectoryEnvSuitabilityRun, paste0(SuitFileName, ".h5"))
+            # Load all Max suitability scores for later scaling
+            maxSuitPaths <- Sys.glob(file.path(DirectoryEnvSuitabilityRun, "MaxSuitability*.txt"))
+            suitList <- lapply(maxSuitPaths, read.table)
+            SpeciesMaxSuitability <- do.call(pmax, suitList)
 
-                    if (file.exists(file)) {
-                        EnvSuitability <- h5read(file, SuitFileName)
-                        BatchSize <- dim(EnvSuitability)[5]
-                        # Expand matrix of max suitability scores to match the environmental suitability dimensions
-                        SpeciesMaxSuitability_ext <- array(rep(as.matrix(SpeciesMaxSuitability),
-                                                               each = prod(dimPlot) * BatchSize),
-                                                          dim = c(dimPlot, BatchSize, NumberOfSpecies))
-                        SpeciesMaxSuitability_ext <- aperm(SpeciesMaxSuitability_ext, c(1, 2, 3, 5, 4))
+            # Get all initial time steps
+            envSuitPaths <- Sys.glob(file.path(DirectoryEnvSuitabilityRun, "UnscaledEnvSuitability*.h5"))
+            # Extract start and end time steps using regular expressions
+            timeStepBatches <- regmatches(envSuitPaths, regexec("t(\\d+)-t(\\d+)", envSuitPaths))
+            timeStepBatches <- do.call(rbind, lapply(timeStepBatches, function(x) as.numeric(x[2:3])))
+            # Sort the time steps
+            indsSorted <- order(timeStepBatches[, 1])
+            batchStarts <- timeStepBatches[indsSorted, 1]
+            batchEnds <- timeStepBatches[indsSorted, 2]
+            # Check if batches are continuous
+            if (all(batchStarts[-1] != batchEnds[-length(batchEnds)] + 1)) {
+                stop("❌ Environmental suitability scores are not provided for all time steps or batches overlap.")
+            }
 
-                        # Scale the suitability scores by the global specoes maximum suitability
-                        message(dim(SpeciesMaxSuitability_ext))
-                        message(dim(EnvSuitability))
-                        ScaledEnvSuitabilityBatch <- EnvSuitability / SpeciesMaxSuitability_ext
-                    } else {
-                        stop("EnvSuitability file does not exist: ", file,
-                             ". Check specified timesteps and initial time step of input configuration.")
+            for (t in seq_len(timeSteps)) {
+
+                currTimeStep <- InitialTimeStep + t - 1  # Current time step in the simulation
+
+                # Check if the stop criterion is met
+                if (length(which(E$Status == 1)) > StopCriterion) {
+                    break
+                }
+
+                # Load microhabitat matrix for specific timeStep if dynamic forest is simulated
+                if (MicrohabitatType == 1) {
+                    Microhabitat <- readRDS(file.path(DirectoryMicrohabitat, paste0("MicrohabitatMatrix", currTimeStep, ".rds")))
+                    Microhabitat[, , , Inds["LightNicheOpt"]] <- Microhabitat[, , , Inds["LightNicheOpt"]] * Imax  # In the microhabitat matrix, the realtive light extinction is stored: convert to light values in ?mol*m-2*s-1
+
+                    # Count NAs in the microhabitat matrix
+                    noNAs <- sum(is.na(Microhabitat))
+                    if (noNAs > 0) {
+                        # put - 999 where NAs are
+                        Microhabitat[is.na(Microhabitat)] <- -999
+                        warning(paste0("There are ", noNAs, " NA values in the Microhabitat matrix for time step ", currTimeStep, "."))
                     }
-                }
-                batchIndex <- currTimeStep - batchStart + 1
-                ScaledEnvSuitability <- ScaledEnvSuitabilityBatch[,,,, batchIndex]
 
-                # For debugging print number of zeros TODO: remove later
-                noNAs <- sum(is.na(ScaledEnvSuitability))
-                noZeros <- sum(ScaledEnvSuitability == 0)
-                if (noNAs > 0) {
-                    warning(paste0("There are ", noNAs, " NA values in the ScaledEnvSuitability matrix.",
-                                   "(", currTimeStep, ", ", batchIndex, ")"))
-                }
-                if (noZeros > 0) {
-                    warning(paste("There are", noZeros, "zero values in the ScaledEnvSuitability matrix.",
-                                  "(", currTimeStep, ", ", batchIndex, ")"))
-                }
-            }
+                    if (currTimeStep %in% batchStarts) {  # Check if the current time step is the start of a batch
 
-            ###############################################################################
-            # 1. Dispersal
+                        message(paste("Starting batch with initial time step:", currTimeStep))
 
-            # Create probability matrix for each species
-            if (UseWindDispersal) {
-                ProbabilityMatrixNormalized <- compute_prob_matrix_norm(
-                  centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool,
-                  Microhabitat[,,,Inds["WindNicheOpt"]])
-            } else {
-                ProbabilityMatrixNormalized <- compute_prob_matrix_norm(
-                  centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool
-                )
-            }
+                        batchStart <- currTimeStep
 
-            # Generate dispersal/recruitment matrix
-            disp_items <- dispersal(
-                NumberOfSpecies,
-                E,
-                Microhabitat,
-                SurfaceBiomassScaling,
-                dimPlot,
-                centralPoint,
-                InterceptRecruitment,
-                SlopeRecruitment,
-                ProbabilityMatrixNormalized,
-                SpeciesPool,
-                MaxIndividualID,
-                Inds,
-                EnvVarFlags
-            )
+                        # Load unscaled Environmental Suitability Scores
+                        SuitFileName <- paste0("UnscaledEnvSuitability_t", currTimeStep, "-t",
+                                               batchEnds[which(batchStarts == batchStart)])
+                        file <- file.path(DirectoryEnvSuitabilityRun, paste0(SuitFileName, ".h5"))
 
-            # Out only.
-            # Created in dispersal() and used later in the script.
-            IntialNumberIndividuals <- disp_items$IntialNumberIndividuals
-            NumberRecruitsPerSpecies <- disp_items$NumberRecruitsPerSpecies
-            InitialNumberSpecies <- disp_items$InitialNumberSpecies
-            IntialNumberIndividualsTotal <- disp_items$IntialNumberIndividualsTotal
-            PotentialRecruitment <- disp_items$PotentialRecruitment
+                        if (file.exists(file)) {
+                            EnvSuitability <- h5read(file, SuitFileName)
+                            BatchSize <- dim(EnvSuitability)[5]
+                            # Expand matrix of max suitability scores to match the environmental suitability dimensions
+                            SpeciesMaxSuitability_ext <- array(rep(as.matrix(SpeciesMaxSuitability),
+                                                                   each = prod(dimPlot) * BatchSize),
+                                                               dim = c(dimPlot, BatchSize, NumberOfSpecies))
+                            SpeciesMaxSuitability_ext <- aperm(SpeciesMaxSuitability_ext, c(1, 2, 3, 5, 4))
 
-            # Inout.
-            # Created outside dispersal(), modified in dispersal and used later too.
-            E <- disp_items$E
-            MaxIndividualID <- disp_items$MaxIndividualID  # This is only modified in dispersal()
-
-            # Store potential normalized number of recruits in SummaryMatrixSpecies
-            for (ii in seq_len(nrow(PotentialRecruitment))) {
-                kk <- PotentialRecruitment$index[ii]
-                if (kk != 0) {
-                    SummaryMatrixSpecies[((kk-1) * timeSteps) + t, ColSNumberRecruitsPotential] <- PotentialRecruitment$potential_recruit[ii]
-                }
-            }
-
-            NumberRecruits <- length(which(E$Status == 1)) - IntialNumberIndividualsTotal
-
-            # Unclear what this line in the Matlab script is supposed to do.
-            # From what I understand, the first column in E ("SpeciesID") takes non-zero values
-            # only, so I think that E(:,1)==0 will always be empty.
-            # E(E(:,1)==0,:)=[]; %in rare case, some individuals with only zeros are creates, which is wrong. This is to prevent the script to stop.
-
-            ###############################################################################
-            # Growth
-            for (i in seq_len(nrow(E))) {
-                # maybe it is faster if I do not use the if statement => speed testing
-                if (E$Status[i] == 1) {
-                    GrowthR <- GrowthRate(E$MaximumMass[i], E$Mass[i], E$GrowthRate[i])
-                    SuitabilityIndividual <- ScaledEnvSuitability[E$X[i], E$Y[i], E$Z[i], E$SpeciesID[i]]
-
-                    # TODO temprary remove later!
-                    if (is.na(SuitabilityIndividual)) {
-                        warning("SuitabilityIndividual is NA for individual ",
-                                E$IndividualID[i],
-                                ". Using species mean suitability for given height instead.")
-                        SuitabilityIndividual <- mean(ScaledEnvSuitability[,,E$Z[i], E$SpeciesID[i]], na.rm = TRUE)
-                        if (is.na(SuitabilityIndividual)) {
-                            SuitabilityIndividual <- 0  # If still NA, set to 0
+                            # Scale the suitability scores by the global specoes maximum suitability
+                            message(dim(SpeciesMaxSuitability_ext))
+                            message(dim(EnvSuitability))
+                            ScaledEnvSuitabilityBatch <- EnvSuitability / SpeciesMaxSuitability_ext
+                        } else {
+                            stop("EnvSuitability file does not exist: ", file,
+                                 ". Check specified timesteps and initial time step of input configuration.")
                         }
                     }
+                    batchIndex <- currTimeStep - batchStart + 1
+                    ScaledEnvSuitability <- ScaledEnvSuitabilityBatch[, , , , batchIndex]
 
-                    E$Mass[i] <- E$Mass[i] + max(0, GrowthR * SuitabilityIndividual)
-                }
-
-                # Add information about the voxel to the epiphyte matrix
-                E$SurfaceAreaOccupied[i] <- (E$Mass[i]^(2/3)) / SurfaceBiomassScaling
-                E$TotalSurfaceInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["TotalSurfaceAreaOpt"]]  # Total surface in voxel
-                E$SurfaceLossInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["SurfaceAreaLossOpt"]]  # Percentage surface loss in this year
-                E$LightInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["LightNicheOpt"]]  # Light conditions in voxel
-                E$HumInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["HumNicheOpt"]]  # Humidity in voxel
-                E$TempInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["TempNicheOpt"]]  # Temperature in voxel
-                E$WindInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["WindNicheOpt"]]  # Wind in voxel
-            }
-            ###############################################################################
-
-            ###############################################################################
-            # Mortality
-            for (i in seq_len(nrow(E))) {
-                if (E$Status[i] == 1) {
-
-                    # The following comparison would fail without the is.nan check,
-                    # because Microhabitat contains NaNs in some entries and
-                    # in R a comparison with a NaN returns NA, not a boolean.
-                    # Note: We call runif repeatedly intentionally. See Issue #16 on Github
-                    if (!is.nan(Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["SurfaceAreaLossOpt"]]) &&
-                      runif(1, min=0, max=1) < Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["SurfaceAreaLossOpt"]]) {  # Mortality due to branch fall
-                        E$Status[i] <- 3
-                    } else if (E$LightInVoxel[i] < E$MinLight[i] | E$LightInVoxel[i] > E$MaxLight[i]) {  # Mortality due to changing light conditions
-                        E$Status[i] <- 4
-                    } else if (MortalityMethod == 0 && runif(1, min=0, max=1) < MortRateRandom) {  # Natural mortality rate
-                        E$Status[i] <- 5
-                    } else if (MortalityMethod == 1 && runif(1, min=0, max=1) < (MortRateMass * (E$Mass[i]^MortRateMassScaling))) {
-                        E$Status[i] <- 5
-                    } else if (!is.na(E$HumInVoxel[i]) && (E$HumInVoxel[i] < E$MinHum[i] | E$HumInVoxel[i] > E$MaxHum[i])) {
-                        E$Status[i] <- 6
-                    } else if (!is.na(E$TempInVoxel[i]) && (E$TempInVoxel[i] < E$MinTemp[i] | E$TempInVoxel[i] > E$MaxTemp[i])) {
-                        E$Status[i] <- 7
-                    } else if (!is.na(E$WindInVoxel[i]) && E$WindInVoxel[i] > E$MaxWind[i]) {
-                        E$Status[i] <- 8
+                    # For debugging print number of zeros TODO: remove later
+                    noNAs <- sum(is.na(ScaledEnvSuitability))
+                    noZeros <- sum(ScaledEnvSuitability == 0)
+                    if (noNAs > 0) {
+                        warning(paste0("There are ", noNAs, " NA values in the ScaledEnvSuitability matrix.",
+                                       "(", currTimeStep, ", ", batchIndex, ")"))
+                    }
+                    if (noZeros > 0) {
+                        warning(paste("There are", noZeros, "zero values in the ScaledEnvSuitability matrix.",
+                                      "(", currTimeStep, ", ", batchIndex, ")"))
                     }
                 }
-            }
 
-            # Mortality due to competition for space
+                ###############################################################################
+                # 1. Dispersal
 
-            # Calculate total surface area occupied by epiphytes per voxel
-            TotalSurfaceArePerVoxelOccupied <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3]), dim=c(dimPlot[1], dimPlot[2], dimPlot[3]))
-            for (w in seq_len(nrow(E))) {
-                if (E$Status[w] == 1) {
-                    TotalSurfaceArePerVoxelOccupied[E$X[w], E$Y[w], E$Z[w]] <- TotalSurfaceArePerVoxelOccupied[E$X[w], E$Y[w], E$Z[w]] + E$SurfaceAreaOccupied[w]
-                }
-            }
-
-            # Indices of voxel where total area of epiphytes exeeds the available surface area
-            ind_tmp <- arrayInd(which(TotalSurfaceArePerVoxelOccupied >
-                                        Microhabitat[, , , Inds["TotalSurfaceAreaOpt"]]),
-                                dim(TotalSurfaceArePerVoxelOccupied))
-            IndX <- ind_tmp[, 1]
-            IndY <- ind_tmp[, 2]
-            IndZ <- ind_tmp[, 3]
-
-            for (i in seq_len(length(IndX))) {
-                # Get all epis in voxel
-                EpisInVoxel <- E[E$X == IndX[i] & E$Y == IndY[i] & E$Z == IndZ[i] & E$Status == 1, ]
-
-                # Sort them by size (CompetitionMethod=1) or randomly (CompetitionMethod=2)
-                if (CompetitionMethod == 1) {
-                    EpisInVoxel <- EpisInVoxel[order(EpisInVoxel$SurfaceAreaOccupied, decreasing=TRUE), ]
-                } else if (CompetitionMethod == 2) {
-                    EpisInVoxel <- EpisInVoxel[sample(seq_len(nrow(EpisInVoxel))), ]
-                }
-
-                CumulativeSumOfSurface <- cumsum(EpisInVoxel$SurfaceAreaOccupied)
-                CumulativeSumOfSurfaceSum <- length(which(CumulativeSumOfSurface <= Microhabitat[IndX[i], IndY[i], IndZ[i], Inds["TotalSurfaceAreaOpt"]]))
-
-                if (CumulativeSumOfSurfaceSum < nrow(EpisInVoxel)) {
-                    E[is.element(E$IndividualID, EpisInVoxel[int_seq(CumulativeSumOfSurfaceSum + 1, nrow(EpisInVoxel)), "IndividualID"]), "Status"] <- 2
-                }
-            }
-            ###############################################################################
-
-            # Increase age
-            E$Age <- E$Age + 1
-
-            # Save number of mortality event
-            MortalityCompetition <- length(which(E$Status == 2))
-            MortalityBranchFall <- length(which(E$Status == 3))
-            MortalityLight <- length(which(E$Status == 4))
-            MortalityNatural <- length(which(E$Status == 5))
-            MortalityHum <- length(which(E$Status == 6))
-            MortalityTemp <- length(which(E$Status == 7))
-            MortalityWind <- length(which(E$Status == 8))
-
-            ###############################################################################
-
-            # Store information in SummaryMatrixSpecies (summary over time for each species
-            for (numSpecies in seq_len(NumberOfSpecies)) {
-
-                # Define the row index once
-                rowIndex <- ((numSpecies - 1) * timeSteps) + t
-
-                SummaryMatrixSpecies[rowIndex, ColSSpeciesID] <- numSpecies
-                SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsBeginning] <- IntialNumberIndividuals[numSpecies]
-                SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsEnd] <- sum(E$Status == 1 & E$SpeciesID == numSpecies, na.rm=TRUE)
-                SummaryMatrixSpecies[rowIndex, ColSNumberMatureIndividuals] <- sum(E$Status == 1 & E$SpeciesID == numSpecies & E$Mass >= E$MassAtMaturity, na.rm=TRUE)
-                SummaryMatrixSpecies[rowIndex, ColSNumberRecruits] <- NumberRecruitsPerSpecies[numSpecies]
-                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityBranchFall] <- sum(E$Status == 3 & E$SpeciesID == numSpecies, na.rm=TRUE)
-                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityLight] <- sum(E$Status == 4 & E$SpeciesID == numSpecies, na.rm=TRUE)
-                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityCompetition] <- sum(E$Status == 2 & E$SpeciesID == numSpecies, na.rm=TRUE)
-                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityNatural] <- sum(E$Status == 5 & E$SpeciesID == numSpecies, na.rm=TRUE)
-                # Climate mortality
-                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityHum] <- sum(E$Status == 6 & E$SpeciesID == numSpecies, na.rm=TRUE)
-                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityTemp] <- sum(E$Status == 7 & E$SpeciesID == numSpecies, na.rm=TRUE)
-                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityWind] <- sum(E$Status == 8 & E$SpeciesID == numSpecies, na.rm=TRUE)
-
-                if (sum(E$Status == 1 & E$SpeciesID == numSpecies, na.rm=TRUE) > 0 && IntialNumberIndividuals[numSpecies] > 0) {
-                    SummaryMatrixSpecies[rowIndex, ColSNumberPopulationGrowthRate] <- SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsEnd] / SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsBeginning]
-                    SummaryMatrixSpecies[rowIndex, ColSNumberPopulationGrowthRateLog] <- log(SummaryMatrixSpecies[rowIndex, ColSNumberPopulationGrowthRate])
-                    SummaryMatrixSpecies[rowIndex, ColSNumberBirthRate] <- NumberRecruitsPerSpecies[numSpecies] / IntialNumberIndividuals[numSpecies]
-                    death_statuses <- c(2, 3, 4, 5) # 2: competition, 3: branch fall, 4: light, 5: natural mortality, 6: humidity, 7: temperature, 8: wind
-                    SummaryMatrixSpecies[rowIndex, ColSNumberDeathRate] <- sum(E$Status %in% death_statuses & E$SpeciesID == numSpecies, na.rm = TRUE) / IntialNumberIndividuals[numSpecies]
-                    SummaryMatrixSpecies[rowIndex, ColSAverageSize] <- mean(E$Mass[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSAverageAge] <- mean(E$Age[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMinLight] <- min(E$LightInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMaxLight] <- max(E$LightInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMeanLight] <- mean(E$LightInVoxel[E$SpeciesID == numSpecies])
-                    # SummaryMatrixSpecies[rowIndex, ColSMinHeight] <- min(E$Z[E$SpeciesID == numSpecies])
-                    # SummaryMatrixSpecies[rowIndex, ColSMaxHeight] <- max(E$Z[E$SpeciesID == numSpecies])
-                    # SummaryMatrixSpecies[rowIndex, ColSMeanHeight] <- mean(E$Z[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMinHum] <- min(E$HumInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMaxHum] <- max(E$HumInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMeanHum] <- mean(E$HumInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMinTemp] <- min(E$TempInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMaxTemp] <- max(E$TempInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMeanTemp] <- mean(E$TempInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMinWind] <- min(E$WindInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMaxWind] <- max(E$WindInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMeanWind] <- mean(E$WindInVoxel[E$SpeciesID == numSpecies])
+                # Create probability matrix for each species
+                if (UseWindDispersal) {
+                    ProbabilityMatrixNormalized <- compute_prob_matrix_norm(
+                      centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool,
+                      Microhabitat[, , , Inds["WindNicheOpt"]])
                 } else {
-                    # List of columns to be set to NaN
-                    cols4summary <- c(
-                      ColSNumberPopulationGrowthRate,
-                      ColSNumberPopulationGrowthRateLog,
-                      ColSNumberBirthRate,
-                      ColSNumberDeathRate,
-                      ColSAverageSize,
-                      ColSAverageAge,
-                      ColSMinLight,
-                      ColSMaxLight,
-                      ColSMeanLight,
-                      ColSMinHum,
-                      ColSMaxHum,
-                      ColSMeanHum,
-                      ColSMinTemp,
-                      ColSMaxTemp,
-                      ColSMeanTemp,
-                      ColSMinWind,
-                      ColSMaxWind,
-                      ColSMeanWind
+                    ProbabilityMatrixNormalized <- compute_prob_matrix_norm(
+                      centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool
                     )
-                    # Set all specified columns to NaN for the given row
-                    SummaryMatrixSpecies[rowIndex, cols4summary] <- NaN
-                    # SummaryMatrixSpecies[rowIndex, ColSMinHeight] <- NaN
-                    # SummaryMatrixSpecies[rowIndex, ColSMaxHeight] <- NaN
-                    # SummaryMatrixSpecies[rowIndex, ColSMeanHeight] <- NaN
                 }
 
-                SummaryMatrixSpeciesSave[rowIndex, 1] <- currTimeStep
-                SummaryMatrixSpeciesSave[rowIndex, int_seq(2, TotalColsSpeciesMatrix + 1)] <- SummaryMatrixSpecies[rowIndex, ]
+                # Generate dispersal/recruitment matrix
+                disp_items <- dispersal(
+                  NumberOfSpecies,
+                  E,
+                  Microhabitat,
+                  SurfaceBiomassScaling,
+                  dimPlot,
+                  centralPoint,
+                  InterceptRecruitment,
+                  SlopeRecruitment,
+                  ProbabilityMatrixNormalized,
+                  SpeciesPool,
+                  MaxIndividualID,
+                  Inds,
+                  EnvVarFlags
+                )
+
+                # Out only.
+                # Created in dispersal() and used later in the script.
+                IntialNumberIndividuals <- disp_items$IntialNumberIndividuals
+                NumberRecruitsPerSpecies <- disp_items$NumberRecruitsPerSpecies
+                InitialNumberSpecies <- disp_items$InitialNumberSpecies
+                IntialNumberIndividualsTotal <- disp_items$IntialNumberIndividualsTotal
+                PotentialRecruitment <- disp_items$PotentialRecruitment
+
+                # Inout.
+                # Created outside dispersal(), modified in dispersal and used later too.
+                E <- disp_items$E
+                MaxIndividualID <- disp_items$MaxIndividualID  # This is only modified in dispersal()
+
+                # Store potential normalized number of recruits in SummaryMatrixSpecies
+                for (ii in seq_len(nrow(PotentialRecruitment))) {
+                    kk <- PotentialRecruitment$index[ii]
+                    if (kk != 0) {
+                        SummaryMatrixSpecies[((kk - 1) * timeSteps) + t, ColSNumberRecruitsPotential] <- PotentialRecruitment$potential_recruit[ii]
+                    }
+                }
+
+                NumberRecruits <- length(which(E$Status == 1)) - IntialNumberIndividualsTotal
+
+                # Unclear what this line in the Matlab script is supposed to do.
+                # From what I understand, the first column in E ("SpeciesID") takes non-zero values
+                # only, so I think that E(:,1)==0 will always be empty.
+                # E(E(:,1)==0,:)=[]; %in rare case, some individuals with only zeros are creates, which is wrong. This is to prevent the script to stop.
+
+                ###############################################################################
+                # Growth
+                for (i in seq_len(nrow(E))) {
+                    # maybe it is faster if I do not use the if statement => speed testing
+                    if (E$Status[i] == 1) {
+                        GrowthR <- GrowthRate(E$MaximumMass[i], E$Mass[i], E$GrowthRate[i])
+                        SuitabilityIndividual <- ScaledEnvSuitability[E$X[i], E$Y[i], E$Z[i], E$SpeciesID[i]]
+
+                        # TODO temprary remove later!
+                        if (is.na(SuitabilityIndividual)) {
+                            warning("SuitabilityIndividual is NA for individual ",
+                                    E$IndividualID[i],
+                                    ". Using species mean suitability for given height instead.")
+                            SuitabilityIndividual <- mean(ScaledEnvSuitability[, , E$Z[i], E$SpeciesID[i]], na.rm = TRUE)
+                            if (is.na(SuitabilityIndividual)) {
+                                SuitabilityIndividual <- 0  # If still NA, set to 0
+                            }
+                        }
+
+                        E$Mass[i] <- E$Mass[i] + max(0, GrowthR * SuitabilityIndividual)
+                    }
+
+                    # Add information about the voxel to the epiphyte matrix
+                    E$SurfaceAreaOccupied[i] <- (E$Mass[i]^(2 / 3)) / SurfaceBiomassScaling
+                    E$TotalSurfaceInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["TotalSurfaceAreaOpt"]]  # Total surface in voxel
+                    E$SurfaceLossInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["SurfaceAreaLossOpt"]]  # Percentage surface loss in this year
+                    E$LightInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["LightNicheOpt"]]  # Light conditions in voxel
+                    E$HumInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["HumNicheOpt"]]  # Humidity in voxel
+                    E$TempInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["TempNicheOpt"]]  # Temperature in voxel
+                    E$WindInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["WindNicheOpt"]]  # Wind in voxel
+                }
+                ###############################################################################
+
+                ###############################################################################
+                # Mortality
+                for (i in seq_len(nrow(E))) {
+                    if (E$Status[i] == 1) {
+
+                        # The following comparison would fail without the is.nan check,
+                        # because Microhabitat contains NaNs in some entries and
+                        # in R a comparison with a NaN returns NA, not a boolean.
+                        # Note: We call runif repeatedly intentionally. See Issue #16 on Github
+                        if (!is.nan(Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["SurfaceAreaLossOpt"]]) &&
+                          runif(1, min = 0, max = 1) < Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["SurfaceAreaLossOpt"]]) {  # Mortality due to branch fall
+                            E$Status[i] <- 3
+                        } else if (E$LightInVoxel[i] < E$MinLight[i] | E$LightInVoxel[i] > E$MaxLight[i]) {  # Mortality due to changing light conditions
+                            E$Status[i] <- 4
+                        } else if (MortalityMethod == 0 && runif(1, min = 0, max = 1) < MortRateRandom) {  # Natural mortality rate
+                            E$Status[i] <- 5
+                        } else if (MortalityMethod == 1 && runif(1, min = 0, max = 1) < (MortRateMass * (E$Mass[i]^MortRateMassScaling))) {
+                            E$Status[i] <- 5
+                        } else if (!is.na(E$HumInVoxel[i]) && (E$HumInVoxel[i] < E$MinHum[i] | E$HumInVoxel[i] > E$MaxHum[i])) {
+                            E$Status[i] <- 6
+                        } else if (!is.na(E$TempInVoxel[i]) && (E$TempInVoxel[i] < E$MinTemp[i] | E$TempInVoxel[i] > E$MaxTemp[i])) {
+                            E$Status[i] <- 7
+                        } else if (!is.na(E$WindInVoxel[i]) && E$WindInVoxel[i] > E$MaxWind[i]) {
+                            E$Status[i] <- 8
+                        }
+                    }
+                }
+
+                # Mortality due to competition for space
+
+                # Calculate total surface area occupied by epiphytes per voxel
+                TotalSurfaceArePerVoxelOccupied <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3]), dim = c(dimPlot[1], dimPlot[2], dimPlot[3]))
+                for (w in seq_len(nrow(E))) {
+                    if (E$Status[w] == 1) {
+                        TotalSurfaceArePerVoxelOccupied[E$X[w], E$Y[w], E$Z[w]] <- TotalSurfaceArePerVoxelOccupied[E$X[w], E$Y[w], E$Z[w]] + E$SurfaceAreaOccupied[w]
+                    }
+                }
+
+                # Indices of voxel where total area of epiphytes exeeds the available surface area
+                ind_tmp <- arrayInd(which(TotalSurfaceArePerVoxelOccupied >
+                                            Microhabitat[, , , Inds["TotalSurfaceAreaOpt"]]),
+                                    dim(TotalSurfaceArePerVoxelOccupied))
+                IndX <- ind_tmp[, 1]
+                IndY <- ind_tmp[, 2]
+                IndZ <- ind_tmp[, 3]
+
+                for (i in seq_len(length(IndX))) {
+                    # Get all epis in voxel
+                    EpisInVoxel <- E[E$X == IndX[i] &
+                                       E$Y == IndY[i] &
+                                       E$Z == IndZ[i] &
+                                       E$Status == 1,]
+
+                    # Sort them by size (CompetitionMethod=1) or randomly (CompetitionMethod=2)
+                    if (CompetitionMethod == 1) {
+                        EpisInVoxel <- EpisInVoxel[order(EpisInVoxel$SurfaceAreaOccupied, decreasing = TRUE),]
+                    } else if (CompetitionMethod == 2) {
+                        EpisInVoxel <- EpisInVoxel[sample(seq_len(nrow(EpisInVoxel))),]
+                    }
+
+                    CumulativeSumOfSurface <- cumsum(EpisInVoxel$SurfaceAreaOccupied)
+                    CumulativeSumOfSurfaceSum <- length(which(CumulativeSumOfSurface <= Microhabitat[IndX[i], IndY[i], IndZ[i], Inds["TotalSurfaceAreaOpt"]]))
+
+                    if (CumulativeSumOfSurfaceSum < nrow(EpisInVoxel)) {
+                        E[is.element(E$IndividualID, EpisInVoxel[int_seq(CumulativeSumOfSurfaceSum + 1, nrow(EpisInVoxel)), "IndividualID"]), "Status"] <- 2
+                    }
+                }
+                ###############################################################################
+
+                # Increase age
+                E$Age <- E$Age + 1
+
+                # Save number of mortality event
+                MortalityCompetition <- length(which(E$Status == 2))
+                MortalityBranchFall <- length(which(E$Status == 3))
+                MortalityLight <- length(which(E$Status == 4))
+                MortalityNatural <- length(which(E$Status == 5))
+                MortalityHum <- length(which(E$Status == 6))
+                MortalityTemp <- length(which(E$Status == 7))
+                MortalityWind <- length(which(E$Status == 8))
+
+                ###############################################################################
+
+                # Store information in SummaryMatrixSpecies (summary over time for each species
+                for (numSpecies in seq_len(NumberOfSpecies)) {
+
+                    # Define the row index once
+                    rowIndex <- ((numSpecies - 1) * timeSteps) + t
+
+                    SummaryMatrixSpecies[rowIndex, ColSSpeciesID] <- numSpecies
+                    SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsBeginning] <- IntialNumberIndividuals[numSpecies]
+                    SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsEnd] <- sum(E$Status == 1 & E$SpeciesID == numSpecies, na.rm = TRUE)
+                    SummaryMatrixSpecies[rowIndex, ColSNumberMatureIndividuals] <- sum(E$Status == 1 &
+                                                                                         E$SpeciesID == numSpecies &
+                                                                                         E$Mass >= E$MassAtMaturity, na.rm = TRUE)
+                    SummaryMatrixSpecies[rowIndex, ColSNumberRecruits] <- NumberRecruitsPerSpecies[numSpecies]
+                    SummaryMatrixSpecies[rowIndex, ColSNumberMortalityBranchFall] <- sum(E$Status == 3 & E$SpeciesID == numSpecies, na.rm = TRUE)
+                    SummaryMatrixSpecies[rowIndex, ColSNumberMortalityLight] <- sum(E$Status == 4 & E$SpeciesID == numSpecies, na.rm = TRUE)
+                    SummaryMatrixSpecies[rowIndex, ColSNumberMortalityCompetition] <- sum(E$Status == 2 & E$SpeciesID == numSpecies, na.rm = TRUE)
+                    SummaryMatrixSpecies[rowIndex, ColSNumberMortalityNatural] <- sum(E$Status == 5 & E$SpeciesID == numSpecies, na.rm = TRUE)
+                    # Climate mortality
+                    SummaryMatrixSpecies[rowIndex, ColSNumberMortalityHum] <- sum(E$Status == 6 & E$SpeciesID == numSpecies, na.rm = TRUE)
+                    SummaryMatrixSpecies[rowIndex, ColSNumberMortalityTemp] <- sum(E$Status == 7 & E$SpeciesID == numSpecies, na.rm = TRUE)
+                    SummaryMatrixSpecies[rowIndex, ColSNumberMortalityWind] <- sum(E$Status == 8 & E$SpeciesID == numSpecies, na.rm = TRUE)
+
+                    if (sum(E$Status == 1 & E$SpeciesID == numSpecies, na.rm = TRUE) > 0 && IntialNumberIndividuals[numSpecies] > 0) {
+                        SummaryMatrixSpecies[rowIndex, ColSNumberPopulationGrowthRate] <- SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsEnd] / SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsBeginning]
+                        SummaryMatrixSpecies[rowIndex, ColSNumberPopulationGrowthRateLog] <- log(SummaryMatrixSpecies[rowIndex, ColSNumberPopulationGrowthRate])
+                        SummaryMatrixSpecies[rowIndex, ColSNumberBirthRate] <- NumberRecruitsPerSpecies[numSpecies] / IntialNumberIndividuals[numSpecies]
+                        death_statuses <- c(2, 3, 4, 5) # 2: competition, 3: branch fall, 4: light, 5: natural mortality, 6: humidity, 7: temperature, 8: wind
+                        SummaryMatrixSpecies[rowIndex, ColSNumberDeathRate] <- sum(E$Status %in% death_statuses & E$SpeciesID == numSpecies, na.rm = TRUE) / IntialNumberIndividuals[numSpecies]
+                        SummaryMatrixSpecies[rowIndex, ColSAverageSize] <- mean(E$Mass[E$SpeciesID == numSpecies])
+                        SummaryMatrixSpecies[rowIndex, ColSAverageAge] <- mean(E$Age[E$SpeciesID == numSpecies])
+                        SummaryMatrixSpecies[rowIndex, ColSMinLight] <- min(E$LightInVoxel[E$SpeciesID == numSpecies])
+                        SummaryMatrixSpecies[rowIndex, ColSMaxLight] <- max(E$LightInVoxel[E$SpeciesID == numSpecies])
+                        SummaryMatrixSpecies[rowIndex, ColSMeanLight] <- mean(E$LightInVoxel[E$SpeciesID == numSpecies])
+                        # SummaryMatrixSpecies[rowIndex, ColSMinHeight] <- min(E$Z[E$SpeciesID == numSpecies])
+                        # SummaryMatrixSpecies[rowIndex, ColSMaxHeight] <- max(E$Z[E$SpeciesID == numSpecies])
+                        # SummaryMatrixSpecies[rowIndex, ColSMeanHeight] <- mean(E$Z[E$SpeciesID == numSpecies])
+                        SummaryMatrixSpecies[rowIndex, ColSMinHum] <- min(E$HumInVoxel[E$SpeciesID == numSpecies])
+                        SummaryMatrixSpecies[rowIndex, ColSMaxHum] <- max(E$HumInVoxel[E$SpeciesID == numSpecies])
+                        SummaryMatrixSpecies[rowIndex, ColSMeanHum] <- mean(E$HumInVoxel[E$SpeciesID == numSpecies])
+                        SummaryMatrixSpecies[rowIndex, ColSMinTemp] <- min(E$TempInVoxel[E$SpeciesID == numSpecies])
+                        SummaryMatrixSpecies[rowIndex, ColSMaxTemp] <- max(E$TempInVoxel[E$SpeciesID == numSpecies])
+                        SummaryMatrixSpecies[rowIndex, ColSMeanTemp] <- mean(E$TempInVoxel[E$SpeciesID == numSpecies])
+                        SummaryMatrixSpecies[rowIndex, ColSMinWind] <- min(E$WindInVoxel[E$SpeciesID == numSpecies])
+                        SummaryMatrixSpecies[rowIndex, ColSMaxWind] <- max(E$WindInVoxel[E$SpeciesID == numSpecies])
+                        SummaryMatrixSpecies[rowIndex, ColSMeanWind] <- mean(E$WindInVoxel[E$SpeciesID == numSpecies])
+                    } else {
+                        # List of columns to be set to NaN
+                        cols4summary <- c(
+                          ColSNumberPopulationGrowthRate,
+                          ColSNumberPopulationGrowthRateLog,
+                          ColSNumberBirthRate,
+                          ColSNumberDeathRate,
+                          ColSAverageSize,
+                          ColSAverageAge,
+                          ColSMinLight,
+                          ColSMaxLight,
+                          ColSMeanLight,
+                          ColSMinHum,
+                          ColSMaxHum,
+                          ColSMeanHum,
+                          ColSMinTemp,
+                          ColSMaxTemp,
+                          ColSMeanTemp,
+                          ColSMinWind,
+                          ColSMaxWind,
+                          ColSMeanWind
+                        )
+                        # Set all specified columns to NaN for the given row
+                        SummaryMatrixSpecies[rowIndex, cols4summary] <- NaN
+                        # SummaryMatrixSpecies[rowIndex, ColSMinHeight] <- NaN
+                        # SummaryMatrixSpecies[rowIndex, ColSMaxHeight] <- NaN
+                        # SummaryMatrixSpecies[rowIndex, ColSMeanHeight] <- NaN
+                    }
+
+                    SummaryMatrixSpeciesSave[rowIndex, 1] <- currTimeStep
+                    SummaryMatrixSpeciesSave[rowIndex, int_seq(2, TotalColsSpeciesMatrix + 1)] <- SummaryMatrixSpecies[rowIndex,]
+                }
+
+                ###############################################################################
+                # Store information in SummaryMatrixCommunity
+                SummaryMatrixCommunity$timeStep[t] <- currTimeStep  # TimeStep
+                SummaryMatrixCommunity$NumberSpeciesBeginning[t] <- InitialNumberSpecies  # NumberOfSpecies at beginning
+                SummaryMatrixCommunity$NumberSpeciesEnd[t] <- length(unique(E$SpeciesID[E$Status == 1]))  # NumberOfSpecies at end
+                SummaryMatrixCommunity$NumberIndividualsBeginning[t] <- IntialNumberIndividualsTotal  # NumberIndividuals at beginning
+                SummaryMatrixCommunity$NumberIndividualsEnd[t] <- length(which(E$Status == 1))  # NumberIndividuals at end
+                SummaryMatrixCommunity$Recruits[t] <- NumberRecruits  # Recruits
+                SummaryMatrixCommunity$MortalityBranchFall[t] <- MortalityBranchFall  # MortalityBranchFall
+                SummaryMatrixCommunity$MortalityLight[t] <- MortalityLight  # MortalityLight
+                SummaryMatrixCommunity$MortalityCompetition[t] <- MortalityCompetition  # MortalityCompetition
+                SummaryMatrixCommunity$MortalityNatural[t] <- MortalityNatural  # MortalityNatural
+                SummaryMatrixCommunity$MortalityHum[t] <- MortalityHum  # Mortality due to humidity
+                SummaryMatrixCommunity$MortalityTemp[t] <- MortalityTemp  # Mortality due to temperature
+                SummaryMatrixCommunity$MortalityWind[t] <- MortalityWind  # Mortality due to wind
+                SummaryMatrixCommunity$BranchSurfaceIndex[t] <- sum(Microhabitat[, , , Inds["TotalSurfaceAreaOpt"]]) / (dimPlot[1] * dimPlot[2])  # BranchSurfaceIndex
+                SummaryMatrixCommunity$EpiphyteFilling[t] <- (sum(E$Mass^(2 / 3)) / SurfaceBiomassScaling) / sum(Microhabitat[, , , Inds["TotalSurfaceAreaOpt"]])  # EpiphyteFilling
+                ###############################################################################
+
+                # Command window information
+                information <- "--------------------------------------------"
+                information <- paste(information, paste0("Species Pool: ", numPool), sep = "\n")
+                information <- paste(information, paste0("Replicate: ", r), sep = "\n")
+                information <- paste(information, paste0("Time step: ", currTimeStep), sep = "\n")
+                information <- paste(information, paste0("Number of individuals: ", SummaryMatrixCommunity$NumberIndividualsEnd[t]), sep = "\n")
+                information <- paste(information, paste0("Number of species: ", SummaryMatrixCommunity$NumberSpeciesEnd[t]), sep = "\n")
+                information <- paste(information, paste0("Number of recruits: ", NumberRecruits), sep = "\n")
+                information <- paste(information, paste0("MortalityBranchFall: ", MortalityBranchFall), sep = "\n")
+                information <- paste(information, paste0("MortalityLight: ", MortalityLight), sep = "\n")
+                information <- paste(information, paste0("MortalityCompetition: ", MortalityCompetition), sep = "\n")
+                information <- paste(information, paste0("MortalityNatural: ", MortalityNatural), sep = "\n")
+                information <- paste(information, paste0("MortalityHumidity: ", MortalityHum), sep = "\n")
+                information <- paste(information, paste0("MortalityTemperature: ", MortalityTemp), sep = "\n")
+                information <- paste(information, paste0("MortalityWind: ", MortalityWind), sep = "\n")
+                information <- paste(information, paste0("Time: ", format(Sys.time(), "%H:%M:%OS3")), sep = "\n")
+                writeLines(information)
+                ###############################################################################
+
+                # Saving
+                # Save Epiphyte matrix for every time step
+                ColumsToSave <- c("SpeciesID", "IndividualID", "Status", "Mass", "Age", "X", "Y", "Z", "TotalSurfaceInVoxel", "SurfaceLossInVoxel", "LightInVoxel", "HumInVoxel", "TempInVoxel", "WindInVoxel")
+                write.csv(E[, ColumsToSave], file.path(DirectoryModelResultsRun, paste0("IndividualMatrixTimeStep", currTimeStep, ".csv")), row.names = FALSE)
+
+                # Create dataframe from matrix (including headers)
+                SummaryMatrixSpeciesSave_df <- as.data.frame(SummaryMatrixSpeciesSave)
+                names(SummaryMatrixSpeciesSave_df) <- SummaryMatrixSpeciesHeaders
+
+                # Save SummaryMatrixSpecies for every time step
+                write.csv(SummaryMatrixSpeciesSave_df, file.path(DirectoryModelResultsRun, "SpeciesSummary.csv"), row.names = FALSE)
+
+                # Save SummaryMatrixCommunity for every time step (overwrite old one)
+                write.csv(SummaryMatrixCommunity, file.path(DirectoryModelResultsRun, "CommunitySummary.csv"), row.names = FALSE)
+                ###############################################################################
+
+                # Remove dead individuals from Epimatrix
+                E <- E[E$Status <= 1,]  # Remove rows where Status > 1
             }
-
-            ###############################################################################
-            # Store information in SummaryMatrixCommunity
-            SummaryMatrixCommunity$timeStep[t] <- currTimeStep  # TimeStep
-            SummaryMatrixCommunity$NumberSpeciesBeginning[t] <- InitialNumberSpecies  # NumberOfSpecies at beginning
-            SummaryMatrixCommunity$NumberSpeciesEnd[t] <- length(unique(E$SpeciesID[E$Status == 1]))  # NumberOfSpecies at end
-            SummaryMatrixCommunity$NumberIndividualsBeginning[t] <- IntialNumberIndividualsTotal  # NumberIndividuals at beginning
-            SummaryMatrixCommunity$NumberIndividualsEnd[t] <- length(which(E$Status == 1))  # NumberIndividuals at end
-            SummaryMatrixCommunity$Recruits[t] <- NumberRecruits  # Recruits
-            SummaryMatrixCommunity$MortalityBranchFall[t] <- MortalityBranchFall  # MortalityBranchFall
-            SummaryMatrixCommunity$MortalityLight[t] <- MortalityLight  # MortalityLight
-            SummaryMatrixCommunity$MortalityCompetition[t] <- MortalityCompetition  # MortalityCompetition
-            SummaryMatrixCommunity$MortalityNatural[t] <- MortalityNatural  # MortalityNatural
-            SummaryMatrixCommunity$MortalityHum[t] <- MortalityHum  # Mortality due to humidity
-            SummaryMatrixCommunity$MortalityTemp[t] <- MortalityTemp  # Mortality due to temperature
-            SummaryMatrixCommunity$MortalityWind[t] <- MortalityWind  # Mortality due to wind
-            SummaryMatrixCommunity$BranchSurfaceIndex[t] <- sum(Microhabitat[, , , Inds["TotalSurfaceAreaOpt"]]) / (dimPlot[1] * dimPlot[2])  # BranchSurfaceIndex
-            SummaryMatrixCommunity$EpiphyteFilling[t] <- (sum(E$Mass^(2/3)) / SurfaceBiomassScaling) / sum(Microhabitat[, , , Inds["TotalSurfaceAreaOpt"]])  # EpiphyteFilling
-            ###############################################################################
-
-            # Command window information
-            information <- "--------------------------------------------"
-            information <- paste(information, paste0("Species Pool: ", numPool), sep="\n")
-            information <- paste(information, paste0("Replicate: ", r), sep="\n")
-            information <- paste(information, paste0("Time step: ", currTimeStep), sep="\n")
-            information <- paste(information, paste0("Number of individuals: ", SummaryMatrixCommunity$NumberIndividualsEnd[t]), sep="\n")
-            information <- paste(information, paste0("Number of species: ", SummaryMatrixCommunity$NumberSpeciesEnd[t]), sep="\n")
-            information <- paste(information, paste0("Number of recruits: ", NumberRecruits), sep="\n")
-            information <- paste(information, paste0("MortalityBranchFall: ", MortalityBranchFall), sep="\n")
-            information <- paste(information, paste0("MortalityLight: ", MortalityLight), sep="\n")
-            information <- paste(information, paste0("MortalityCompetition: ", MortalityCompetition), sep="\n")
-            information <- paste(information, paste0("MortalityNatural: ", MortalityNatural), sep="\n")
-            information <- paste(information, paste0("MortalityHumidity: ", MortalityHum), sep="\n")
-            information <- paste(information, paste0("MortalityTemperature: ", MortalityTemp), sep="\n")
-            information <- paste(information, paste0("MortalityWind: ", MortalityWind), sep="\n")
-            information <- paste(information, paste0("Time: ", format(Sys.time(), "%H:%M:%OS3")), sep="\n")
-            writeLines(information)
-            ###############################################################################
-
-            # Saving
-            # Save Epiphyte matrix for every time step
-            ColumsToSave <- c("SpeciesID", "IndividualID", "Status", "Mass", "Age", "X", "Y", "Z", "TotalSurfaceInVoxel", "SurfaceLossInVoxel", "LightInVoxel", "HumInVoxel", "TempInVoxel", "WindInVoxel")
-            write.csv(E[, ColumsToSave], file.path(DirectoryModelResultsRun, paste0("IndividualMatrixTimeStep", currTimeStep, ".csv")), row.names=FALSE)
-
-            # Create dataframe from matrix (including headers)
-            SummaryMatrixSpeciesSave_df <- as.data.frame(SummaryMatrixSpeciesSave)
-            names(SummaryMatrixSpeciesSave_df) <- SummaryMatrixSpeciesHeaders
-
-            # Save SummaryMatrixSpecies for every time step
-            write.csv(SummaryMatrixSpeciesSave_df, file.path(DirectoryModelResultsRun, "SpeciesSummary.csv"), row.names=FALSE)
-
-            # Save SummaryMatrixCommunity for every time step (overwrite old one)
-            write.csv(SummaryMatrixCommunity, file.path(DirectoryModelResultsRun, "CommunitySummary.csv"), row.names=FALSE)
-            ###############################################################################
-
-            # Remove dead individuals from Epimatrix
-            E <- E[E$Status <= 1, ]  # Remove rows where Status > 1
-        }
-        return(NULL)
+            return(NULL)
+        },
+        error = function(e) {
+          cat("⚠️  Worker failed in time‑step", t,
+              "individual", i, "\n")
+          traceback()
+          saveRDS(list(E = E,
+                       Microhabitat = Microhabitat,
+                       t = t, i = i),
+                  file = file.path(tempdir(), "debug_dump.rds"))
+          stop(e)  # re‑throw so foreach marks the task as failed
+      })
     }
 }
 
