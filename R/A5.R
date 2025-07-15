@@ -484,6 +484,8 @@ main <- function() {
     output <- foreach (pair_idx=seq_len(nrow(pairs)),
                        .export=c("compute_prob_matrix_norm", "int_seq", "dispersal", "GrowthRate")) %dorng% {
         tryCatch({
+            i <- 1
+
             numPool <- pairs$numPool[pair_idx]
             r <- pairs$r[pair_idx]
 
@@ -516,7 +518,7 @@ main <- function() {
             dir.create(DirectoryModelResultsRun, recursive = TRUE)
 
             # Get direcory with environmental suitability scores for this species pool and replicate
-            DirectoryEnvSuitabilityRun <- file.path(DirectoryEnvSuitability, paste0("ID_SpeciesP_", numPool, "_Rep_", r))
+            DirectoryEnvSuitabilityRun <- file.path(DirectoryEnvSuitability, paste0("ID_SpeciesP_", numPool))
 
             # Load initial epiphyte distribution
             E <- read.csv(FileNameInitalDistribution, sep = ",", header = TRUE)  # E for epiphytes
