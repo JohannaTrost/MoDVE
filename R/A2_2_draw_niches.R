@@ -283,6 +283,12 @@ if (!HeightModel) { # Don't use height to determine MC niches, draw randomly
         )
     }
 
+    # Draw light breadth
+    possibleBreadths <- cbind(as.vector(OptEnvVals$OptLight) - Breadths$Light[1],
+                              Breadths$Light[2] - as.vector(OptEnvVals$OptLight))
+    maxLightBreadths <- apply(possibleBreadths, 1, min)  # Ensure that light breadth does not exceed the range of light values
+    LightBreadths <- runif(numNiches, min = 1, max = maxLightBreadths)
+
     Niches <- OptEnvVals %>%
       mutate(
         MinHum = runif(numNiches, min = Breadths$Hum[1], max = as.vector(OptHum)),
@@ -291,8 +297,8 @@ if (!HeightModel) { # Don't use height to determine MC niches, draw randomly
         MaxTemp = runif(numNiches, min = as.vector(OptTemp), max = Breadths$Temp[2]),
         MinWind = runif(numNiches, min = Breadths$Wind[1], max = as.vector(OptWind)),
         MaxWind = runif(numNiches, min = as.vector(OptWind), max = Breadths$Wind[2]),
-        MinLight = runif(numNiches, min = Breadths$Light[1], max = as.vector(OptLight)),
-        MaxLight = runif(numNiches, min = as.vector(OptLight), max = Breadths$Light[2])
+        MinLight = as.vector(OptLight) - LightBreadths,
+        MaxLight = as.vector(OptLight) + LightBreadths
       )
 
     # Ensure that min < opt < max -> very unlikely that min == opt or max == opt
