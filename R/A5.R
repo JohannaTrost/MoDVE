@@ -942,9 +942,19 @@ main <- function() {
                 names(SummaryMatrixSpeciesSave_df) <- SummaryMatrixSpeciesHeaders
 
                 # Save SummaryMatrixSpecies for every time step
-                write.csv(SummaryMatrixSpeciesSave_df, file.path(DirectoryModelResultsRun, "SpeciesSummary.csv"), row.names = FALSE)
+                if (currTimeStep == InitialTimeStep + timeSteps - 1) {
+                    specSumFileName <- file.path(DirectoryModelResultsRun, paste0("SpeciesSummary", currTimeStep, ".csv"))
+                } else {
+                    specSumFileName <- file.path(DirectoryModelResultsRun, paste0("SpeciesSummary.csv"))
+                }
+                write.csv(SummaryMatrixSpeciesSave_df, specSumFileName, row.names = FALSE)
 
                 # Save SummaryMatrixCommunity for every time step (overwrite old one)
+                if (currTimeStep == InitialTimeStep + timeSteps - 1) {
+                    comSumFileName <- file.path(DirectoryModelResultsRun, paste0("CommunitySummary", currTimeStep, ".csv"))
+                } else {
+                    comSumFileName <- file.path(DirectoryModelResultsRun, paste0("CommunitySummary.csv"))
+                }
                 write.csv(SummaryMatrixCommunity, file.path(DirectoryModelResultsRun, "CommunitySummary.csv"), row.names = FALSE)
                 ###############################################################################
 
