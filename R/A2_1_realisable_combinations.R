@@ -17,6 +17,10 @@ main <- function() {
   timeSteps <- config$timeSteps
   chunkSize <- config$chunkSize
 
+  if (!dir.exists(DirectoryOutput)) {
+    dir.create(DirectoryOutput)
+  }
+
   # Dynamic handling of microhabitat dimensions
   MicrohabitatVariableFlags <- config$MicrohabitatVariableFlags
   MhVarNames <- c("TotalSurfaceAreaOpt", "SurfaceAreaLossOpt", "LightNicheOpt", "AverageWeightedAngles",

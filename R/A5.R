@@ -1,7 +1,7 @@
 options(warn=-1)  # Suppress warnings
 options(digits.secs=3)  # 3 decimal digits for seconds
 
-setwd("/home/jtrost_ext/MoDVE/R/")
+#setwd("/home/jtrost_ext/MoDVE/R/")
 
 # Epiphte IBM - Model
 # This model simulates the development of the entire epiphyte community
@@ -731,6 +731,8 @@ main <- function() {
 
                 ###############################################################################
                 # Mortality
+                vars <- c("LightSuitable", "HumSuitable", "TempSuitable", "WindSuitable")
+                vars <- vars[as.logical(EnvVarFlags)]
                 for (i in seq_len(nrow(E))) {
                     if (E$Status[i] == 1) {
 
@@ -741,17 +743,17 @@ main <- function() {
                         if (!is.nan(Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["SurfaceAreaLossOpt"]]) &&
                           runif(1, min = 0, max = 1) < Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["SurfaceAreaLossOpt"]]) {  # Mortality due to branch fall
                             E$Status[i] <- 3
-                        } else if (E$LightInVoxel[i] < E$MinLight[i] | E$LightInVoxel[i] > E$MaxLight[i]) {  # Mortality due to changing light conditions
+                        } else if ("LightSuitable" %in% vars && E$LightInVoxel[i] < E$MinLight[i] | E$LightInVoxel[i] > E$MaxLight[i]) {  # Mortality due to changing light conditions
                             E$Status[i] <- 4
                         } else if (MortalityMethod == 0 && runif(1, min = 0, max = 1) < MortRateRandom) {  # Natural mortality rate
                             E$Status[i] <- 5
                         } else if (MortalityMethod == 1 && runif(1, min = 0, max = 1) < (MortRateMass * (E$Mass[i]^MortRateMassScaling))) {
                             E$Status[i] <- 5
-                        } else if (!is.na(E$HumInVoxel[i]) && (E$HumInVoxel[i] < E$MinHum[i] | E$HumInVoxel[i] > E$MaxHum[i])) {
+                        } else if ("HumSuitable" %in% vars && !is.na(E$HumInVoxel[i]) && (E$HumInVoxel[i] < E$MinHum[i] | E$HumInVoxel[i] > E$MaxHum[i])) {
                             E$Status[i] <- 6
-                        } else if (!is.na(E$TempInVoxel[i]) && (E$TempInVoxel[i] < E$MinTemp[i] | E$TempInVoxel[i] > E$MaxTemp[i])) {
+                        } else if ("TempSuitable" %in% vars && !is.na(E$TempInVoxel[i]) && (E$TempInVoxel[i] < E$MinTemp[i] | E$TempInVoxel[i] > E$MaxTemp[i])) {
                             E$Status[i] <- 7
-                        } else if (!is.na(E$WindInVoxel[i]) && E$WindInVoxel[i] > E$MaxWind[i]) {
+                        } else if ("WindSuitable" %in% vars && !is.na(E$WindInVoxel[i]) && E$WindInVoxel[i] > E$MaxWind[i]) {
                             E$Status[i] <- 8
                         }
                     }

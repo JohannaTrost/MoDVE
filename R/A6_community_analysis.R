@@ -84,13 +84,18 @@ ComputeDivTurnover <- function(data) {
               speciesHeightMatrix = speciesHeightMatrix))
 }
 
-DirectoryModelResults <- "/Users/johanna/Uni/masterarbeit/output/MoDEV_test_v3/output_a4_mc_model/"
-DirectoryPlots <- "../../../figs/a5_plots_test/"
-numSpeciesPools <- c(2)
+DirectoryModelResults <- "/Users/johanna/Uni/masterarbeit/data/a5_output/v2_real_niches_onlylight/"
+DirectoryPlots <- "../../../figs/a5_plots_test/v2_real_niches_onlylight/"
+numSpeciesPools <- c(1)
 replicatePerSpeciesPool <- 1
-timeStepStart <- 101
+timeStepStart <- 100
 timeStepEnd <- 198
 stepSize <- 5
+
+# mkdir if not exists
+if (!dir.exists(DirectoryPlots)) {
+  dir.create(DirectoryPlots)
+}
 
 divMetricsDf <- tibble(
   SpeciesPool = integer(),
@@ -128,7 +133,7 @@ for (rep in seq_len(replicatePerSpeciesPool)) {
         message("File does not exist: ", modelResultsPath)
         next
       }
-
+      print(timeStep)
       # Load results
       res <- read_csv(modelResultsPath)
       res <- res[res$Status == 1,]  # We are only interested in individuals that survived
@@ -213,11 +218,6 @@ split_data <- speciesHeight %>%
     Replicate = as.factor(Replicate)
   ) %>%
   group_split(SpeciesPool, Replicate)
-
-# mkdir if not exists
-if (!dir.exists(DirectoryPlots)) {
-  dir.create(DirectoryPlots)
-}
 
 # Assuming DirectoryPlots is a string with a trailing slash, e.g. "outputs/plots/"
 for (df in split_data) {

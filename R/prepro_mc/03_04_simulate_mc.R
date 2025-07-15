@@ -506,13 +506,10 @@ while (nImgs < 4) {
   }
 }
 
-# Benchmarking the speed of the new function
-
-library(microbenchmark)
 
 # Simulate one iteration's data:
-x <- sample(1:50, 1)
-y <- sample(1:50, 1)
+x <- 22
+y <- 15
 
 coords <- indices2coords(x, y, terra::unwrap(vegp_reg$pai))[c("x", "y")]
 lon <- coords[[1]]
@@ -522,30 +519,67 @@ vegparams <- extract_params(vegp_reg, lon, lat)
 grndparams <- extract_params(soilc_reg, lon, lat)
 max_hgt <- max(values(terra::unwrap(vegp_reg$h)), na.rm = TRUE)
 paii <- pai[x, y, 1:max_hgt]
+
 heights <- seq(0.5, length(paii))
 
-# Benchmark both approaches
-benchmark_results <- microbenchmark(
-  new_approach = {
-    pmout <- micropoint::runpointmodel(
-      climdata_reg, reqhgt = heights, vegparams,
-      paii, grndparams, lat = lat, long = lon
-    )
-  },
-  old_approach = {
-    for (h in heights) {
-      mout <- micropoint::runpointmodel(
-        climdata_reg, reqhgt = h, vegparams,
-        paii, grndparams, lat = lat, long = lon
-      )
-    }
-  },
-  times = 10L # Repeat 10 times for statistical accuracy
+pmout <- micropoint::runpointmodel(
+  climdata_reg, reqhgt = heights, vegparams,
+  paii, grndparams, lat = lat, long = lon
 )
 
-print(benchmark_results)
+timestamps <- seq(ymd_h(paste0(year, "-01-01 00")), ymd_h(paste0(year, "-12-31 23")), by = "hour")
+res <- list()
 
-library(ggplot2)
-pdf("../../figs/benchmarking/mc_benchmarking.pdf")
-autoplot(benchmark_results)
+for (i in seq_along(heights)) {
+  h <- heights[i]
+  immediateMessage(paste(x, y, "height:", h))
+  print(h)
+
+  mout <- micropoint::runpointmodel(climdata_reg, reqhgt = h, vegparams,
+                                    paii, grndparams, lat = lat, long = lon)
+
+  immediateMessage("Point model run completed.")
+
+  # Which variables to save
+  if (i == 1 & x == 1 & y == 1) {
+    exp_vars <- c("tair", "tcanopy", "relhum", "windspeed", "obs_time")
+  } else {
+    exp_vars <- c("tair", "tcanopy", "relhum", "windspeed")
+  }
+
+  for (var in exp_vars) {
+    message(paste(x, y, var, h))
+    if (i == 1) {
+      res[[var]] <- array(NA, dim = c(length(heights), length(mout[[var]])))
+    }
+    res[[var]][i, ] <- mout[[var]]
+  }
+}
+
+# aggregate yearly microclimate data
+agg_res <- aggregate_mc(res, timestamps, n_temp_metrics)
+
+# Extract x values from all three line data sources
+x2 <- agg_res$data[1:length(heights), 7] # 1 airt , 7 relhum, 11 windspeed
+#x3 <- apply(pmout$profile[,,2], 2, mean)
+x3 <- apply(pmout$relhum, 2, mean)
+
+# Determine the global x-axis range
+x_range <- range(c(x2, x3), na.rm = TRUE)
+y_range <- range(c(heights, seq(length(pmout$height))), na.rm = TRUE)
+
+pdf(paste0("../../figs/mc_output/test_profile_relhum_old_vs_new_comp_", x, "_", y, ".pdf"))
+
+# Plot the first line with axis labels
+plot(heights ~ x2, type = "l", xlim = x_range, ylim = y_range,
+     xlab = "Relative Humidity (%)", ylab = "Height (m)")
+
+# Add the second line
+lines(heights ~ x3, col = "red")
+
+# Add a legend
+legend("topright",
+       legend = c("Original 'runmodel' for each height", "New cpp 'runmodelProfile'"),
+       col = c("black", "red"), lty = 1, bty = "n")
+
 dev.off()

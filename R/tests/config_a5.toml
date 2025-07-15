@@ -1,9 +1,9 @@
 seed = 42
-DirectoryMicrohabitat = "/Users/johanna/Uni/masterarbeit/data/modve_input/microhabitat_lowland_zach_mh_2024_mc"
-DirectorySpeciesPools = "/Users/johanna/Uni/masterarbeit/code/MoDVE/R/tests/data/output_a2_100spec_real"
-DirectoryModelResults = "/Users/johanna/Uni/masterarbeit/data/a5_output/v1_real_niches"
-DirectoryInitCommunity = "/Users/johanna/Uni/masterarbeit/data/a3_output/v1_real_niches"
-DirectoryEnvSuitability = "/Users/johanna/Uni/masterarbeit/data/a4_output/v1_real_niches"
+DirectoryMicrohabitat = "/Users/johanna/Uni/masterarbeit/data/modve_input/v2_microhabitat_lowland_zach_mh_2024_mc"
+DirectorySpeciesPools = "/Users/johanna/Uni/masterarbeit/code/MoDVE/R/tests/data/output_a2_100spec_real_v2"
+DirectoryModelResults = "/Users/johanna/Uni/masterarbeit/data/a5_output/v2_real_niches"
+DirectoryInitCommunity = "/Users/johanna/Uni/masterarbeit/data/a3_output/v2_real_niches"
+DirectoryEnvSuitability = "/Users/johanna/Uni/masterarbeit/data/a4_output/v2_real_niches"
 
 MicrohabitatType = 1
 timeSteps = 25
@@ -25,3 +25,4 @@ InitialTimeStep = 100
 # Microhabitat variable settings
 # - Variables: TotalSurfaceAreaOpt, SurfaceAreaLossOpt, LightNicheOpt, AverageWeightedAngles, HumNicheOpt, TempNicheOpt, WindNicheOpt
 MicrohabitatVariableFlags = [1, 1, 1, 0, 1, 1, 1]
+EnvVarFlags = [1, 0, 0, 0] # Light hum temp wind

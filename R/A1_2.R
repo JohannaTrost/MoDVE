@@ -34,6 +34,11 @@ DirectoryMicrohabitat <- config$DirectoryMicrohabitat
 DirectoryMicroclimate <- config$DirectoryMicroclimate
 DirectoryNewMicrohabitat <- config$DirectoryNewMicrohabitat
 
+# Creat directory for new microhabitat if it doesn't exist
+if (!dir.exists(DirectoryNewMicrohabitat)) {
+  dir.create(DirectoryNewMicrohabitat, recursive=TRUE)
+}
+
 # Define option flags as a named list
 options_list <- list(
   TotalSurfaceAreaOpt = config$TotalSurfaceAreaOpt,

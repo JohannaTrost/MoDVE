@@ -339,7 +339,7 @@ main <- function() {
         SpeciesPool <- read.csv(file.path(DirectorySpeciesPools, SpeciesPoolFileName), sep=",", header=TRUE)
 
         # Create Save-Directory for each each replicate/initialDistribution
-        DirectoryOutputSpeciesPool <- file.path(DirectoryOutput, paste0("ID_SpeciesP_", numPool, "_Rep_", numReplicate))
+        DirectoryOutputSpeciesPool <- file.path(DirectoryOutput, paste0("ID_SpeciesP_", numPool))
         dir.create(DirectoryOutputSpeciesPool, recursive=TRUE)
 
         globalMaxSuitability <- ComputeSuitabilityUnscaled(
