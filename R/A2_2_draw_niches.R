@@ -3,15 +3,49 @@ source("utils.R")
 
 library("dplyr")
 
+sampleEnvironment <- function(dimPlot, timeVals, numNiches) {
+    
+        # Define the ranges
+        xVals <- 1:dimPlot[1]
+        yVals <- 1:dimPlot[2]
+        zVals <- 1:dimPlot[3]
+
+        # Total number of possible combinations
+        totalCombs <- length(xVals) * length(yVals) * length(zVals) * length(timeVals)
+
+        # Sample unique indices
+        sampleIndices <- sample(totalCombs, numNiches)
+
+        # Convert sampled indices to actual combinations using array indexing
+        getCombination <- function(index) {
+          timeIndex <- ((index - 1) %% length(timeVals)) + 1
+          zIndex <- (((index - 1) %/% length(timeVals)) %% length(zVals)) + 1
+          yIndex <- ((((index - 1) %/% length(timeVals)) %/% length(zVals)) %% length(yVals)) + 1
+          xIndex <- ((((index - 1) %/% length(timeVals)) %/% length(zVals)) %/% length(yVals)) + 1
+
+          c(x = xVals[xIndex],
+            y = yVals[yIndex],
+            z = zVals[zIndex],
+            time = timeVals[timeIndex])
+        }
+
+        # Apply the index-to-combination conversion
+        result <- t(sapply(sampleIndices, getCombination))
+
+        return(as.data.frame(result))
+}
+
 
 AgeMaturityMetabolic <- function(InterceptAgeMaturity, ScalingAgeMaturity, Mass) {
     return(InterceptAgeMaturity * (Mass^ScalingAgeMaturity))
 }
 
+
 Height2Light <- function(Height, kL, LAI, Imax) {
     # Convert height to light
     return(Imax * exp(-kL * LAI * (1 - Height)))
 }
+
 
 CheckNicheValues <- function(Niches) {
     # Humidity
@@ -53,6 +87,7 @@ CheckNicheValues <- function(Niches) {
     return(Niches)
 }
 
+
 # Parse input configuration file
 config <- parse_config()
 
@@ -64,6 +99,7 @@ set.seed(seed, kind="Mersenne-Twister")  # integer for fixed seed or NULL for ra
 # Parameters that need to be specified/checked before running this script
 MainOutputDirectory <- config$MainOutputDirectory
 PathUniqueEnvVarCombs <- config$PathUniqueEnvVarCombs
+DirectoryMicrohabitat <- config$DirectoryMicrohabitat
 
 # Folder to save species trait matrices
 # NameSpeciesPool <- "IntAgeMat_2_IntRec_70"  # Give meaningful name (the species type is automatically added to the name)
@@ -71,6 +107,10 @@ PathUniqueEnvVarCombs <- config$PathUniqueEnvVarCombs
 # Define number of species in species pool and total number of species pools to be created
 numSpeciesPools <- config$numSpeciesPools
 NumberOfSpecies <- config$NumberOfSpecies
+
+# Time steps
+initialTimeStep <- config$initialTimeStep
+timeSteps <- config$timeSteps
 
 # The following option defines if correlations between traits are consider or not
 # CorrelationMassAgeOfMaturity <- 1  # Correlation between the mass and the age of maturity (this also influences the growth rate)
@@ -129,6 +169,21 @@ if (length(LightBreadthRandom) == 0) {
     MaxLightRandom <- Height2Light(HeightBreadthRandom[2], kL, LAI, Imax)
     LightBreadthRandom <- c(MinLightRandom, MaxLightRandom)
 }
+
+dimPlot <- readRDS(file.path(DirectoryMicrohabitat, "dimPlot.rds"))
+
+# Get microhabitat matrix variables - dynamic handling of selected variables
+MicrohabitatVariableFlags <- config$MicrohabitatVariableFlags
+MhVarNames <- c("TotalSurfaceAreaOpt", "SurfaceAreaLossOpt", "LightNicheOpt", "AverageWeightedAngles",
+                "HumNicheOpt", "TempNicheOpt", "WindNicheOpt")
+# Only keep active options
+ActiveOpts <- MhVarNames[as.logical(MicrohabitatVariableFlags)]
+# Assign indices
+Indices <- setNames(seq_along(ActiveOpts), ActiveOpts)
+# Check which env. variables are available and make named list with flags
+EnvVarNames <- c("LightNicheOpt", "HumNicheOpt", "TempNicheOpt", "WindNicheOpt")
+EnvVarFlags <- EnvVarNames %in% ActiveOpts
+names(EnvVarFlags) <- c("Light", "Hum", "Temp", "Wind")
 
 # ============================================================================
 # Define which trait is varied if a sequential species pool(SpeciesPoolType=1) is choose.
@@ -224,29 +279,41 @@ if (!HeightModel) { # Don't use height to determine MC niches, draw randomly
     numNiches <- numSpeciesPools * NumberOfSpecies
 
     if (!Random) {
+        # Sample optimal environmental variables for each species pool
+        OptEnvValInds <- sampleEnvironment(dimPlot, 
+                                           seq(initialTimeStep, initialTimeStep + timeSteps - 1), 
+                                           numNiches)
+
+        OptEnvVals <- data.frame(matrix(nrow = numNiches, ncol = sum(EnvVarFlags)))
+        colnames(OptEnvVals) <- paste0("Opt", names(EnvVarFlags)[EnvVarFlags])
+
+        row <- 1
+        for (t in unique(OptEnvValInds$time)) {
+            microhabitat_filename <- paste("MicrohabitatMatrix", t, ".rds", sep="")
+            FileMhMatrix <- file.path(DirectoryMicrohabitat, microhabitat_filename)
+            Microhabitat <- readRDS(FileMhMatrix)
+
+            mhInds <- as.data.frame(OptEnvValInds[OptEnvValInds$time == t,])
+            colnames(mhInds) <- c("x", "y", "z", "time")
+
+            # Append rows with sampled env. values
+            for (i in seq_len(nrow(mhInds))) {
+                x <- mhInds[i, "x"]
+                y <- mhInds[i, "y"]
+                z <- mhInds[i, "z"]
+                OptEnvVals[row,] <- Microhabitat[x, y, z, Indices[EnvVarNames[EnvVarFlags]]]
+                row <- row + 1
+            }
+        }
+
+        # Convert light to absolute values
+        OptEnvVals$OptLight <- OptEnvVals$OptLight * Imax
+
         # Load unique environmental variable combinations
         if (!file.exists(PathUniqueEnvVarCombs)) {
             stop(paste("Unique environmental variable combinations file does not exist:", PathUniqueEnvVarCombs))
         }
         UniqueEnvVarsComb <- read.csv(PathUniqueEnvVarCombs, header=TRUE)
-
-        # Sample optimal environmental variables for each species pool
-        OptEnvValInds <- sample(nrow(UniqueEnvVarsComb), numNiches)
-        OptEnvVals <- UniqueEnvVarsComb[OptEnvValInds, ]
-        row.names(OptEnvVals) <- NULL
-        colnames(OptEnvVals) <- c("OptLight", "OptHum", "OptTemp", "OptWind")
-
-        # Convert light to absolute values
-        OptEnvVals$OptLight <- OptEnvVals$OptLight * Imax
-
-        # Add some noisy variation to the optimal environmental values -> maybe add later
-        # Noise <- data.frame(
-        #   array(runif(4 * numNiches, min=-1, max=1),
-        #         dim = c(numNiches, 4))
-        # )
-        # colnames(Noise) <- c("HumNoise", "TempNoise", "WindNoise")
-        # OptEnvVals <- OptEnvVals + Noise
-
         # Define Breadths based on existing combinations
         Breadths <- list(
           Hum = range(UniqueEnvVarsComb$Hum),
@@ -262,7 +329,7 @@ if (!HeightModel) { # Don't use height to determine MC niches, draw randomly
             OptHum   = pmin(pmax(OptHum,   Breadths$Hum[1] + 1),   Breadths$Hum[2] - 1),
             OptTemp  = pmin(pmax(OptTemp,  Breadths$Temp[1] + 1),  Breadths$Temp[2] - 1),
             OptWind  = pmin(pmax(OptWind,  Breadths$Wind[1] + WindMargin),  Breadths$Wind[2] - WindMargin),
-            OptLight = pmin(pmax(OptLight, Breadths$Light[1] + 1), Breadths$Light[2] - 1)
+            OptLight = pmin(pmax(OptLight, Breadths$Light[1] + 1), Breadths$Light[2] - 10)
           )
     } else {
         # Store the breadth variables in a list
@@ -285,7 +352,7 @@ if (!HeightModel) { # Don't use height to determine MC niches, draw randomly
 
     # Draw light breadth
     possibleBreadths <- cbind(as.vector(OptEnvVals$OptLight) - Breadths$Light[1],
-                              Breadths$Light[2] - as.vector(OptEnvVals$OptLight))
+                              Breadths$Light[2] + 10 - as.vector(OptEnvVals$OptLight))
     maxLightBreadths <- apply(possibleBreadths, 1, min)  # Ensure that light breadth does not exceed the range of light values
     LightBreadths <- runif(numNiches, min = 1, max = maxLightBreadths)
 
