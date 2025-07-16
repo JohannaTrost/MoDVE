@@ -67,6 +67,23 @@ Parabol <- function(a, b, c, x) {
 }
 
 
+SuitabilityScore <- function (MinEnvVar, MaxEnvVar, OptEnvVar, EnvVar) {
+
+    # Pre-compute denominators
+    MaxOptDiff <- MaxEnvVar - OptEnvVar
+    OptMinDiff <- OptEnvVar - MinEnvVar
+
+    # Compute suitability only for valid entries
+    num <- (MaxEnvVar - EnvVar) / MaxOptDiff
+    denom <- (EnvVar - MinEnvVar) / OptMinDiff
+    expo  <- OptMinDiff / MaxOptDiff
+
+    suitability <- num * denom^expo
+
+    return(suitability)  # shape: e.g. [50, 50, 60, 100, 2]
+}
+
+
 dispersal <- function(NumberOfSpecies,
                       E,
                       Microhabitat,
@@ -282,6 +299,7 @@ main <- function() {
     # Competition Methods; defines which individuals are removed in voxels which
     # are entirely filled. 1:size (small individuals are outcompetet by larger ones); 2:random competition
     CompetitionMethod <- config$CompetitionMethod
+    LightResponseFct <- config$LightResponseFct
 
     # Mortality method (complete random or scaling with mass according to metabolic theory);
     MortalityMethod <- config$MortalityMethod  # 0: random mortality; 1: scaling with mass to the exponent -1/4
@@ -510,7 +528,14 @@ main <- function() {
                 # maybe it is faster if I do not use the if statement => speed testing
                 if (E$Status[i] == 1) {
                     tmp1 <- GrowthRate(E$MaximumMass[i], E$Mass[i], E$GrowthRate[i])
-                    tmp2 <- Parabol(E$LightResponseA[i], E$LightResponseB[i], E$LightResponseC[i], Microhabitat[E$X[i], E$Y[i], E$Z[i], 3])
+                    if (LightResponseFct == "Parabolic") {
+                        tmp2 <- Parabol(E$LightResponseA[i], E$LightResponseB[i], E$LightResponseC[i], Microhabitat[E$X[i], E$Y[i], E$Z[i], 3])
+                    }
+                    else if (LightResponseFct == "Yan and Hunt") {
+                        tmp2 <- EnvSuitability(E$MinLight, E$MaxLight, E$OptLight, Microhabitat[E$X[i], E$Y[i], E$Z[i], 3])
+                    } else {
+                        stop("Unknown light response function")
+                    }
                     E$Mass[i] <- E$Mass[i] + max(0, tmp1 * tmp2)
                 }
 
