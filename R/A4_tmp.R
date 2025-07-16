@@ -401,7 +401,7 @@ main <- function() {
     # Internally, the foreach package employs the L'Ecuyer-CMRG RNG algorithm for reliable random
     # number generation, ensuring reproducible results even in parallel computing environments.
     output <- foreach (pair_idx=seq_len(nrow(pairs)),
-                       .export=c("compute_prob_matrix_norm", "int_seq", "dispersal", "GrowthRate", "Parabol")) %dorng% {
+                       .export=c("compute_prob_matrix_norm", "int_seq", "dispersal", "GrowthRate", "Parabol", "SuitabilityScore")) %dorng% {
         numPool <- pairs$numPool[pair_idx]
         r <- pairs$r[pair_idx]
 
@@ -532,7 +532,7 @@ main <- function() {
                         tmp2 <- Parabol(E$LightResponseA[i], E$LightResponseB[i], E$LightResponseC[i], Microhabitat[E$X[i], E$Y[i], E$Z[i], 3])
                     }
                     else if (LightResponseFct == "Yan and Hunt") {
-                        tmp2 <- EnvSuitability(E$MinLight, E$MaxLight, E$OptLight, Microhabitat[E$X[i], E$Y[i], E$Z[i], 3])
+                        tmp2 <- SuitabilityScore(E$MinLight, E$MaxLight, E$OptLight, Microhabitat[E$X[i], E$Y[i], E$Z[i], 3])
                     } else {
                         stop("Unknown light response function")
                     }
