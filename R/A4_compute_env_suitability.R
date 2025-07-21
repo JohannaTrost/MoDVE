@@ -114,6 +114,8 @@ main <- function() {
         DirectoryOutputSpeciesPool <- file.path(DirectoryOutput, "EnvSuitability")
         dir.create(DirectoryOutputSpeciesPool, recursive=TRUE)
 
+        message("Computing suitability scores for species pool ", numPool, "for each variable ...")
+
         pb <- txtProgressBar(min = 0, max = (timeSteps + 1), style = 3)
 
         for (step in seq(0, timeSteps)) {
@@ -181,6 +183,9 @@ main <- function() {
         globalMaxSuitability <- rep(-Inf, NSpecies)
         activeNiches <- nicheFlags[allEnvVarNames]
 
+        message("Computing max. suitability scores for species pool ", numPool, "for each species ...")
+        pb <- txtProgressBar(min = 0, max = (timeSteps + 1), style = 3)
+
         for (step in 0:timeSteps) {
             t <- InitialTimeStep + step
             savePath <- file.path(DirectoryOutputSpeciesPool,
@@ -202,11 +207,17 @@ main <- function() {
             maxThisStep <- apply(EnvSuitability, 4, max, na.rm = TRUE)
             isNewMax <- maxThisStep > globalMaxSuitability
             globalMaxSuitability[isNewMax] <- maxThisStep[isNewMax]
+
+            setTxtProgressBar(pb, step + 1)
         }
+        close(pb)
         # guard: if any species were all NA across time, max stays -Inf -> set to NA (or 0)
         globalMaxSuitability[is.infinite(globalMaxSuitability)] <- NA_real_
 
         # - 2. Recompute suitability scores for each time step and scale them
+        message("Recompute combined scores and scale them for species pool ", numPool, " ...")
+        pb <- txtProgressBar(min = 0, max = (timeSteps + 1), style = 3)
+
         for (step in 0:timeSteps) {
             t <- InitialTimeStep + step
             inFile <- file.path(
@@ -247,8 +258,11 @@ main <- function() {
 
             # Store the per-species max used for scaling in the same file
             h5write(globalMaxSuitability, outFile, "GlobalMaxSuitability")
+
+            setTxtProgressBar(pb, step + 1)
         }
-  }
+        close(pb)
+    }
 }
 
 main()
