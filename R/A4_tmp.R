@@ -8,6 +8,7 @@ source("utils.R")
 library("foreach")
 library("doParallel")
 library("doRNG")
+library("readr")
 
 ###############################################################################
 
@@ -261,7 +262,7 @@ main <- function() {
         numCores <- strtoi(nTasks)
     }
     else {
-        numCores <- detectCores()
+        numCores <- detectCores()-1
     }
 
     registerDoParallel(numCores)
@@ -276,6 +277,7 @@ main <- function() {
     DirectoryMicrohabitat <- config$DirectoryMicrohabitat
     DirectorySpeciesPools <- config$DirectorySpeciesPools
     DirectoryModelMain <- config$DirectoryModelMain
+    DirectoryEnvScores <- config$DirectoryEnvScores
 
     # Output directory
     DirectoryModelResults <- config$DirectoryModelResults
@@ -429,7 +431,7 @@ main <- function() {
         ProbabilityMatrixNormalized <- compute_prob_matrix_norm(centralPoint, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool)
 
         # Create Save-Directory for each each replicate/initialDistribution
-        DirectoryModelResultsRun <- file.path(DirectoryModelResults, paste("ID_SpeciesP_", numPool, "_Rep_", r, sep=""))
+        DirectoryModelResultsRun <- file.path(DirectoryModelResults, paste0("ID_SpeciesP_", numPool, "_Rep_", r))
         dir.create(DirectoryModelResultsRun, recursive=TRUE)
 
         # Load initial epiphyte distribution
@@ -461,7 +463,8 @@ main <- function() {
         # Initialize Matrix where speceies parameters are save
         SummaryMatrixSpecies <- array(rep(0, (timeSteps*NumberOfSpecies) * TotalColsSpeciesMatrix), dim=c(timeSteps*NumberOfSpecies, TotalColsSpeciesMatrix))
 
-        for (t in seq_len(timeSteps)) {
+        for (t in 0:timeSteps) {
+            timeStep <- InitialTimeStep + step
 
             # Check if the stop criterion is met
             if (length(which(E$Status == 1)) > StopCriterion) {
@@ -470,12 +473,17 @@ main <- function() {
 
             # Load microhabitat matrix for specific timeStep if dynamic forest is simulated
             if (MicrohabitatType == 1) {
-                Microhabitat <- readRDS(file.path(DirectoryMicrohabitat, paste("MicrohabitatMatrix", InitialTimeStep + t - 1, ".rds", sep="")))
+                Microhabitat <- readRDS(file.path(DirectoryMicrohabitat, paste("MicrohabitatMatrix", timeStep, ".rds", sep="")))
                 Microhabitat[, , , 3] <- Microhabitat[, , , 3] * Imax  # In the microhabitat matrix, the realtive light extinction is stored: convert to light values in ?mol*m-2*s-1
                 d1 <- dim(Microhabitat)[1]
                 d2 <- dim(Microhabitat)[2]
                 d3 <- dim(Microhabitat)[3]
                 pot_habitat <- array(rep(0, d1 * d2 * d3), dim=c(d1, d2, d3))
+
+                # Load environmental scores for the current time step
+                envSuitPath <- file.path(DirectoryEnvScores,
+                                         paste0("ScaledSuitability_", numPool, "_TimeStep", timeStep, ".h5"))
+                EnvSuitScors <- rhdf5::h5read(envSuitPath, "ScaledSuitabilityScores")
             }
 
             ###############################################################################
@@ -524,19 +532,39 @@ main <- function() {
 
             ###############################################################################
             # Growth
+            all_suits <- c()
             for (i in seq_len(nrow(E))) {
                 # maybe it is faster if I do not use the if statement => speed testing
                 if (E$Status[i] == 1) {
                     tmp1 <- GrowthRate(E$MaximumMass[i], E$Mass[i], E$GrowthRate[i])
+
                     if (LightResponseFct == "Parabolic") {
-                        tmp2 <- Parabol(E$LightResponseA[i], E$LightResponseB[i], E$LightResponseC[i], Microhabitat[E$X[i], E$Y[i], E$Z[i], 3])
+                        tmp2 <- EnvSuitScors[EnvSuitScors$IndividualID == E$IndividualID[i] &
+                                               EnvSuitScors$TimeStep == timeStep,
+                                             "LightSuitParabol"]
                     }
                     else if (LightResponseFct == "Yan and Hunt") {
-                        tmp2 <- SuitabilityScore(E$MinLight, E$MaxLight, E$OptLight, Microhabitat[E$X[i], E$Y[i], E$Z[i], 3])
+                        tmp2_here <- SuitabilityScore(E$MinLight[i], E$MaxLight[i], E$OptimumLight[i], Microhabitat[E$X[i], E$Y[i], E$Z[i], 3])
+                        tmp2 <- EnvSuitScors[E$X[i], E$Y[i], E$Z[i], E$SpeciesID[i]]
                     } else {
-                        stop("Unknown light response function")
+                        stop("Unknown light response function specified in LightResponseFct")
                     }
-                    E$Mass[i] <- E$Mass[i] + max(0, tmp1 * tmp2)
+
+                    if (is.na(tmp2_here) | is.nan(tmp2_here)) {
+                        tmp2_here <- 0  # If the suitability is NA, set it to 0
+                    }
+                    else if (tmp2_here < 0) {
+                        tmp2_here <- 0  # If the suitability is negative, set it to 0
+                    }
+
+                    if (tmp2_here != tmp2) {
+                        print(paste(tmp2_here, "!=", tmp2))
+                    }
+
+                    all_suits <- c(all_suits, tmp2)
+
+                    MassGained <- max(0, tmp1 * tmp2)
+                    E$Mass[i] <- E$Mass[i] + MassGained
                 }
 
                 # Add information about the voxel to the epiphyte matrix
@@ -545,6 +573,11 @@ main <- function() {
                 E$SurfaceLossInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]  # Percentage surface loss in this year
                 E$LightInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], 3]  # Light conditions in voxel
             }
+
+            # Print average and std of suitability and response
+            print(paste("Average suitability:", mean(all_suits, na.rm=TRUE),
+                        "Std suitability:", sd(all_suits, na.rm=TRUE)))
+
             ###############################################################################
 
             ###############################################################################
@@ -655,13 +688,13 @@ main <- function() {
                     SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMeanHeight] <- NaN
                 }
 
-                SummaryMatrixSpeciesSave[((numSpecies-1) * timeSteps) + t, 1] <- InitialTimeStep + t - 1
+                SummaryMatrixSpeciesSave[((numSpecies-1) * timeSteps) + t, 1] <- timeStep
                 SummaryMatrixSpeciesSave[((numSpecies-1) * timeSteps) + t, int_seq(2, TotalColsSpeciesMatrix + 1)] <- SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ]
             }
 
             ###############################################################################
             # Store information in SummaryMatrixCommunity
-            SummaryMatrixCommunity$timeStep[t] <- InitialTimeStep + t - 1  # TimeStep
+            SummaryMatrixCommunity$timeStep[t] <- timeStep  # TimeStep
             SummaryMatrixCommunity$NumberSpeciesBeginning[t] <- InitialNumberSpecies  # NumberOfSpecies at beginning
             SummaryMatrixCommunity$NumberSpeciesEnd[t] <- length(unique(E$SpeciesID[E$Status == 1]))  # NumberOfSpecies at end
             SummaryMatrixCommunity$NumberIndividualsBeginning[t] <- IntialNumberIndividualsTotal  # NumberIndividuals at beginning
@@ -679,7 +712,7 @@ main <- function() {
             information <- "--------------------------------------------"
             information <- paste(information, paste("Species Pool: ", numPool, sep=""), sep="\n")
             information <- paste(information, paste("Replicate: ", r, sep=""), sep="\n")
-            information <- paste(information, paste("Time step: ", InitialTimeStep + t - 1, sep=""), sep="\n")
+            information <- paste(information, paste("Time step: ", timeStep, sep=""), sep="\n")
             information <- paste(information, paste("Number of individuals: ", SummaryMatrixCommunity$NumberIndividualsEnd[t], sep=""), sep="\n")
             information <- paste(information, paste("Number of species: ", SummaryMatrixCommunity$NumberSpeciesEnd[t], sep=""), sep="\n")
             information <- paste(information, paste("Number of recruits: ", NumberRecruits, sep=""), sep="\n")
@@ -694,7 +727,7 @@ main <- function() {
             # Saving
             # Save Epiphyte matrix for every time step
             ColumsToSave <- c("SpeciesID", "IndividualID", "Status", "Mass", "Age", "X", "Y", "Z", "TotalSurfaceInVoxel", "SurfaceLossInVoxel", "LightInVoxel")
-            write.csv(E[, ColumsToSave], file.path(DirectoryModelResultsRun, paste("IndividualMatrixTimeStep", InitialTimeStep + t - 1, ".csv", sep="")), row.names=FALSE)
+            write.csv(E[, ColumsToSave], file.path(DirectoryModelResultsRun, paste("IndividualMatrixTimeStep", timeStep, ".csv", sep="")), row.names=FALSE)
 
             # Create dataframe from matrix (including headers)
             SummaryMatrixSpeciesSave_df <- as.data.frame(SummaryMatrixSpeciesSave)
