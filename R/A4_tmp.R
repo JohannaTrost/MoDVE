@@ -481,7 +481,7 @@ main <- function() {
 
             # Load environmental scores for the current time step
             envSuitPath <- file.path(DirectoryEnvScores,
-                                     paste0("ScaledSuitability_", numPool, "_TimeStep", t, ".h5"))
+                                     paste0("ScaledSuitability_", numPool, "_TimeStep", timeStep, ".h5"))
             EnvSuitScors <- rhdf5::h5read(envSuitPath, "ScaledSuitabilityScores")
 
             ###############################################################################
