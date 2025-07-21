@@ -147,7 +147,7 @@ main <- function() {
 
             SuitabilityScoresT <- array(NA, dim=c(dimPlot, nrow(SpeciesPool), length(allEnvVarsIdx)))
 
-            for (j in seq_along(c("LightNicheOpt"))) {#allEnvVarsIdx)) {
+            for (j in seq_along(allEnvVarsIdx)) {
                 envVarIdx <- allEnvVarsIdx[j]
 
                 # Extract environmental values in bulk
@@ -174,6 +174,12 @@ main <- function() {
                     EnvVarSuit[is.nan(EnvVarSuit) | is.na(EnvVarSuit)] <- 0  # Set NaN/NA to 0
                     EnvVarSuit[EnvVarSuit < 0] <- 0  # Set negative values to 0
                     SuitabilityScoresT[,,, i, j] <- array(EnvVarSuit, dim=dimPlot)
+
+                    # Print avg. score for this variable
+                    avgSuitability <- mean(EnvVarSuit, na.rm=TRUE)
+                    print(paste0("Species: ", SpeciesPool$Species[i],
+                                 ", Variable: ", VarName,
+                                 ", Avg. Suitability: ", round(avgSuitability, 3)))
                 }
             }
             # Store suitability scores for the current timestep
@@ -182,90 +188,94 @@ main <- function() {
             setTxtProgressBar(pb, step + 1)
         }
         close(pb)
-        #
-        # # -------- Compute a combined score and scale it --------
-        #
-        # # - 1. Compute the global maximum suitability across all time steps
-        # globalMaxSuitability <- rep(-Inf, NSpecies)
-        # activeNiches <- nicheFlags[allEnvVarNames]
-        #
-        # print(paste0("Computing max. suitability scores for species pool ", numPool, "for each species ..."))
-        # pb <- txtProgressBar(min = 0, max = (timeSteps + 1), style = 3)
-        #
-        # for (step in 0:timeSteps) {
-        #     t <- InitialTimeStep + step
-        #     savePath <- file.path(DirectoryOutputSpeciesPool,
-        #                           paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5"))
-        #     SuitabilityScoresT <- rhdf5::h5read(savePath, "EnvironmentalSuitabilityScores")
-        #
-        #     # Extract the relevant environmental variables
-        #     selectedScores <- SuitabilityScoresT[,,,, activeNiches]
-        #
-        #     # Multiply if more than one niche is selected
-        #     if (sum(nicheFlags) > 1) {
-        #         EnvSuitability <- apply(selectedScores, c(1, 2, 3, 4), prod)
-        #     } else {
-        #         EnvSuitability <- selectedScores
-        #     }
-        #
-        #     # Get the maximum suitability for this time step for later scaling
-        #     maxThisStep <- apply(EnvSuitability, 4, max, na.rm = TRUE)
-        #     isNewMax <- maxThisStep > globalMaxSuitability
-        #     globalMaxSuitability[isNewMax] <- maxThisStep[isNewMax]
-        #
-        #     setTxtProgressBar(pb, step + 1)
-        # }
-        # close(pb)
-        # # guard: if any species were all NA across time, max stays -Inf -> set to NA (or 0)
-        # globalMaxSuitability[is.infinite(globalMaxSuitability)] <- NA_real_
-        #
-        # # - 2. Recompute suitability scores for each time step and scale them
-        # print(paste0("Recompute combined scores and scale them for species pool ", numPool, " ..."))
-        # pb <- txtProgressBar(min = 0, max = (timeSteps + 1), style = 3)
-        #
-        # for (step in 0:timeSteps) {
-        #     t <- InitialTimeStep + step
-        #     inFile <- file.path(
-        #     DirectoryOutputSpeciesPool,
-        #     paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5")
-        #     )
-        #     outFile <- file.path(
-        #     DirectoryOutputSpeciesPool,
-        #     paste0("ScaledSuitability_", numPool, "_TimeStep", t, ".h5")
-        #     )
-        #
-        #     SuitabilityScoresT <- h5read(inFile, "EnvironmentalSuitabilityScores")
-        #     selectedScores <- SuitabilityScoresT[,,,, activeNiches, drop = FALSE]
-        #
-        #     if (sum(nicheFlags) > 1) {
-        #         EnvSuitability <- apply(selectedScores, c(1, 2, 3, 4), prod)
-        #     } else {
-        #         EnvSuitability <- selectedScores
-        #     }
-        #
-        #     # Scale by species max
-        #     # safe denom: if NA (never observed) -> keep NA; if 0 -> avoid divide-by-zero
-        #     denom <- globalMaxSuitability
-        #     denom[is.na(denom) | denom == 0] <- NA_real_
-        #     scaledSuitability <- sweep(EnvSuitability, 4, denom, "/")
-        #
-        #     # Clamp to [0,1]
-        #     scaledSuitability[is.na(scaledSuitability)] <- 0
-        #     scaledSuitability[is.nan(scaledSuitability)] <- 0
-        #     scaledSuitability[scaledSuitability < 0] <- 0
-        #     scaledSuitability[scaledSuitability > 1] <- 1
-        #
-        #     # Save file
-        #     if (file.exists(outFile)) file.remove(outFile)
-        #     h5createFile(outFile)
-        #     h5write(scaledSuitability, outFile, "ScaledSuitabilityScores")
-        #
-        #     # Store the per-species max used for scaling in the same file
-        #     h5write(globalMaxSuitability, outFile, "GlobalMaxSuitability")
-        #
-        #     setTxtProgressBar(pb, step + 1)
-        # }
-        # close(pb)
+
+        # -------- Compute a combined score and scale it --------
+
+        # - 1. Compute the global maximum suitability across all time steps
+        globalMaxSuitability <- rep(-Inf, NSpecies)
+        activeNiches <- nicheFlags[allEnvVarNames]
+
+        print(paste0("Computing max. suitability scores for species pool ", numPool, "for each species ..."))
+        pb <- txtProgressBar(min = 0, max = (timeSteps + 1), style = 3)
+
+        for (step in 0:timeSteps) {
+            t <- InitialTimeStep + step
+            savePath <- file.path(DirectoryOutputSpeciesPool,
+                                  paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5"))
+            SuitabilityScoresT <- rhdf5::h5read(savePath, "EnvironmentalSuitabilityScores")
+
+            # Extract the relevant environmental variables
+            selectedScores <- SuitabilityScoresT[,,,, activeNiches]
+
+            # Multiply if more than one niche is selected
+            if (sum(nicheFlags) > 1) {
+                EnvSuitability <- apply(selectedScores, c(1, 2, 3, 4), prod)
+            } else {
+                EnvSuitability <- selectedScores
+            }
+
+            # Get the maximum suitability for this time step for later scaling
+            maxThisStep <- apply(EnvSuitability, 4, max, na.rm = TRUE)
+            isNewMax <- maxThisStep > globalMaxSuitability
+            globalMaxSuitability[isNewMax] <- maxThisStep[isNewMax]
+
+            setTxtProgressBar(pb, step + 1)
+        }
+        close(pb)
+        # guard: if any species were all NA across time, max stays -Inf -> set to NA (or 0)
+        globalMaxSuitability[is.infinite(globalMaxSuitability)] <- NA_real_
+
+        # - 2. Recompute suitability scores for each time step and scale them
+        print(paste0("Recompute combined scores and scale them for species pool ", numPool, " ..."))
+        pb <- txtProgressBar(min = 0, max = (timeSteps + 1), style = 3)
+
+        for (step in 0:timeSteps) {
+            t <- InitialTimeStep + step
+            inFile <- file.path(
+            DirectoryOutputSpeciesPool,
+            paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5")
+            )
+            outFile <- file.path(
+            DirectoryOutputSpeciesPool,
+            paste0("ScaledSuitability_", numPool, "_TimeStep", t, ".h5")
+            )
+
+            SuitabilityScoresT <- h5read(inFile, "EnvironmentalSuitabilityScores")
+            selectedScores <- SuitabilityScoresT[,,,, activeNiches, drop = FALSE]
+
+            if (sum(nicheFlags) > 1) {
+                EnvSuitability <- apply(selectedScores, c(1, 2, 3, 4), prod)
+            } else {
+                EnvSuitability <- selectedScores
+            }
+
+            # Scale by species max
+            # safe denom: if NA (never observed) -> keep NA; if 0 -> avoid divide-by-zero
+            denom <- globalMaxSuitability
+            denom[is.na(denom) | denom == 0] <- NA_real_
+            scaledSuitability <- sweep(EnvSuitability, 4, denom, "/")
+
+            avgSuitability <- mean(EnvSuitability, na.rm=TRUE)
+            print(paste0("Avg. Suitability: ", round(avgSuitability, 3)))
+            avgScaledSuitability <- mean(scaledSuitability, na.rm=TRUE)
+            print(paste0("Avg. Scaled Suitability: ", round(avgSuitability, 3)))
+
+            # Clamp to [0,1]
+            scaledSuitability[is.na(scaledSuitability)] <- 0
+            scaledSuitability[is.nan(scaledSuitability)] <- 0
+            scaledSuitability[scaledSuitability < 0] <- 0
+            scaledSuitability[scaledSuitability > 1] <- 1
+
+            # Save file
+            if (file.exists(outFile)) file.remove(outFile)
+            h5createFile(outFile)
+            h5write(scaledSuitability, outFile, "ScaledSuitabilityScores")
+
+            setTxtProgressBar(pb, step + 1)
+        }
+        # Store the per-species max used for scaling in the same file
+        h5write(globalMaxSuitability, outFile, "GlobalMaxSuitability")
+        close(pb)
     }
 }
 
