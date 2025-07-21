@@ -481,8 +481,8 @@ main <- function() {
 
             # Load environmental scores for the current time step
             envSuitPath <- file.path(DirectoryEnvScores,
-                                     paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5"))
-            EnvSuitScors <- rhdf5::h5read(envSuitPath, "EnvironmentalSuitabilityScores")
+                                     paste0("ScaledSuitability_", numPool, "_TimeStep", t, ".h5"))
+            EnvSuitScors <- rhdf5::h5read(envSuitPath, "ScaledSuitabilityScores")
 
             ###############################################################################
             # 1. Dispersal
