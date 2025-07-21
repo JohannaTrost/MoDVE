@@ -6,12 +6,12 @@ import matplotlib
 matplotlib.use("MacOSX")  # Use the appropriate backend for your environment
 
 poolid = 1
-sampling_method = "rand"
+sampling_method = "real"
 
-env_path = 'R/tests/data/output_a2/UniqueEnvVarsComb_t131-t198.csv'
-niche_path = f'R/tests/data/output_a2_100spec_{sampling_method}_v2/SpeciesPool{poolid}.csv'
+env_path = 'R/tests/data/output_a2_100spec_real_v2/UniqueEnvVarsComb_t100-t199.csv'
+niche_path = f'R/tests/data/output_a2_100spec_{sampling_method}_v3/SpeciesPool{poolid}.csv'
 
-out_path = f'../../figs/a2_plots_test/niches_vs_env_{sampling_method}_pool{poolid}_v3.png'
+out_path = f'../../figs/a2_plots_test/niches_vs_env_{sampling_method}_pool{poolid}_v4.png'
 
 env = pd.read_csv(env_path)
 niches = pd.read_csv(niche_path)

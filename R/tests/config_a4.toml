@@ -1,11 +1,12 @@
 #DirectoryMicrohabitat = "/Users/johanna/Uni/masterarbeit/code/MoDVE/R/tests/data/mh_test_a1"
-DirectoryMicrohabitat = "/Users/johanna/Uni/masterarbeit/data/modve_input/microhabitat_lowland_zach_mh_2024_mc"
-DirectorySpeciesPools = "tests/data/output_a2_100spec_real"
-DirectoryOutput = "/Users/johanna/Uni/masterarbeit/data/a4_output/v1_real_niches"
+DirectoryMicrohabitat = "/Users/johanna/Uni/masterarbeit/data/modve_input/v2_microhabitat_lowland_zach_mh_2024_mc"
+DirectorySpeciesPools = "tests/data/output_a2_100spec_real_v2"
+DirectoryModelMain = "/Users/johanna/Uni/masterarbeit/data/a3_output/v2_real_niches"
+DirectoryOutput = "/Users/johanna/Uni/masterarbeit/data/a4_output/v8_real_niches_original_model_suit"
 
 MicrohabitatType = 1
-timeSteps = 25
-numSpeciesPools = [1]
+timeSteps = 99
+numSpeciesPools = [1, 1]
 numReplicate = 1
 
 Imax = 900
@@ -14,9 +15,9 @@ LightResponseFct = "Yan and Hunt"  # optionas ("Yan and Hunt", "Parabolic")
 InitialTimeStep = 100
 
 LightNicheOpt = 1
-HumNicheOpt = 1
-TempNicheOpt = 1
-WindNicheOpt = 1
+HumNicheOpt = 0
+TempNicheOpt = 0
+WindNicheOpt = 0
 
 # Microhabitat variable settings
 # - Variables: TotalSurfaceAreaOpt, SurfaceAreaLossOpt, LightNicheOpt, AverageWeightedAngles, HumNicheOpt, TempNicheOpt, WindNicheOpt

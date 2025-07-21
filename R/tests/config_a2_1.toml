@@ -1,4 +1,5 @@
-DirectoryOutput = "/Users/johanna/Uni/masterarbeit/code/MoDVE/R/tests/data/output_a2_100spec_real_v2"
+
+DirectoryOutput = "/Users/johanna/Uni/masterarbeit/code/MoDVE/R/tests/data/output_a2_100spec_real_v3"
 DirectoryMicrohabitat = "/Users/johanna/Uni/masterarbeit/data/modve_input/v2_microhabitat_lowland_zach_mh_2024_mc"
 
 initialTimeStep = 100

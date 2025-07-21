@@ -1,8 +1,8 @@
 seed = 42
 SingleSpeciesModel = 0
-DirectoryModelMain = "/Users/johanna/Uni/masterarbeit/data/a3_output/v2_real_niches"
+DirectoryModelMain = "/Users/johanna/Uni/masterarbeit/data/a3_output/v4_real_niches"
 DirectoryMicrohabitatMain = "/Users/johanna/Uni/masterarbeit/data/modve_input/v2_microhabitat_lowland_zach_mh_2024_mc"
-DirectorySpeciesPoolsMain = "/Users/johanna/Uni/masterarbeit/code/MoDVE/R/tests/data/output_a2_100spec_real_v2/"
+DirectorySpeciesPoolsMain = "/Users/johanna/Uni/masterarbeit/code/MoDVE/R/tests/data/output_a2_100spec_real_v4/"
 numSpeciesPools = [1, 2]
 replicatePerSpeciesPool = 1
 TimeStep = 100
