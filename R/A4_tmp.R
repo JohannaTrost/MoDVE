@@ -575,7 +575,11 @@ main <- function() {
 
             # Print average and std of suitability and response
             print(paste("Average suitability:", mean(all_suits, na.rm=TRUE),
+                        "Median suitability:", median(all_suits, na.rm=TRUE),
                         "Std suitability:", sd(all_suits, na.rm=TRUE)))
+            print(paste("Prec. Average suitability:", mean(all_suits_prec, na.rm=TRUE),
+                        "Prec. median suitability:", median(all_suits_prec, na.rm=TRUE),
+                        "Prec. Std suitability:", sd(all_suits_prec, na.rm=TRUE)))
 
             ###############################################################################
 
