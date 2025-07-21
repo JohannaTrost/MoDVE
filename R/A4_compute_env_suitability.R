@@ -229,6 +229,11 @@ main <- function() {
         print(paste0("Recompute combined scores and scale them for species pool ", numPool, " ..."))
         pb <- txtProgressBar(min = 0, max = (timeSteps + 1), style = 3)
 
+        # Create timestamped directory
+        timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+        timestampedDir <- file.path(DirectoryOutputSpeciesPool, timestamp)
+        dir.create(timestampedDir, recursive = TRUE)
+
         for (step in 0:timeSteps) {
             t <- InitialTimeStep + step
             inFile <- file.path(
@@ -236,7 +241,7 @@ main <- function() {
             paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5")
             )
             outFile <- file.path(
-            DirectoryOutputSpeciesPool,
+            timestampedDir,
             paste0("ScaledSuitability_", numPool, "_TimeStep", t, ".h5")
             )
 
