@@ -235,6 +235,8 @@ main <- function() {
             scaledSuitability <- sweep(EnvSuitability, 4, denom, "/")
 
             # Clamp to [0,1]
+            scaledSuitability[is.na(scaledSuitability)] <- 0
+            scaledSuitability[is.nan(scaledSuitability)] <- 0
             scaledSuitability[scaledSuitability < 0] <- 0
             scaledSuitability[scaledSuitability > 1] <- 1
 
