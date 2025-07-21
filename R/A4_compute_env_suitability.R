@@ -199,8 +199,12 @@ main <- function() {
             if (sum(nicheFlags) > 1) {
                 EnvSuitability <- apply(selectedScores, c(1, 2, 3, 4), prod)
             } else {
+                print(dim(EnvSuitability))
                 EnvSuitability <- drop(selectedScores[,,,,1, drop = FALSE])
+                print(dim(EnvSuitability))
                 dim(EnvSuitability) <- dim(SuitabilityScoresT)[1:4]
+                print(dim(EnvSuitability))
+                print("----------")
             }
 
             # Get the maximum suitability for this time step for later scaling
