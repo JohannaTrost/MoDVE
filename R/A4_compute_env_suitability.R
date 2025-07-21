@@ -1,7 +1,7 @@
 options(warn=-1)  # Suppress warnings
 options(digits.secs=3)  # 3 decimal digits for seconds
 
-#setwd("/home/jtrost_ext/MoDVE/R/")
+setwd("/home/jtrost_ext/MoDVE/R/")
 
 # Epiphte IBM - Model
 # This model simulates the development of the entire epiphyte community
@@ -199,12 +199,7 @@ main <- function() {
             if (sum(nicheFlags) > 1) {
                 EnvSuitability <- apply(selectedScores, c(1, 2, 3, 4), prod)
             } else {
-                print(dim(EnvSuitability))
-                EnvSuitability <- drop(selectedScores[,,,,1, drop = FALSE])
-                print(dim(EnvSuitability))
-                dim(EnvSuitability) <- dim(SuitabilityScoresT)[1:4]
-                print(dim(EnvSuitability))
-                print("----------")
+                EnvSuitability <- selectedScores
             }
 
             # Get the maximum suitability for this time step for later scaling
@@ -237,10 +232,9 @@ main <- function() {
             selectedScores <- SuitabilityScoresT[,,,, activeNiches, drop = FALSE]
 
             if (sum(nicheFlags) > 1) {
-            EnvSuitability <- apply(selectedScores, c(1, 2, 3, 4), prod)
+                EnvSuitability <- apply(selectedScores, c(1, 2, 3, 4), prod)
             } else {
-            EnvSuitability <- drop(selectedScores[,,,,1, drop = FALSE])
-            dim(EnvSuitability) <- dim(SuitabilityScoresT)[1:4]
+                EnvSuitability <- selectedScores
             }
 
             # Scale by species max
