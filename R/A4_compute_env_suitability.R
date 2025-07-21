@@ -114,7 +114,7 @@ main <- function() {
         DirectoryOutputSpeciesPool <- file.path(DirectoryOutput, "EnvSuitability")
         dir.create(DirectoryOutputSpeciesPool, recursive=TRUE)
 
-        message("Computing suitability scores for species pool ", numPool, "for each variable ...")
+        print(paste0("Computing suitability scores for species pool ", numPool, "for each variable ..."))
 
         pb <- txtProgressBar(min = 0, max = (timeSteps + 1), style = 3)
 
@@ -124,9 +124,15 @@ main <- function() {
             savePath <- file.path(DirectoryOutputSpeciesPool,
                                   paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5"))
             if (file.exists(savePath)) {
-                # If the file already exists, skip to the next time step
-                setTxtProgressBar(pb, step + 1)
-                next
+                h5ds <- h5ls(savePath, all=TRUE)$name
+                if ("EnvironmentalSuitabilityScores" %in% h5ds) {
+                    # If the file already exists, skip to the next time step
+                    setTxtProgressBar(pb, step + 1)
+                    next
+                } else {
+                    # If the file exists but is missing the scores
+                    print(paste0("Datasets in ", savePath, ": ", h5ds))
+                }
             }
 
             # Efficiently read once per timestep
@@ -183,7 +189,7 @@ main <- function() {
         globalMaxSuitability <- rep(-Inf, NSpecies)
         activeNiches <- nicheFlags[allEnvVarNames]
 
-        message("Computing max. suitability scores for species pool ", numPool, "for each species ...")
+        print(paste0("Computing max. suitability scores for species pool ", numPool, "for each species ..."))
         pb <- txtProgressBar(min = 0, max = (timeSteps + 1), style = 3)
 
         for (step in 0:timeSteps) {
@@ -214,7 +220,7 @@ main <- function() {
         globalMaxSuitability[is.infinite(globalMaxSuitability)] <- NA_real_
 
         # - 2. Recompute suitability scores for each time step and scale them
-        message("Recompute combined scores and scale them for species pool ", numPool, " ...")
+        print(paste0("Recompute combined scores and scale them for species pool ", numPool, " ..."))
         pb <- txtProgressBar(min = 0, max = (timeSteps + 1), style = 3)
 
         for (step in 0:timeSteps) {
