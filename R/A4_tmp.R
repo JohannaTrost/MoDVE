@@ -750,7 +750,7 @@ main <- function() {
                     # SummaryMatrixSpecies[rowIndex, ColSMeanHeight] <- NaN
                 }
 
-                SummaryMatrixSpeciesSave[rowIndex, 1] <- currTimeStep
+                SummaryMatrixSpeciesSave[rowIndex, 1] <- timeStep
                 SummaryMatrixSpeciesSave[rowIndex, int_seq(2, TotalColsSpeciesMatrix + 1)] <- SummaryMatrixSpecies[rowIndex,]
             }
 
