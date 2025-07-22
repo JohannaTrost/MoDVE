@@ -84,9 +84,9 @@ ComputeDivTurnover <- function(data) {
               speciesHeightMatrix = speciesHeightMatrix))
 }
 
-DirectoryModelResults <- "/Users/johanna/Uni/masterarbeit/data/a5_output/v8_real_niches_original_model_suit_precomp/"
-DirectoryPlots <- "../../../figs/a5_plots_test/v8_real_niches_original_model_suit_precomp3/"
-numSpeciesPools <- c(2)
+DirectoryModelResults <- "/Users/johanna/Uni/masterarbeit/data/a5_output/v8_real_niches_original_model_light_hum_growth/"
+DirectoryPlots <- "../../../figs/a5_plots_test/v8_real_niches_original_model_light_hum_growth/"
+numSpeciesPools <- c(1, 2)
 replicatePerSpeciesPool <- 1
 timeStepStart <- 100
 timeStepEnd <- 199
@@ -124,6 +124,35 @@ speciesHeight <- tibble(
 
 for (rep in seq_len(replicatePerSpeciesPool)) {
   for (numSpeciesPool in numSpeciesPools) {
+
+    # --- 5. Analysis of mortality and recruits
+    ComSum <- read_csv(paste0(DirectoryModelResults, "ID_SpeciesP_", sp, "_Rep_", rep, "/CommunitySummary.csv"))
+
+    # Reshape data to long format
+    ComSumLong <- ComSum %>%
+      select(timeStep, Recruits, starts_with("Mortality")) %>%
+      pivot_longer(
+        cols = -timeStep,
+        names_to = "Type",
+        values_to = "Count"
+      )
+
+    # Create the ggplot
+    DemogPlot <- ggplot(ComSumLong, aes(x = timeStep, y = Count, color = Type)) +
+      geom_line(alpha = 0.5) +
+      labs(
+        x = "Time Step",
+        y = "Count",
+        color = "Event Type"
+      ) +
+      theme_minimal()
+
+    filename <- paste0(DirectoryPlots, "SpeciesPool_", sp, "_Replicate_", rep, "_Demography.pdf")
+    pdf(filename, width = 8, height = 4)
+    print(DemogPlot)
+    dev.off()
+
+    # --- Collecting data for each time step
     for (timeStep in int_seq(timeStepStart, timeStepEnd)) {
 
       modelResultsPath <- paste0(DirectoryModelResults,
@@ -331,7 +360,7 @@ dev.off()
 # --- 4. Richness and abundance over time (overall and per height bins)
 
 overallStats <- speciesHeight %>%
-  group_by(TimeStep) %>%
+  group_by(TimeStep, Replicate, SpeciesPool) %>%
   summarize(
     Richness = length(unique(SpeciesID)),
     Abundance = n()
@@ -341,47 +370,26 @@ overallStats <- speciesHeight %>%
 # Example: df <- tibble::tibble(TimeStep = ..., Richness = ..., Abundance = ...)
 
 # Plot for Richness over Time
-p1 <- ggplot(overallStats, aes(x = TimeStep, y = Richness)) +
-  geom_line(color = "steelblue", size = 1) +
-  labs(x = "Time Step", y = "Richness") +
+p1 <- ggplot(overallStats, aes(x = TimeStep, y = Richness,
+                               group = interaction(SpeciesPool, Replicate),
+                               color = as.factor(SpeciesPool))) +
+  geom_line(size = 1) +
+  labs(x = "Time Step", y = "Richness", color = "Species Pool") +
   theme_minimal()
 
 # Plot for Abundance over Time
-p2 <- ggplot(overallStats, aes(x = TimeStep, y = Abundance)) +
-  geom_line(color = "darkgreen", size = 1) +
-  labs(x = "Time Step", y = "Abundance") +
+p2 <- ggplot(overallStats, aes(x = TimeStep, y = Abundance,
+                               group = interaction(SpeciesPool, Replicate),
+                               color = as.factor(SpeciesPool))) +
+  geom_line(size = 1) +
+  labs(x = "Time Step", y = "Abundance", color = "Species Pool") +
   theme_minimal()
 
-# Combine plots side by side
-filename <- paste0(DirectoryPlots, "SpeciesPool_", sp, "_Replicate_", rep, "_OverallRichnessAbundance.pdf")
-pdf(filename, width = 8, height = 4)
-print(p1 + p2)
-dev.off()
+# Combine plots with shared legend
+combined_plot <- (p1 + p2) +
+  plot_layout(ncol = 2, guides = "collect") &
+  theme(legend.position = "bottom")
 
-# --- 5. Analysis of mortality and recruits
-
-ComSum <- read_csv(paste0(DirectoryModelResults, "ID_SpeciesP_", sp, "_Rep_", rep, "/CommunitySummary.csv"))
-
-# Reshape data to long format
-ComSumLong <- ComSum %>%
-  select(timeStep, Recruits, starts_with("Mortality")) %>%
-  pivot_longer(
-    cols = -timeStep,
-    names_to = "Type",
-    values_to = "Count"
-  )
-
-# Create the ggplot
-DemogPlot <- ggplot(ComSumLong, aes(x = timeStep, y = Count, color = Type)) +
-  geom_line(linewidth = 0.3, alpha = 0.5) +
-  labs(
-    x = "Time Step",
-    y = "Count",
-    color = "Event Type"
-  ) +
-  theme_minimal()
-
-filename <- paste0(DirectoryPlots, "SpeciesPool_", sp, "_Replicate_", rep, "_Demography.pdf")
-pdf(filename, width = 8, height = 4)
-print(DemogPlot)
-dev.off()
+# Save to PDF
+filename <- paste0(DirectoryPlots, "OverallRichnessAbundance.pdf")
+ggsave(filename, plot = combined_plot, width = 8, height = 4)
