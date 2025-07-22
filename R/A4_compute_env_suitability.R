@@ -96,6 +96,15 @@ main <- function() {
     # Create folder to save the model results
     dir.create(DirectoryOutput, recursive=TRUE)
 
+    # Create Save-Directory
+    DirectoryOutputSpeciesPool <- file.path(DirectoryOutput, "EnvSuitability")
+    dir.create(DirectoryOutputSpeciesPool, recursive=TRUE)
+
+    # Create timestamped directory
+    timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+    timestampedDir <- file.path(DirectoryOutputSpeciesPool, timestamp)
+    dir.create(timestampedDir, recursive = TRUE)
+
     # Parallelize across species pools and species
     output <- foreach(numPool=seq(numSpeciesPools),
                        .export=c("ComputeSuitabilityUnscaled", "int_seq", "Parabol", "SuitabilityScore")) %dorng% {
@@ -109,10 +118,6 @@ main <- function() {
         }
         SpeciesPool <- read.csv(file.path(DirectorySpeciesPools, SpeciesPoolFileName), sep=",", header=TRUE)
         NSpecies <- nrow(SpeciesPool)
-
-        # Create Save-Directory for each each replicate/initialDistribution
-        DirectoryOutputSpeciesPool <- file.path(DirectoryOutput, "EnvSuitability")
-        dir.create(DirectoryOutputSpeciesPool, recursive=TRUE)
 
         print(paste0("Computing suitability scores for species pool ", numPool, "for each variable ..."))
 
@@ -228,11 +233,6 @@ main <- function() {
         # - 2. Recompute suitability scores for each time step and scale them
         print(paste0("Recompute combined scores and scale them for species pool ", numPool, " ..."))
         pb <- txtProgressBar(min = 0, max = (timeSteps + 1), style = 3)
-
-        # Create timestamped directory
-        timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
-        timestampedDir <- file.path(DirectoryOutputSpeciesPool, timestamp)
-        dir.create(timestampedDir, recursive = TRUE)
 
         for (step in 0:timeSteps) {
             t <- InitialTimeStep + step
