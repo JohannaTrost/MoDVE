@@ -509,20 +509,15 @@ main <- function() {
 
         centralPoint <- c(floor(dimX/2) + 1, floor(dimY/2) + 1, floor(dimZ/2) + 1)
 
-        # Create probability matrix for each species
-        if (UseWindDispersal) {
-            ProbabilityMatrixNormalized <- compute_prob_matrix_norm(
-              centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool,
-              Microhabitat[, , , Inds["WindNicheOpt"]])
-        } else {
-            ProbabilityMatrixNormalized <- compute_prob_matrix_norm(
-              centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool
-            )
-        }
-
         # Create Save-Directory for each each replicate/initialDistribution
         DirectoryModelResultsRun <- file.path(DirectoryModelResults, paste0("ID_SpeciesP_", numPool, "_Rep_", r))
         dir.create(DirectoryModelResultsRun, recursive=TRUE)
+
+        if (!UseWindDispersal) {
+            ProbabilityMatrixNormalized <- compute_prob_matrix_norm(
+                  centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool
+            )
+        }
 
         # Load initial epiphyte distribution
         E <- read.csv(FileNameInitalDistribution, sep=",", header=TRUE)  # E for epiphytes
@@ -576,6 +571,13 @@ main <- function() {
 
             ###############################################################################
             # 1. Dispersal
+            # Create probability matrix for each species
+            if (UseWindDispersal) {
+                ProbabilityMatrixNormalized <- compute_prob_matrix_norm(
+                  centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool,
+                  Microhabitat[, , , Inds["WindNicheOpt"]])
+            }
+
             disp_items <- dispersal(
                 NumberOfSpecies,
                 E,
