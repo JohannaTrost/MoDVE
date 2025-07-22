@@ -84,8 +84,8 @@ ComputeDivTurnover <- function(data) {
               speciesHeightMatrix = speciesHeightMatrix))
 }
 
-DirectoryModelResults <- "/Users/johanna/Uni/masterarbeit/data/a5_output/v8_real_niches_original_model_light_hum_growth/"
-DirectoryPlots <- "../../../figs/a5_plots_test/v8_real_niches_original_model_light_hum_growth/"
+DirectoryModelResults <- "/Users/johanna/Uni/masterarbeit/data/a5_output/v8_real_niches_original_model_light_hum_growth_mort/"
+DirectoryPlots <- "../../../figs/a5_plots_test/v8_real_niches_original_model_light_hum_growth_mort/"
 numSpeciesPools <- c(1, 2)
 replicatePerSpeciesPool <- 1
 timeStepStart <- 100
@@ -126,7 +126,7 @@ for (rep in seq_len(replicatePerSpeciesPool)) {
   for (numSpeciesPool in numSpeciesPools) {
 
     # --- 5. Analysis of mortality and recruits
-    ComSum <- read_csv(paste0(DirectoryModelResults, "ID_SpeciesP_", sp, "_Rep_", rep, "/CommunitySummary.csv"))
+    ComSum <- read_csv(paste0(DirectoryModelResults, "ID_SpeciesP_", numSpeciesPool, "_Rep_", rep, "/CommunitySummary.csv"))
 
     # Reshape data to long format
     ComSumLong <- ComSum %>%
@@ -147,7 +147,7 @@ for (rep in seq_len(replicatePerSpeciesPool)) {
       ) +
       theme_minimal()
 
-    filename <- paste0(DirectoryPlots, "SpeciesPool_", sp, "_Replicate_", rep, "_Demography.pdf")
+    filename <- paste0(DirectoryPlots, "SpeciesPool_", numSpeciesPool, "_Replicate_", rep, "_Demography.pdf")
     pdf(filename, width = 8, height = 4)
     print(DemogPlot)
     dev.off()

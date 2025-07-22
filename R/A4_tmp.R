@@ -97,7 +97,9 @@ dispersal <- function(NumberOfSpecies,
                       SlopeRecruitment,
                       ProbabilityMatrixNormalized,
                       SpeciesPool,
-                      MaxIndividualID) {
+                      MaxIndividualID,
+                      Inds,
+                      EnvVarFlags) {
     # Store number of individuals at beginning of time step
     IntialNumberIndividuals <- array(rep(0, NumberOfSpecies))
     for (g in seq_len(NumberOfSpecies)) {
@@ -109,7 +111,7 @@ dispersal <- function(NumberOfSpecies,
     NumberRecruitsPerSpecies <- array(rep(0, NumberOfSpecies))
 
     # Calculate free surface area per voxel
-    AvailableSurfaceArea <- Microhabitat[, , , 1]
+    AvailableSurfaceArea <- Microhabitat[, , , Inds["TotalSurfaceAreaOpt"]]
     for (i in seq_len(nrow(E))) {
         SurfaceAreaNeededInVoxel <- E$Mass[i]^(2/3) / SurfaceBiomassScaling
         AvailableSurfaceArea[E$X[i], E$Y[i], E$Z[i]] <- max(0, AvailableSurfaceArea[E$X[i], E$Y[i], E$Z[i]] - SurfaceAreaNeededInVoxel)
@@ -158,16 +160,33 @@ dispersal <- function(NumberOfSpecies,
                 # Matix containing all voxel for which the light requirements are fulfilled
                 # We use the first row from MatureIndividulsPerSpecies. Since its elements have the same SpeciesID
                 # then the MinLight and MaxLight is the same for all rows.
-                pot_habitat <- ifelse((Microhabitat[, , , 3] >= MatureIndividulsPerSpecies$MinLight[1]) & (Microhabitat[, , , 3] <= MatureIndividulsPerSpecies$MaxLight[1]), 1, 0)
+                IdxLight <- Inds["LightNicheOpt"]
+                IdxHum <- Inds["HumNicheOpt"]
+                IdxTemp <- Inds["TempNicheOpt"]
+                IdxWind <- Inds["WindNicheOpt"]
+
+                LightSuitable <- ((Microhabitat[, , , IdxLight] >= MatureIndividulsPerSpecies$MinLight[1]) &
+                                  (Microhabitat[, , , IdxLight] <= MatureIndividulsPerSpecies$MaxLight[1]))
+                HumSuitable <- ((Microhabitat[, , , IdxHum] >= MatureIndividulsPerSpecies$MinHum[1]) &
+                                (Microhabitat[, , , IdxHum] <= MatureIndividulsPerSpecies$MaxHum[1]))
+                TempSuitable <- ((Microhabitat[, , , IdxTemp] >= MatureIndividulsPerSpecies$MinTemp[1]) &
+                                 (Microhabitat[, , , IdxTemp] <= MatureIndividulsPerSpecies$MaxTemp[1]))
+                WindSuitable <- ((Microhabitat[, , , IdxWind] >= MatureIndividulsPerSpecies$MinWind[1]) &
+                                 (Microhabitat[, , , IdxWind] <= MatureIndividulsPerSpecies$MaxWind[1]))
+                # Compute potential habitat based on selected flags
+                vars <- c("LightSuitable", "HumSuitable", "TempSuitable", "WindSuitable")
+                pot_habitat <- Reduce("&", mget(vars[as.logical(EnvVarFlags)]))
+
+                print(paste("Potential habitat no. voxels:", sum(pot_habitat, na.rm=TRUE)))
 
                 # Final probabiliy matrix for new recruits
-                probability_recruits <- ProbabilityMatrixPerSpecies * pot_habitat * AvailableSurfaceArea
+                probability_recruits <- ProbabilityMatrixPerSpecies * AvailableSurfaceArea * pot_habitat
 
                 # Calculate number of recuits based on final probability matrix
                 Recruits <- array(rpois(length(probability_recruits), probability_recruits), dim=dim(probability_recruits))  # poissrnd(probability_recruits) in matlab
 
                 # Add new recruits to epiphyte matrix
-                num_recruits <- sum(Recruits)  # sum(sum(sum(Recruits))) in matlab
+                num_recruits <- sum(Recruits, na.rm=TRUE)  # sum(sum(sum(Recruits))) in matlab
                 NumberRecruitsPerSpecies[unique_species[i]] <- num_recruits
 
                 if (num_recruits > 0) {
@@ -527,7 +546,9 @@ main <- function() {
                 SlopeRecruitment,
                 ProbabilityMatrixNormalized,
                 SpeciesPool,
-                MaxIndividualID
+                MaxIndividualID,
+                Inds,
+                EnvVarFlags
             )
 
             # Out only.
