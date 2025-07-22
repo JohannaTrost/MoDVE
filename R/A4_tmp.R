@@ -568,7 +568,7 @@ main <- function() {
                     tmp1 <- GrowthRate(E$MaximumMass[i], E$Mass[i], E$GrowthRate[i])
                     tmp2 <- EnvSuitScors[E$X[i], E$Y[i], E$Z[i], E$SpeciesID[i]]
 
-                    if (is.na(tmp2_here) | is.nan(tmp2_here)) {
+                    if (is.na(tmp2) | is.nan(tmp2)) {
                         tmp2 <- 0  # If the suitability is NA, set it to 0
                         message("Suitability score is NA.")
                     }
