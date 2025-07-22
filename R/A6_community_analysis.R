@@ -84,8 +84,8 @@ ComputeDivTurnover <- function(data) {
               speciesHeightMatrix = speciesHeightMatrix))
 }
 
-DirectoryModelResults <- "/Users/johanna/Uni/masterarbeit/data/a5_output/v8_real_niches_original_model_light_hum_growth_mort/"
-DirectoryPlots <- "../../../figs/a5_plots_test/v8_real_niches_original_model_light_hum_growth_mort/"
+DirectoryModelResults <- "/Users/johanna/Uni/masterarbeit/data/a5_output/v8_real_niches_original_model_light_hum_all_proc/"
+DirectoryPlots <- "../../../figs/a5_plots_test/v8_real_niches_original_model_light_hum_all_proc/"
 numSpeciesPools <- c(1, 2)
 replicatePerSpeciesPool <- 1
 timeStepStart <- 100

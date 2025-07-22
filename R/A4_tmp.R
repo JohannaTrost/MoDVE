@@ -14,7 +14,7 @@ library("readr")
 
 ###############################################################################
 
-compute_prob_matrix_norm <- function(centralPoint, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool) {
+compute_prob_matrix_norm <- function(centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool, WindSpeed = NULL) {
     # Erzeugen der Distanzmatrix mit allen Distanzen zum
     DistanceMatrix <- array(rep(0, dimX * dimY * dimZ), dim=c(dimX, dimY, dimZ))
 
@@ -28,6 +28,28 @@ compute_prob_matrix_norm <- function(centralPoint, dimX, dimY, dimZ, NumberOfSpe
         }
     }
 
+    # This is in case no wind dispersal was specified by the user
+    if (!is.null(WindSpeed)) {
+        # Modify the windspeed matrix to match the larger distance matrix
+        WindSpeedFull <- array(NA, dim = c(dimX, dimY, dimZ))
+
+        # Coordinates to insert original wind field in center
+        startX <- floor(dimX / 2) - floor(dimPlot[1] / 2) + 1
+        startY <- floor(dimY / 2) - floor(dimPlot[2] / 2) + 1
+        startZ <- floor(dimZ / 2) - floor(dimPlot[3] / 2) + 1
+        endX <- startX + dimPlot[1] - 1
+        endY <- startY + dimPlot[2] - 1
+        endZ <- startZ + dimPlot[3] - 1
+
+        # Embed the original wind field into the center
+        WindSpeedFull[startX:endX,
+                      startY:endY,
+                      startZ:endZ] <- WindSpeed
+    } else {
+        # No effect of wind on dispersal by setting wind speed to 0
+        WindSpeedFull <- 0
+    }
+
     # Erzeugen der Wahrschienlichkeitsmatrix anhand der Distanzmatrix und dem
     # artspezischien Wert bb aus der Epiphytenmatrix
     # Google translate: Generating the probability matrix based on the distance
@@ -39,8 +61,18 @@ compute_prob_matrix_norm <- function(centralPoint, dimX, dimY, dimZ, NumberOfSpe
     for (i in seq_len(NumberOfSpecies)) {
         exponentE <- SpeciesPool$DispersalKernel[i]
         dispersalAsymmetry <- SpeciesPool$DispersalKernelAsymmetry[i]
+        dispersalWindEffect <- SpeciesPool$DispersalKernelWindEffect[i]
 
-        ProbabilityMatrix[, , , i] <- exp(-DistanceMatrix * exponentE)  # call to negExp(DistanceMatrix(:,:,:),exponentE) in matlab
+        # Scale the dispersal kernel by wind speed (depending on species specific wind dispersal)
+        WindExponentE <- exponentE / (1 + dispersalWindEffect * WindSpeedFull)
+        # Replace NAs with former exponentE
+        WindExponentE[is.na(WindExponentE)] <- exponentE
+
+        ProbabilityMatrix[, , , i] <- exp(-DistanceMatrix * WindExponentE)  # call to negExp(DistanceMatrix(:,:,:),exponentE) in matlab
+
+        print(paste0("exponentE for species ", i, ": ", mean(WindExponentE)))
+        print(paste0("dispersalAsymmetry for species ", i, ": ", dispersalAsymmetry))
+        print(paste0("Sum of ProbabilityMatrix for species ", i, ": ", sum(ProbabilityMatrix[, , , i])))
 
         # Apply dispersal asymmetry (probability to disperse downwards higher than upwards dispersal)
         # WARNING: The index i in the 4th dimension was missing from the Matlab script and so we were
@@ -322,7 +354,7 @@ main <- function() {
     # Competition Methods; defines which individuals are removed in voxels which
     # are entirely filled. 1:size (small individuals are outcompetet by larger ones); 2:random competition
     CompetitionMethod <- config$CompetitionMethod
-    LightResponseFct <- config$LightResponseFct
+    UseWindDispersal <- config$UseWindDispersal
 
     # Mortality method (complete random or scaling with mass according to metabolic theory);
     MortalityMethod <- config$MortalityMethod  # 0: random mortality; 1: scaling with mass to the exponent -1/4
@@ -477,7 +509,16 @@ main <- function() {
 
         centralPoint <- c(floor(dimX/2) + 1, floor(dimY/2) + 1, floor(dimZ/2) + 1)
 
-        ProbabilityMatrixNormalized <- compute_prob_matrix_norm(centralPoint, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool)
+        # Create probability matrix for each species
+        if (UseWindDispersal) {
+            ProbabilityMatrixNormalized <- compute_prob_matrix_norm(
+              centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool,
+              Microhabitat[, , , Inds["WindNicheOpt"]])
+        } else {
+            ProbabilityMatrixNormalized <- compute_prob_matrix_norm(
+              centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool
+            )
+        }
 
         # Create Save-Directory for each each replicate/initialDistribution
         DirectoryModelResultsRun <- file.path(DirectoryModelResults, paste0("ID_SpeciesP_", numPool, "_Rep_", r))
@@ -723,7 +764,7 @@ main <- function() {
                     SummaryMatrixSpecies[rowIndex, ColSNumberPopulationGrowthRate] <- SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsEnd] / SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsBeginning]
                     SummaryMatrixSpecies[rowIndex, ColSNumberPopulationGrowthRateLog] <- log(SummaryMatrixSpecies[rowIndex, ColSNumberPopulationGrowthRate])
                     SummaryMatrixSpecies[rowIndex, ColSNumberBirthRate] <- NumberRecruitsPerSpecies[numSpecies] / IntialNumberIndividuals[numSpecies]
-                    death_statuses <- c(2, 3, 4, 5) # 2: competition, 3: branch fall, 4: light, 5: natural mortality, 6: humidity, 7: temperature, 8: wind
+                    death_statuses <- c(2, 3, 4, 5, 6, 7, 8) # 2: competition, 3: branch fall, 4: light, 5: natural mortality, 6: humidity, 7: temperature, 8: wind
                     SummaryMatrixSpecies[rowIndex, ColSNumberDeathRate] <- sum(E$Status %in% death_statuses & E$SpeciesID == numSpecies, na.rm = TRUE) / IntialNumberIndividuals[numSpecies]
                     SummaryMatrixSpecies[rowIndex, ColSAverageSize] <- mean(E$Mass[E$SpeciesID == numSpecies])
                     SummaryMatrixSpecies[rowIndex, ColSAverageAge] <- mean(E$Age[E$SpeciesID == numSpecies])
