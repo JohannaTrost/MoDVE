@@ -165,7 +165,7 @@ main <- function() {
                     if (VarName == "Light" & LightResponseFct == "Parabolic") {
                         EnvVarSuit <- Parabol(
                             SpeciesPool$LightResponseA[i], SpeciesPool$LightResponseB[i],
-                            SpeciesPool$LightResponseC[i], Light
+                            SpeciesPool$LightResponseC[i], envVar
                         )
                     } else {
                         # Use the Yan and Hunt light response function

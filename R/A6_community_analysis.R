@@ -84,12 +84,12 @@ ComputeDivTurnover <- function(data) {
               speciesHeightMatrix = speciesHeightMatrix))
 }
 
-DirectoryModelResults <- "/Users/johanna/Uni/masterarbeit/data/a4_tmp_output/v8_real_niches_original_model_suit_precomp/"
-DirectoryPlots <- "../../../figs/a5_plots_test/v8_real_niches_original_model_suit_precomp2/"
-numSpeciesPools <- c(1)
+DirectoryModelResults <- "/Users/johanna/Uni/masterarbeit/data/a5_output/v8_real_niches_original_model_suit_precomp/"
+DirectoryPlots <- "../../../figs/a5_plots_test/v8_real_niches_original_model_suit_precomp3/"
+numSpeciesPools <- c(2)
 replicatePerSpeciesPool <- 1
 timeStepStart <- 100
-timeStepEnd <- 198
+timeStepEnd <- 199
 stepSize <- 5
 
 # mkdir if not exists

@@ -309,6 +309,18 @@ main <- function() {
     MortRateMass <- config$MortRateMass
     MortRateMassScaling <- config$MortRateMassScaling  # widely used scaling fator
 
+    # Get environmental variables to account for here
+    EnvVarFlags <- config$EnvVarFlags
+
+    # Get microhabitat matrix variables - dynamic handling of selected variables
+    MicrohabitatVariableFlags <- config$MicrohabitatVariableFlags
+    MhVarNames <- c("TotalSurfaceAreaOpt", "SurfaceAreaLossOpt", "LightNicheOpt", "AverageWeightedAngles",
+                    "HumNicheOpt", "TempNicheOpt", "WindNicheOpt")
+    # Only keep active options
+    ActiveOpts <- MhVarNames[as.logical(MicrohabitatVariableFlags)]
+    # Assign indices
+    Inds <- setNames(seq_along(ActiveOpts), ActiveOpts)
+
     InitialTimeStep <- config$InitialTimeStep  # Time step for which the Initial distribution is generated in A3
 
     # RNG seed
@@ -369,17 +381,33 @@ main <- function() {
     ColSMinLight <- 17
     ColSMaxLight <- 18
     ColSMeanLight <- 19
-    ColSMinHeight <- 20
-    ColSMaxHeight <- 21
-    ColSMeanHeight <- 22
-    TotalColsSpeciesMatrix <- ColSMeanHeight
+    # ColSMinHeight <- 20
+    # ColSMaxHeight <- 21
+    # ColSMeanHeight <- 22
+    # Climate mortality columns
+    ColSNumberMortalityHum <- 20
+    ColSNumberMortalityTemp <- 21
+    ColSNumberMortalityWind <- 22
+    ColSMinHum <- 23
+    ColSMaxHum <- 24
+    ColSMeanHum <- 25
+    ColSMinTemp <- 26
+    ColSMaxTemp <- 27
+    ColSMeanTemp <- 28
+    ColSMinWind <- 29
+    ColSMaxWind <- 30
+    ColSMeanWind <- 31
+
+    TotalColsSpeciesMatrix <- ColSMeanWind
 
     # Headers of matrix
     SummaryMatrixSpeciesHeaders <- c("TimeStep", "SpeciesID", "NumberIndividualsBeginning", "NumberIndividualsEnd",
         "NumberMatureIndividuals", "NumberRecruits", "NumberRecruitsPotential", "NumberMortalityBranchFall",
         "NumberMortalityLight", "NumberMortalityCompetition", "NumberMortalityNatural", "PopulationGrowthRate",
         "PopulationGrowthRateLog", "BirthRate", "DeathRate", "AverageMass", "AverageAge", "MinLight", "MaxLight",
-        "MeanLight", "MinHeight", "MaxHeight", "MeanHeight")
+        "MeanLight", #"MinHeight", "MaxHeight", "MeanHeight"
+        "NumberMortalityHum", "NumberMortalityTemp", "NumberMortalityWinds", "MinHum", "MaxHum", "MeanHum",
+        "MinTemp", "MaxTemp", "MeanTemp", "MinWind", "MaxWind", "MeanWind")
 
     if (length(SummaryMatrixSpeciesHeaders) != (TotalColsSpeciesMatrix + 1)) {
         stop("Headers of species matrix do not match with number of columns")
@@ -388,8 +416,8 @@ main <- function() {
     # Headers of matrix
     SummaryMatrixCommunityHeaders <- c("timeStep", "NumberSpeciesBeginning", "NumberSpeciesEnd",
         "NumberIndividualsBeginning", "NumberIndividualsEnd", "Recruits", "MortalityBranchFall",
-        "MortalityLight", "MortalityCompetition", "MortalityNatural", "BranchSurfaceIndex", "EpiphyteFilling")
-
+        "MortalityLight", "MortalityCompetition", "MortalityNatural", "MortalityHum", "MortalityTemp",
+        "MortalityWind", "BranchSurfaceIndex", "EpiphyteFilling")
 
     ###############################################################################
     # Main loop for the community model for each species pool and for each replicate
@@ -536,31 +564,13 @@ main <- function() {
                 # maybe it is faster if I do not use the if statement => speed testing
                 if (E$Status[i] == 1) {
                     tmp1 <- GrowthRate(E$MaximumMass[i], E$Mass[i], E$GrowthRate[i])
-
-                    if (LightResponseFct == "Parabolic") {
-                        tmp2 <- EnvSuitScors[EnvSuitScors$IndividualID == E$IndividualID[i] &
-                                               EnvSuitScors$TimeStep == timeStep,
-                                             "LightSuitParabol"]
-                    }
-                    else if (LightResponseFct == "Yan and Hunt") {
-                        tmp2_here <- SuitabilityScore(E$MinLight[i], E$MaxLight[i], E$OptimumLight[i], Microhabitat[E$X[i], E$Y[i], E$Z[i], 3])
-                        tmp2 <- EnvSuitScors[E$X[i], E$Y[i], E$Z[i], E$SpeciesID[i], 1]
-                    } else {
-                        stop("Unknown light response function specified in LightResponseFct")
-                    }
+                    tmp2 <- EnvSuitScors[E$X[i], E$Y[i], E$Z[i], E$SpeciesID[i]]
 
                     if (is.na(tmp2_here) | is.nan(tmp2_here)) {
-                        tmp2_here <- 0  # If the suitability is NA, set it to 0
-                    }
-                    else if (tmp2_here < 0 | tmp2_here > 1) {
-                        tmp2_here <- 0  # If the suitability is negative, set it to 0
+                        tmp2 <- 0  # If the suitability is NA, set it to 0
+                        message("Suitability score is NA.")
                     }
 
-                    if (tmp2_here != tmp2) {
-                        print(paste(tmp2_here, "!=", tmp2))
-                    }
-
-                    all_suits <- c(all_suits, tmp2_here)
                     all_suits_prec <- c(all_suits_prec, tmp2)
                     MassGained <- max(0, tmp1 * tmp2)
                     E$Mass[i] <- E$Mass[i] + MassGained
@@ -570,13 +580,13 @@ main <- function() {
                 E$SurfaceAreaOccupied[i] <- (E$Mass[i]^(2/3)) / SurfaceBiomassScaling
                 E$TotalSurfaceInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], 1]  # Total surface in voxel
                 E$SurfaceLossInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]  # Percentage surface loss in this year
-                E$LightInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], 3]  # Light conditions in voxel
+                E$LightInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["LightNicheOpt"]]  # Light conditions in voxel
+                E$HumInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["HumNicheOpt"]]  # Humidity in voxel
+                E$TempInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["TempNicheOpt"]]  # Temperature in voxel
+                E$WindInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["WindNicheOpt"]]  # Wind in voxel
             }
 
             # Print average and std of suitability and response
-            print(paste("Average suitability:", mean(all_suits, na.rm=TRUE),
-                        "Median suitability:", median(all_suits, na.rm=TRUE),
-                        "Std suitability:", sd(all_suits, na.rm=TRUE)))
             print(paste("Prec. Average suitability:", mean(all_suits_prec, na.rm=TRUE),
                         "Prec. median suitability:", median(all_suits_prec, na.rm=TRUE),
                         "Prec. Std suitability:", sd(all_suits_prec, na.rm=TRUE)))
@@ -585,6 +595,8 @@ main <- function() {
 
             ###############################################################################
             # Mortality
+            vars <- c("LightSuitable", "HumSuitable", "TempSuitable", "WindSuitable")
+            vars <- vars[as.logical(EnvVarFlags)]
             for (i in seq_len(nrow(E))) {
                 if (E$Status[i] == 1) {
 
@@ -592,14 +604,21 @@ main <- function() {
                     # because Microhabitat contains NaNs in some entries and
                     # in R a comparison with a NaN returns NA, not a boolean.
                     # Note: We call runif repeatedly intentionally. See Issue #16 on Github
-                    if (!is.nan(Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]) && runif(1, min=0, max=1) < Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]) {  # Mortality due to branch fall
+                    if (!is.nan(Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["SurfaceAreaLossOpt"]]) &&
+                      runif(1, min = 0, max = 1) < Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["SurfaceAreaLossOpt"]]) {  # Mortality due to branch fall
                         E$Status[i] <- 3
-                    } else if (Microhabitat[E$X[i], E$Y[i], E$Z[i], 3] < E$MinLight[i] | Microhabitat[E$X[i], E$Y[i], E$Z[i], 3] > E$MaxLight[i]) {  # Mortality due to changing light conditions
+                    } else if ("LightSuitable" %in% vars && E$LightInVoxel[i] < E$MinLight[i] | E$LightInVoxel[i] > E$MaxLight[i]) {  # Mortality due to changing light conditions
                         E$Status[i] <- 4
-                    } else if (MortalityMethod == 0 && runif(1, min=0, max=1) < MortRateRandom) {  # Natural mortality rate
+                    } else if (MortalityMethod == 0 && runif(1, min = 0, max = 1) < MortRateRandom) {  # Natural mortality rate
                         E$Status[i] <- 5
-                    } else if (MortalityMethod == 1 && runif(1, min=0, max=1) < (MortRateMass * (E$Mass[i]^MortRateMassScaling))) {
+                    } else if (MortalityMethod == 1 && runif(1, min = 0, max = 1) < (MortRateMass * (E$Mass[i]^MortRateMassScaling))) {
                         E$Status[i] <- 5
+                    } else if ("HumSuitable" %in% vars && !is.na(E$HumInVoxel[i]) && (E$HumInVoxel[i] < E$MinHum[i] | E$HumInVoxel[i] > E$MaxHum[i])) {
+                        E$Status[i] <- 6
+                    } else if ("TempSuitable" %in% vars && !is.na(E$TempInVoxel[i]) && (E$TempInVoxel[i] < E$MinTemp[i] | E$TempInVoxel[i] > E$MaxTemp[i])) {
+                        E$Status[i] <- 7
+                    } else if ("WindSuitable" %in% vars && !is.na(E$WindInVoxel[i]) && E$WindInVoxel[i] > E$MaxWind[i]) {
+                        E$Status[i] <- 8
                     }
                 }
             }
@@ -648,51 +667,89 @@ main <- function() {
             MortalityBranchFall <- length(which(E$Status == 3))
             MortalityLight <- length(which(E$Status == 4))
             MortalityNatural <- length(which(E$Status == 5))
+            MortalityHum <- length(which(E$Status == 6))
+            MortalityTemp <- length(which(E$Status == 7))
+            MortalityWind <- length(which(E$Status == 8))
+
 
             ###############################################################################
 
             # Store information in SummaryMatrixSpecies (summary over time for each species
             for (numSpecies in seq_len(NumberOfSpecies)) {
-                SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSSpeciesID] <- numSpecies
-                SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberIndividualsBeginning] <- IntialNumberIndividuals[numSpecies]
-                SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberIndividualsEnd] <- sum(E$Status == 1 & E$SpeciesID == numSpecies, na.rm=TRUE)
-                SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberMatureIndividuals] <- sum(E$Status == 1 & E$SpeciesID == numSpecies & E$Mass >= E$MassAtMaturity, na.rm=TRUE)
-                SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberRecruits] <- NumberRecruitsPerSpecies[numSpecies]
-                SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberMortalityBranchFall] <- sum(E$Status == 3 & E$SpeciesID == numSpecies, na.rm=TRUE)
-                SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberMortalityLight] <- sum(E$Status == 4 & E$SpeciesID == numSpecies, na.rm=TRUE)
-                SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberMortalityCompetition] <- sum(E$Status == 2 & E$SpeciesID == numSpecies, na.rm=TRUE)
-                SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberMortalityNatural] <- sum(E$Status == 5 & E$SpeciesID == numSpecies, na.rm=TRUE)
 
-                if (sum(E$Status == 1 & E$SpeciesID == numSpecies, na.rm=TRUE) > 0 && IntialNumberIndividuals[numSpecies] > 0) {
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberPopulationGrowthRate] <- SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberIndividualsEnd] / SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberIndividualsBeginning]
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberPopulationGrowthRateLog] <- log(SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberPopulationGrowthRate])
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberBirthRate] <- NumberRecruitsPerSpecies[numSpecies] / IntialNumberIndividuals[numSpecies]
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberDeathRate] <- (sum(E$Status == 3 & E$SpeciesID == numSpecies, na.rm=TRUE) + sum(E$Status == 4 & E$SpeciesID == numSpecies, na.rm=TRUE) + sum(E$Status == 2 & E$SpeciesID == numSpecies, na.rm=TRUE) + sum(E$Status == 5 & E$SpeciesID == numSpecies, na.rm=TRUE)) / IntialNumberIndividuals[numSpecies]
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSAverageSize] <- mean(E$Mass[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSAverageAge] <- mean(E$Age[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMinLight] <- min(E$LightInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMaxLight] <- max(E$LightInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMeanLight] <- mean(E$LightInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMinHeight] <- min(E$Z[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMaxHeight] <- max(E$Z[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMeanHeight] <- mean(E$Z[E$SpeciesID == numSpecies])
+                # Define the row index once
+                rowIndex <- ((numSpecies - 1) * timeSteps) + t
+
+                SummaryMatrixSpecies[rowIndex, ColSSpeciesID] <- numSpecies
+                SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsBeginning] <- IntialNumberIndividuals[numSpecies]
+                SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsEnd] <- sum(E$Status == 1 & E$SpeciesID == numSpecies, na.rm = TRUE)
+                SummaryMatrixSpecies[rowIndex, ColSNumberMatureIndividuals] <- sum(E$Status == 1 &
+                                                                                     E$SpeciesID == numSpecies &
+                                                                                     E$Mass >= E$MassAtMaturity, na.rm = TRUE)
+                SummaryMatrixSpecies[rowIndex, ColSNumberRecruits] <- NumberRecruitsPerSpecies[numSpecies]
+                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityBranchFall] <- sum(E$Status == 3 & E$SpeciesID == numSpecies, na.rm = TRUE)
+                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityLight] <- sum(E$Status == 4 & E$SpeciesID == numSpecies, na.rm = TRUE)
+                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityCompetition] <- sum(E$Status == 2 & E$SpeciesID == numSpecies, na.rm = TRUE)
+                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityNatural] <- sum(E$Status == 5 & E$SpeciesID == numSpecies, na.rm = TRUE)
+                # Climate mortality
+                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityHum] <- sum(E$Status == 6 & E$SpeciesID == numSpecies, na.rm = TRUE)
+                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityTemp] <- sum(E$Status == 7 & E$SpeciesID == numSpecies, na.rm = TRUE)
+                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityWind] <- sum(E$Status == 8 & E$SpeciesID == numSpecies, na.rm = TRUE)
+
+                if (sum(E$Status == 1 & E$SpeciesID == numSpecies, na.rm = TRUE) > 0 && IntialNumberIndividuals[numSpecies] > 0) {
+                    SummaryMatrixSpecies[rowIndex, ColSNumberPopulationGrowthRate] <- SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsEnd] / SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsBeginning]
+                    SummaryMatrixSpecies[rowIndex, ColSNumberPopulationGrowthRateLog] <- log(SummaryMatrixSpecies[rowIndex, ColSNumberPopulationGrowthRate])
+                    SummaryMatrixSpecies[rowIndex, ColSNumberBirthRate] <- NumberRecruitsPerSpecies[numSpecies] / IntialNumberIndividuals[numSpecies]
+                    death_statuses <- c(2, 3, 4, 5) # 2: competition, 3: branch fall, 4: light, 5: natural mortality, 6: humidity, 7: temperature, 8: wind
+                    SummaryMatrixSpecies[rowIndex, ColSNumberDeathRate] <- sum(E$Status %in% death_statuses & E$SpeciesID == numSpecies, na.rm = TRUE) / IntialNumberIndividuals[numSpecies]
+                    SummaryMatrixSpecies[rowIndex, ColSAverageSize] <- mean(E$Mass[E$SpeciesID == numSpecies])
+                    SummaryMatrixSpecies[rowIndex, ColSAverageAge] <- mean(E$Age[E$SpeciesID == numSpecies])
+                    SummaryMatrixSpecies[rowIndex, ColSMinLight] <- min(E$LightInVoxel[E$SpeciesID == numSpecies])
+                    SummaryMatrixSpecies[rowIndex, ColSMaxLight] <- max(E$LightInVoxel[E$SpeciesID == numSpecies])
+                    SummaryMatrixSpecies[rowIndex, ColSMeanLight] <- mean(E$LightInVoxel[E$SpeciesID == numSpecies])
+                    # SummaryMatrixSpecies[rowIndex, ColSMinHeight] <- min(E$Z[E$SpeciesID == numSpecies])
+                    # SummaryMatrixSpecies[rowIndex, ColSMaxHeight] <- max(E$Z[E$SpeciesID == numSpecies])
+                    # SummaryMatrixSpecies[rowIndex, ColSMeanHeight] <- mean(E$Z[E$SpeciesID == numSpecies])
+                    SummaryMatrixSpecies[rowIndex, ColSMinHum] <- min(E$HumInVoxel[E$SpeciesID == numSpecies])
+                    SummaryMatrixSpecies[rowIndex, ColSMaxHum] <- max(E$HumInVoxel[E$SpeciesID == numSpecies])
+                    SummaryMatrixSpecies[rowIndex, ColSMeanHum] <- mean(E$HumInVoxel[E$SpeciesID == numSpecies])
+                    SummaryMatrixSpecies[rowIndex, ColSMinTemp] <- min(E$TempInVoxel[E$SpeciesID == numSpecies])
+                    SummaryMatrixSpecies[rowIndex, ColSMaxTemp] <- max(E$TempInVoxel[E$SpeciesID == numSpecies])
+                    SummaryMatrixSpecies[rowIndex, ColSMeanTemp] <- mean(E$TempInVoxel[E$SpeciesID == numSpecies])
+                    SummaryMatrixSpecies[rowIndex, ColSMinWind] <- min(E$WindInVoxel[E$SpeciesID == numSpecies])
+                    SummaryMatrixSpecies[rowIndex, ColSMaxWind] <- max(E$WindInVoxel[E$SpeciesID == numSpecies])
+                    SummaryMatrixSpecies[rowIndex, ColSMeanWind] <- mean(E$WindInVoxel[E$SpeciesID == numSpecies])
                 } else {
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberPopulationGrowthRate] <- NaN
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberPopulationGrowthRateLog] <- NaN
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberBirthRate] <- NaN
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSNumberDeathRate] <- NaN
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSAverageSize] <- NaN
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSAverageAge] <- NaN
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMinLight] <- NaN
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMaxLight] <- NaN
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMeanLight] <- NaN
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMinHeight] <- NaN
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMaxHeight] <- NaN
-                    SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ColSMeanHeight] <- NaN
+                    # List of columns to be set to NaN
+                    cols4summary <- c(
+                      ColSNumberPopulationGrowthRate,
+                      ColSNumberPopulationGrowthRateLog,
+                      ColSNumberBirthRate,
+                      ColSNumberDeathRate,
+                      ColSAverageSize,
+                      ColSAverageAge,
+                      ColSMinLight,
+                      ColSMaxLight,
+                      ColSMeanLight,
+                      ColSMinHum,
+                      ColSMaxHum,
+                      ColSMeanHum,
+                      ColSMinTemp,
+                      ColSMaxTemp,
+                      ColSMeanTemp,
+                      ColSMinWind,
+                      ColSMaxWind,
+                      ColSMeanWind
+                    )
+                    # Set all specified columns to NaN for the given row
+                    SummaryMatrixSpecies[rowIndex, cols4summary] <- NaN
+                    # SummaryMatrixSpecies[rowIndex, ColSMinHeight] <- NaN
+                    # SummaryMatrixSpecies[rowIndex, ColSMaxHeight] <- NaN
+                    # SummaryMatrixSpecies[rowIndex, ColSMeanHeight] <- NaN
                 }
 
-                SummaryMatrixSpeciesSave[((numSpecies-1) * timeSteps) + t, 1] <- timeStep
-                SummaryMatrixSpeciesSave[((numSpecies-1) * timeSteps) + t, int_seq(2, TotalColsSpeciesMatrix + 1)] <- SummaryMatrixSpecies[((numSpecies-1) * timeSteps) + t, ]
+                SummaryMatrixSpeciesSave[rowIndex, 1] <- currTimeStep
+                SummaryMatrixSpeciesSave[rowIndex, int_seq(2, TotalColsSpeciesMatrix + 1)] <- SummaryMatrixSpecies[rowIndex,]
             }
 
             ###############################################################################
@@ -707,6 +764,9 @@ main <- function() {
             SummaryMatrixCommunity$MortalityLight[t] <- MortalityLight  # MortalityLight
             SummaryMatrixCommunity$MortalityCompetition[t] <- MortalityCompetition  # MortalityCompetition
             SummaryMatrixCommunity$MortalityNatural[t] <- MortalityNatural  # MortalityNatural
+            SummaryMatrixCommunity$MortalityHum[t] <- MortalityHum  # Mortality due to humidity
+            SummaryMatrixCommunity$MortalityTemp[t] <- MortalityTemp  # Mortality due to temperature
+            SummaryMatrixCommunity$MortalityWind[t] <- MortalityWind  # Mortality due to wind
             SummaryMatrixCommunity$BranchSurfaceIndex[t] <- sum(Microhabitat[, , , 1]) / (dimPlot[1] * dimPlot[2])  # BranchSurfaceIndex
             SummaryMatrixCommunity$EpiphyteFilling[t] <- (sum(E$Mass^(2/3)) / SurfaceBiomassScaling) / sum(Microhabitat[, , , 1])  # EpiphyteFilling
             ###############################################################################
@@ -723,6 +783,9 @@ main <- function() {
             information <- paste(information, paste("MortalityLight: ", MortalityLight, sep=""), sep="\n")
             information <- paste(information, paste("MortalityCompetition: ", MortalityCompetition, sep=""), sep="\n")
             information <- paste(information, paste("MortalityNatural: ", MortalityNatural, sep=""), sep="\n")
+            information <- paste(information, paste0("MortalityHumidity: ", MortalityHum), sep = "\n")
+            information <- paste(information, paste0("MortalityTemperature: ", MortalityTemp), sep = "\n")
+            information <- paste(information, paste0("MortalityWind: ", MortalityWind), sep = "\n")
             information <- paste(information, paste("Time: ", format(Sys.time(), "%H:%M:%OS3"), sep=""), sep="\n")
             writeLines(information)
             ###############################################################################
