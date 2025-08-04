@@ -1,3 +1,5 @@
+from codecs import ignore_errors
+
 import numpy as np
 import xarray as xr
 import requests
@@ -26,14 +28,18 @@ out_dir = Path("../../data/mc_input/climate/cmip6_ceda")
 # Configure the area of interest and dates
 area = {"lat": [-42.9, -42.2], "lon": [-22.8, -22.2]}
 start = "2024-01-01"
-end = "2024-12-30"
+end = "2024-12-31"
 
-# Precipitation: GFDL-ESM4, CMCC_CM2-SR5, BCC-CSM2-MR, GISS- E2-1-G, INM-CM4-8 (LPB region)
+# Precipitation: GFDL-ESM4, CMCC_CM2-SR5, BCC-CSM2-MR, GISS-E2-1-G, INM-CM4-8 (LPB region)
 # Temperatire: FIO-ESM-2-0, CanESM5 and HadGEM3-GC31-MM -> none of them available in CEDA data (https://doi.org/10.5285/c107618f1db34801bb88a1e927b82317, https://doi.org/10.1038/s41597-023-02528-x)
 
 models = {
     "tas": ["CMCC-ESM2", "CMCC-CM2-SR5", "MRI-ESM2-0"],
     "hurs": ["IPSL-CM6A-LR", "INM-CM4-8", "GFDL-ESM4"],
+    'pr': ["INM-CM4-8", "GFDL-ESM4", "CMCC-CM2-SR5", "BCC-CSM2-MR"], # IPSL-CM6A-LR has 31,382 dates -> don't know which calendar to use
+    'sfcWind': ["GFDL-ESM4", "BCC-CSM2-MR", "INM-CM4-8"],
+    'ps': ["GFDL-ESM4", "BCC-CSM2-MR", "IPSL-CM6A-LR", "CMCC-ESM2", "CMCC-CM2-SR5",
+           "MRI-ESM2-0"]
 }
     # "HadGEM3-GC31-MM", -> Not available in CEDA
     # "CMCC-ESM2", # Best for temp
@@ -42,13 +48,23 @@ models = {
     # BCC-ESM1 -> not available in CEDA
     # ACCESS-ESM1-5, -> not available in CEDA
     # "IPSL-CM6A-LR", # Best for precipitation
-    # IPSL-CM6A-LR-INCA, -> not available in CEDA
-    # "INM-CM4-8  ", # Best for precipitation in LPB
+    # IPSL-CM6A-LR-INCA, -> not available in CEDA ()
+    # "INM-CM4-8", # Best for precipitation in LPB
     #"GFDL-ESM4" # Best for precipitation in LPB
 
 # calendar categories gregorian, no_leap_days, 360_days
-calendars = {"tas": ["no_leap_days", "no_leap_days", "gregorian"],
-             "hurs": ["gregorian", "no_leap_days", "no_leap_days"]}
+calendars = {
+    "tas": ["no_leap_days", "no_leap_days", "gregorian"],
+    "hurs": ["gregorian", "no_leap_days", "no_leap_days"],
+    "pr": ["no_leap_days", "no_leap_days", "no_leap_days",
+        "no_leap_days"],
+    "sfcWind": ["no_leap_days", "no_leap_days", "no_leap_days"],
+    "ps": ["no_leap_days", "no_leap_days", "gregorian", "no_leap_days",
+           "no_leap_days", "gregorian"]
+    # Also chose models with overall good performance in prep and temp over all of Brazil
+}
+micropoint_vars = {"tas": "temp", "hurs": "relhum", "pr": "precip",
+                   "sfcWind": "windspeed", "ps": "pres"}
 
 # - Extract time indices
 date_range = pd.date_range(start="2015-01-01", end="2100-12-31", freq="D")
@@ -68,9 +84,10 @@ dates_360days = np.asarray(
 )
 
 date_idx_range = {
-    "gregorian": [np.where(dates_gregorian == start)[0][0], np.where(dates_gregorian == end)[0][0]],
-    "no_leap_days": [np.where(dates_no_leap_days == start)[0][0], np.where(dates_no_leap_days == end)[0][0]],
-    "360_days": [np.where(dates_360days == start)[0][0], np.where(dates_360days == end)[0][0]]
+    "gregorian": [np.where(dates_gregorian == start)[0][0], np.where(dates_gregorian == end)[0][0]], # -> 31411
+    "no_leap_days": [np.where(dates_no_leap_days == start)[0][0], np.where(dates_no_leap_days == end)[0][0]], # -> 31390
+    "360_days": [np.where(dates_360days == start)[0][0], np.where(dates_360days == '2024-12-30')[0][0]] # -> 30960
+    # TODO dynamic date that is not the 31st
 }
 
 # Dates in date format
@@ -88,6 +105,8 @@ area_coords = {
     "lat": lats[lat_idx_range[0]: lat_idx_range[1] + 1],
     "lon": lons[lon_idx_range[0]: lon_idx_range[1] + 1]
 }
+
+cmip_ensemble = []
 
 for var in models.keys():
     print(var)
@@ -138,5 +157,25 @@ for var in models.keys():
 
     # Save the dataset to a netCDF file
     output_path = out_dir / f"baf_{var}_day_ssp245_{start}_{end}.nc"
-    models_ds.to_netcdf(output_path, mode='w', format='NETCDF4')
-    print(f"Saved {var} data to {output_path}")
+    if not out_dir.exists():
+        models_ds.to_netcdf(output_path, mode='w', format='NETCDF4')
+        print(f"Saved {var} data to {output_path}")
+    else:
+        print(f"{output_path} already exists.")
+
+    # Save aggregated data
+    var_ensemble = (models_ds
+                    .mean(dim="model")
+                    .rename({var: micropoint_vars[var]}))
+
+    # Convert unit if necessary
+    if var == "ps":
+        var_ensemble /= 1000  # Convert from Pa to kPa
+    elif var == "pr":
+        var_ensemble *= 3600  # Convert from kg m-2 s-1 to mm h-1
+
+    cmip_ensemble.append(var_ensemble)
+
+cmip_ensemble_ds = xr.merge(cmip_ensemble)
+output_path = out_dir / f"baf_ensemble_day_ssp245_{start}_{end}.nc"
+cmip_ensemble_ds.to_netcdf(output_path, mode='w', format='NETCDF4')
