@@ -1,5 +1,6 @@
 from codecs import ignore_errors
 
+
 import numpy as np
 import xarray as xr
 import requests
@@ -167,12 +168,6 @@ for var in models.keys():
     var_ensemble = (models_ds
                     .mean(dim="model")
                     .rename({var: micropoint_vars[var]}))
-
-    # Convert unit if necessary
-    if var == "ps":
-        var_ensemble /= 1000  # Convert from Pa to kPa
-    elif var == "pr":
-        var_ensemble *= 3600  # Convert from kg m-2 s-1 to mm h-1
 
     cmip_ensemble.append(var_ensemble)
 
