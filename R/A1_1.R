@@ -1,3 +1,5 @@
+setwd("/home/jtrost_ext/MoDVE/R/")
+
 # Create microhabitat matrices
 source("utils.R")
 
@@ -189,7 +191,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 
                         # If branch is lost during this time step, add it to lost surface
                         if (SurfaceAreaLossOpt == 1) {
-                            if (j == locDeadSegments[CounterDead] & totalDead > 0) {
+                            if (j == locDeadSegments[CounterDead] & TotalDead > 0) {
                                 CounterDead <- min(TotalDead, CounterDead + 1)
 
                                 lost_surface <- (ShootsBegin$length[j] / (numX*numY*numZ)) * ShootsBegin$diameter[j] * pi/2
