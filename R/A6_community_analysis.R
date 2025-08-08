@@ -9,6 +9,7 @@ library(ggplot2)
 library(forcats)
 library(tidyverse)
 library(patchwork)
+library(zoo)
 
 PlotSpeciesHeightAbundance <- function(res) {
   abundance_df <- res %>%
@@ -84,8 +85,8 @@ ComputeDivTurnover <- function(data) {
               speciesHeightMatrix = speciesHeightMatrix))
 }
 
-DirectoryModelResults <- "/Users/johanna/Uni/masterarbeit/data/a5_output/v8_real_niches_original_model_light_hum_all_proc/"
-DirectoryPlots <- "../../../figs/a5_plots_test/v8_real_niches_original_model_light_hum_all_proc/"
+DirectoryModelResults <- "/Users/johanna/Uni/masterarbeit/data/a5_output/v8_real_niches_original_model_light_hum_temp/"
+DirectoryPlots <- "../../../figs/a5_plots_test/v8_real_niches_original_model_light_hum_temp/"
 numSpeciesPools <- c(1, 2)
 replicatePerSpeciesPool <- 1
 timeStepStart <- 100
@@ -320,6 +321,71 @@ pdf(filename)
 print(turnoverPlot)
 dev.off()
 
+# -- Turnover of final time steps (avg/sd)
+
+ts <- 160
+
+agg_data <- turnoverDf %>%
+  filter(TimeStep >= ts) %>%
+  group_by(SpeciesPool, LowerHeight, UpperHeight) %>%
+  summarise(
+    BetaDivTurnover_mean = mean(BetaDivTurnover, na.rm = TRUE),
+    BetaDivTurnover_low = quantile(BetaDivTurnover, 0.05, na.rm = TRUE),
+    BetaDivTurnover_high = quantile(BetaDivTurnover, 0.95, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(MidHeight = (LowerHeight + UpperHeight) / 2)
+
+turnoverPlot_final <- agg_data %>%
+  ggplot(aes(y = MidHeight)) +
+  geom_ribbon(
+    aes(
+      xmin = BetaDivTurnover_low,
+      xmax = BetaDivTurnover_high
+    ),
+    fill = "lightblue",
+    alpha = 0.3
+  ) +
+  geom_path(
+    aes(x = BetaDivTurnover_mean),
+    color = "darkblue",
+    linewidth = 1
+  ) +
+  geom_point(
+    aes(x = BetaDivTurnover_mean),
+    size = 1, alpha = 0.8, color = "darkblue"
+  ) +
+  facet_grid(
+    . ~ SpeciesPool,
+    labeller = labeller(
+      SpeciesPool = function(x) paste("Species Pool", x)
+    )
+  ) +
+  scale_y_continuous(
+    breaks = seq(
+      0,
+      ceiling(max(agg_data$MidHeight)),
+      by = 5
+    )
+  ) +
+  labs(
+    x = "Beta Diversity Turnover",
+    y = "Height (m)"
+  ) +
+  theme_bw() +
+  theme(
+    strip.text = element_text(size = 10),
+    axis.text = element_text(size = 12),       # tick label size
+    axis.title = element_text(size = 14),      # axis titles larger
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+
+filename <- paste0(DirectoryPlots, "VerticalDivTurnover_", ts, ".pdf")
+pdf(filename)
+print(turnoverPlot_final)
+dev.off()
+
 # --- 4. Richness per height plot
 
 speciesRichnessPlot <- speciesHeight %>%
@@ -355,6 +421,65 @@ filename <- paste0(DirectoryPlots, "SpeciesPool_", sp, "_Replicate_", rep, "_Ver
 
 pdf(filename)
 print(speciesRichnessPlot)
+dev.off()
+
+# Final richness plot -> Showing last time step
+ts <- 199
+
+smooth_data <- speciesHeight %>%
+  filter(TimeStep == ts) %>%
+  group_by(Replicate, SpeciesPool, TimeStep, height) %>%
+  summarise(Richness = n_distinct(SpeciesID), .groups = "drop") %>%
+  arrange(Replicate, SpeciesPool, height) %>%
+  group_by(Replicate, SpeciesPool) %>%
+  mutate(
+    Richness_smoothed = rollapply(
+      Richness,
+      width = 7,
+      FUN = mean,
+      align = "center",
+      fill = NA,
+      partial = TRUE
+    )
+  )
+
+speciesRichnessPlot_final <- smooth_data %>%
+  ggplot(aes(x = Richness_smoothed, y = height)) +
+  #geom_path(aes(), size = 1, color = "darkblue",) +
+  geom_path(aes(x = Richness_smoothed, y = height),
+            color = "darkblue", linewidth = 1) +
+  geom_point(size = 1, alpha = 0.8, color = "darkblue") +
+  # Create facets for Replicate x SpeciesPool
+  facet_grid(Replicate ~ SpeciesPool,
+             labeller = labeller(
+               Replicate = function(x) paste("Replicate", x),
+               SpeciesPool = function(x) paste("Species Pool", x)
+             )) +
+  scale_y_continuous(
+    breaks = seq(
+      0,
+      ceiling(max(smooth_data$height)),
+      by = 5
+    )
+  ) +
+  # Customize labels and theme
+  labs(
+    x = "Species Richness",
+    y = "Height (m)"
+  ) +
+  theme_bw() +
+  theme(
+    strip.text = element_text(size = 10),
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(size = 12),       # tick label size
+    axis.title = element_text(size = 14)       # axis titles larger
+  )
+
+filename <- paste0(DirectoryPlots,"Replicate_", rep, "_SmoothVerticalSpeciesRichness_", ts, ".pdf")
+
+pdf(filename)
+print(speciesRichnessPlot_final)
 dev.off()
 
 # --- 4. Richness and abundance over time (overall and per height bins)
