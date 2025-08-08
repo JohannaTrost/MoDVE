@@ -6,6 +6,9 @@ library(terra)
 library(dplyr)
 library(microclimf)
 library(readr)
+library(ncdf4)
+library(tidyr)
+library(circular)
 
 
 terra_crop <- function(data, ext, res = NULL) {
@@ -54,30 +57,31 @@ vegp_baf <- readRDS("/Users/johanna/Uni/masterarbeit/data/mc_input/vegetation/ve
 dtm_baf <- rast("/Users/johanna/Uni/masterarbeit/data/mc_input/soil/dtm.tif")
 soilc_baf <- readRDS("/Users/johanna/Uni/masterarbeit/data/mc_input/soil/soilc_ptm.RDS")
 climdata_baf <- readRDS("/Users/johanna/Uni/masterarbeit/data/mc_input/climate/era5_climdata_2024.RDS")
+cmip_baf <- rast("/Users/johanna/Uni/masterarbeit/data/mc_input/climate/cmip6_ceda/baf_ensemble_day_ssp245_2024-01-01_2024-12-31.nc")
 
 # -- REGUA
 
-# out <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
-# dir.create(file.path(out))
-#
-# # Define the center point - 22°23′44.75″S, 42°44′15.78″W
-# lat <- dms_to_decimal("22°23′44.75″S")
-# lon <- dms_to_decimal("42°44′15.78″W")
-# center_coords <- st_sfc(st_point(c(lon, lat)), crs = 4326)
-# center_proj <- st_transform(center_coords, crs = 31983)
-# center_coords_m <- st_coordinates(center_proj)
-
-# -- Pirineus
-
-out <- "/Users/johanna/Uni/masterarbeit/data/mc_input/pirineus"
+out <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
 dir.create(file.path(out))
 
-# Define the center point
-lat <- dms_to_decimal("22°26′46.74″S")
-lon <- dms_to_decimal("42°30′06.16″W")
+# Define the center point - 22°23′44.75″S, 42°44′15.78″W
+lat <- dms_to_decimal("22°23′44.75″S")
+lon <- dms_to_decimal("42°44′15.78″W")
 center_coords <- st_sfc(st_point(c(lon, lat)), crs = 4326)
 center_proj <- st_transform(center_coords, crs = 31983)
 center_coords_m <- st_coordinates(center_proj)
+
+# -- Pirineus
+#
+# out <- "/Users/johanna/Uni/masterarbeit/data/mc_input/pirineus"
+# dir.create(file.path(out))
+#
+# # Define the center point
+# lat <- dms_to_decimal("22°26′46.74″S")
+# lon <- dms_to_decimal("42°30′06.16″W")
+# center_coords <- st_sfc(st_point(c(lon, lat)), crs = 4326)
+# center_proj <- st_transform(center_coords, crs = 31983)
+# center_coords_m <- st_coordinates(center_proj)
 
 # Create a 50m x 50m square (i.e., a 50m buffer in all directions)
 extent_box <- st_buffer(center_proj, dist = 25, endCapStyle = "SQUARE")
@@ -119,6 +123,60 @@ climdata_regua <- data.frame(
 # Clean data 
 climdata_regua$swdown[climdata_regua$swdown < 0] <- 0
 climdata_regua$difrad[climdata_regua$difrad < 0] <- 0
+
+# --- Prep CMIP6 data
+
+# Get the coordinates of that cell (i.e., the raster grid point)
+nearest_xy <- xyFromCell(cmip_baf, cellFromXY(cmip_baf, matrix(c(lat, lon), ncol = 2)))
+
+# Extract data at that cell
+extracted_cmip6 <- terra::extract(cmip_baf, nearest_xy)
+
+# Remove ID column (first column) if it exists
+data_wide <- extracted_cmip6[, -1]
+
+# Convert to long df
+cmip6_long <- data_wide %>%
+  pivot_longer(
+    everything(),
+    names_to = c("variable", "day"),
+    names_pattern = "(.+)_(\\d+)",
+    values_to = "value"
+  ) %>%
+  mutate(day = as.integer(day)) %>%
+  arrange(variable, day) %>%
+  group_by(variable) %>%
+  mutate(obs_time = seq(as.Date("2024-01-01"), by = "1 day", length.out = n())) %>%
+  ungroup() %>%
+  select(obs_time, variable, value) %>%
+  pivot_wider(names_from = variable, values_from = value)
+
+# - Merge CMIP6 with remaining ERA5 data
+
+# Get daily ERA5 data
+climdata_regua$obs_time <- as.POSIXct(climdata_regua$obs_time)
+climdata_regua$date <- as.Date(climdata_regua$obs_time)
+# Daily aggregation
+daily_era5 <- climdata_regua %>%
+  group_by(date) %>%
+  summarise(
+    temp = mean(temp, na.rm = TRUE),
+    relhum = mean(relhum, na.rm = TRUE),
+    pres = mean(pres, na.rm = TRUE),
+    swdown = mean(swdown, na.rm = TRUE),
+    difrad = mean(difrad, na.rm = TRUE),
+    lwdown = mean(lwdown, na.rm = TRUE),
+    windspeed = mean(windspeed, na.rm = TRUE),
+    winddir = mean(circular(winddir, units = "degrees", template = "geographics"), na.rm = TRUE),
+    precip = sum(precip, na.rm = TRUE)
+  ) %>%
+  # Rename date to obs_time
+  rename(obs_time = date)
+
+# Replace ERA5 with cmip6 data
+climdata_cmip6_regua <- daily_era5 %>%
+  select(-c(precip, temp, relhum, pres, windspeed)) %>%
+  inner_join(., cmip6_long, by = "obs_time")
 
 # -  Prep Vegetation
 
@@ -179,15 +237,15 @@ saveRDS(vegp_square, paste(out, "vegp_v2.RDS", sep = "/"))
 writeRaster(dtm_square, paste(out, "dtm_v2.tif", sep = "/"),
             filetype = "GTiff", overwrite = TRUE)
 saveRDS(soil_square, paste(out, "soilc_v2.RDS", sep = "/"))
-write.csv(climdata_regua, 
-          paste(out, "era5_climdata_2024_v2.csv", sep = "/"),
+write.csv(climdata_cmip6_regua,
+          paste(out, "cmip6_climdata_2024_v1.csv", sep = "/"),
           row.names=FALSE)
 
 # Visualize data:
 vegp_reg <- readRDS(paste(out, "vegp_v2.RDS", sep = "/"))
 dtm_reg <- rast(paste(out, "dtm_v2.tif", sep = "/"))
 soilc_reg <- readRDS(paste(out, "soilc_v2.RDS", sep = "/"))
-climdata_reg <- read_csv(paste(out, "era5_climdata_2024_v2.csv", sep = "/"))
+climdata_reg <- read_csv(paste(out, "cmip6_climdata_2024_v1.csv", sep = "/"))
 
 # Vegetation
 for (name in names(vegp_reg)) {
