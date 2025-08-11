@@ -13,9 +13,10 @@ matrix2raster <- function(matrix, ref_rast, name) {
   return(out_rast)
 }
 
+region <- "pirineus"
 
 # Veg. parameters derived with the microclimdata package
-in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
+in_dir <- paste0("/Users/johanna/Uni/masterarbeit/data/mc_input/", region)
 vegp_reg <- readRDS(paste(in_dir, "vegp_v2.RDS", sep = "/"))
 
 # Unpack 
@@ -32,7 +33,7 @@ stop <- 199
 for (ts in seq(start, stop)) {
 
   # MoF3D microhabitat matrix (generated with modified version of A1.R from MoDVE)
-  microhab_file <- paste0("/Users/johanna/Uni/masterarbeit/data/modve_output/regua/a1/MicrohabitatMatrix", ts, ".rds")
+  microhab_file <- paste0("/Users/johanna/Uni/masterarbeit/data/modve_output/pirineus/a1/MicrohabitatMatrix", ts, ".rds")
   mm <- readRDS(microhab_file)
 
   # --- For each cell that is NA extract the max veg. height from PAI
@@ -76,27 +77,27 @@ for (ts in seq(start, stop)) {
     print(paste("Plot time step:", ts))
 
     # Plot 1: vegp_mof3d PAI
-    pdf(paste0("../../figs/mc_input/regua_veg_mof3d_pai_ts", ts, ".pdf"))
+    pdf(paste0("../../figs/mc_input/", region, "_veg_mof3d_pai_ts", ts, ".pdf"))
     plot(vegp_mof3d_ts$pai)
     dev.off()
 
     # Look at average PAI profile
     paii <- apply(pai[,,1:veg_hgt], c(3), mean)
-    pdf(paste0("../../figs/mc_input/regua_avg_pai_profile_ts", ts, ".pdf"))
+    pdf(paste0("../../figs/mc_input/", region, "_avg_pai_profile_ts", ts, ".pdf"))
     plot(c(1:length(paii)) ~ paii, type = "l", main = paste("Total PAI:", sum(paii)))
     dev.off()
 
     # Check SAI
     sai <- mm[,,,1]
     saii <- apply(sai[,,1:veg_hgt], c(3), mean)
-    pdf(paste0("../../figs/mc_input/regua_avg_sai_profile_ts", ts, ".pdf"))
+    pdf(paste0("../../figs/mc_input/", region, "_avg_sai_profile_ts", ts, ".pdf"))
     plot(c(1:length(saii)) ~ saii, type = "l", main = paste("Total SAI:", sum(saii)))
     dev.off()
 
     # Check LAI
     lai <- pai - sai
     laii <- apply(lai[,,1:veg_hgt], c(3), mean)
-    pdf(paste0("../../figs/mc_input/regua_avg_lai_profile_ts", ts, ".pdf"))
+    pdf(paste0("../../figs/mc_input/", region, "_avg_lai_profile_ts", ts, ".pdf"))
     plot(c(1:length(laii)) ~ laii, type = "l", main = paste("Total LAI:", sum(laii)))
     dev.off()
   }
@@ -128,7 +129,7 @@ for (ts in seq(start, stop)) {
 
   if (ts %% 30 == 0) {
     # Plot height
-    pdf(paste0("../../figs/mc_input/regua_veg_mof3d_hgt_ts", ts, ".pdf"))
+    pdf(paste0("../../figs/mc_input/", region, "_veg_mof3d_hgt_ts", ts, ".pdf"))
     plot(vegp_mof3d_ts$h)
     dev.off()
   }
