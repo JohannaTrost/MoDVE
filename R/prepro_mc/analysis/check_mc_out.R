@@ -9,30 +9,35 @@ library(dplyr)
 
 # Function to load tair and average over time
 load_avg_tair <- function(x, y, base_path, var = "tair") {
-  file <- sprintf("%s/mc_x%d_y%d_v1.rds", base_path, x, y)
+  # Map var to index tair -> 1, relhum -> 7, windspeed -> 11
+  idx <- switch(var,
+              tair = 1,
+              relhum = 7,
+              windspeed = 11)
+  file <- sprintf("%s/mc_x%d_y%d.rds", base_path, x, y)
   data <- readRDS(file)
-  tair_avg <- rowMeans(data[[var]], na.rm = FALSE)  # Average over time
-  return(tair_avg)
+  return(data$data[, idx])
 }
 
 # Settings
-base_path <- "/Users/johanna/Uni/masterarbeit/data/mc_output"
-z_levels <- 59
-x_range <- 1:3
-y_range <- 1:50
+base_path <- "/Users/johanna/Uni/masterarbeit/data/mc_output/v5/regua"
+#z_levels <- 59
+x_range <- c(1)
+y_range <- 1:13
 
 # Sample random slices
 set.seed(42)
-random_x <- sample(x_range, 3)  # 3 random X values for YZ slices
+random_x <- sample(x_range, 1)  # 3 random X values for YZ slices
 random_y <- sample(y_range, 3)  # 3 random Y values for XZ slices
 
 # -------------- Check MC in XZ and YZ slices --------------
 
-for (var in c("tair", "tcanopy", "relhum", "windspeed")) {
+for (var in c("tair", "relhum", "windspeed")) {
   # Gather data for XZ slices
   xz_data <- do.call(rbind, lapply(random_y, function(y) {
     do.call(rbind, lapply(x_range, function(x) {
       tair_avg <- load_avg_tair(x, y, base_path, var)
+      z_levels <- length(tair_avg)
       data.frame(x = x, z = 1:z_levels, value = tair_avg, slice = paste("y =", y), variable = var)
     }))
   }))
@@ -41,6 +46,7 @@ for (var in c("tair", "tcanopy", "relhum", "windspeed")) {
   yz_data <- do.call(rbind, lapply(random_x, function(x) {
     do.call(rbind, lapply(y_range, function(y) {
       tair_avg <- load_avg_tair(x, y, base_path, var)
+      z_levels <- length(tair_avg)
       data.frame(y = y, z = 1:z_levels, value = tair_avg, slice = paste("x =", x), variable = var)
     }))
   }))
@@ -51,8 +57,8 @@ for (var in c("tair", "tcanopy", "relhum", "windspeed")) {
     scale_fill_viridis(option = "viridis", name = paste("Avg", var)) +
     facet_wrap(~ slice + variable, ncol = 1) +
     labs(title = paste("XZ Slices of Average", var), x = "X", y = "Height (Z)") +
-    theme_minimal() +
-    ggsave(paste0("xz_slices_", var, ".png"))
+    theme_minimal()
+  ggsave(paste0("../../figs/mc_output/", "v5_xz_slices_", var, ".png"))
 
   # Plot YZ slices
   ggplot(yz_data, aes(x = y, y = z, fill = value)) +
@@ -60,8 +66,8 @@ for (var in c("tair", "tcanopy", "relhum", "windspeed")) {
     scale_fill_viridis(option = "magma", name = paste("Avg", var)) +
     facet_wrap(~ slice + variable, ncol = 1) +
     labs(title = paste("YZ Slices of Average", var), x = "Y", y = "Height (Z)") +
-    theme_minimal() +
-    ggsave(paste0("yz_slices_", var, ".png"))
+    theme_minimal()
+  ggsave(paste0("../../figs/mc_output/", "v5_yz_slices_", var, ".png"))
 }
 
 # -------------- Check time series of avg MC for this one year --------------
@@ -73,7 +79,7 @@ x_range <- 1:3
 y_range <- 1:50
 z_levels <- 59
 n_days <- 366
-vars <- c("tair", "tcanopy", "relhum", "windspeed")
+vars <- c("tair", "relhum", "windspeed")
 
 # Initialize storage
 data_daily <- list()
@@ -139,7 +145,7 @@ p1 <- ggplot(combined_df, aes(x = date, y = value, color = height)) +
                                 "z = 14.5m" = "steelblue",
                                 "z = 49.5" = "forestgreen"))
 # Print plots to a pdf file
-pdf("../../figs/mc_output/ts_24_mc_v1.pdf")
+pdf("../../figs/mc_output/ts_24_mc_v5.pdf")
 print(p1)
 dev.off()
 
@@ -154,7 +160,7 @@ profile_df <- data.frame(
   relhum = relhum_profile
 )
 
-ggplot(profile_df, aes(x = relhum, y = height)) +
+p2 <- ggplot(profile_df, aes(x = relhum, y = height)) +
   geom_line(color = "dodgerblue", size = 1.2) +
   scale_y_reverse() +  # Optional: reverse to show height increasing upwards
   labs(
@@ -163,3 +169,7 @@ ggplot(profile_df, aes(x = relhum, y = height)) +
     y = "Height (z-level)"
   ) +
   theme_minimal()
+
+pdf("../../figs/mc_output/regua_relhum_24_v5.pdf")
+print(p2)
+dev.off()
