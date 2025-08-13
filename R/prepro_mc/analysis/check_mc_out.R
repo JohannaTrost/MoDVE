@@ -75,101 +75,69 @@ for (var in c("tair", "relhum", "windspeed")) {
 # Load all data and convet from hourly to mean daily values (50 x 50 x 59 x 365) for each variable
 dates_2024 <- seq.Date(as.Date("2024-01-01"), as.Date("2024-12-31"), by = "day")
 
-x_range <- 1:3
+x_range <- 1:50
 y_range <- 1:50
-z_levels <- 59
-n_days <- 366
-vars <- c("tair", "relhum", "windspeed")
+z_levels <- dim(readRDS("/Users/johanna/Uni/masterarbeit/data/mc_output/v5/regua/mc_x1_y1.rds")$data)[1]
+vars <- c("tair", "relhum")
 
 # Initialize storage
-data_daily <- list()
-for (v in vars) {
-  data_daily[[v]] <- array(NA, dim = c(50, 50, z_levels, n_days))
-}
-
-# Helper to get daily means from hourly
-hourly_to_daily <- function(mat) {
-  daily <- matrix(NA, nrow = nrow(mat), ncol = 366)
-  for (i in 1:366) {
-    idx <- ((i - 1) * 24 + 1):(i * 24)
-    if (length(idx) <= ncol(mat)) {
-      daily[, i] <- rowMeans(mat[, idx], na.rm = TRUE)
-    }
-  }
-  return(daily)
-}
+sim <- array(NA, dim = c(50, 50, z_levels, 2))
 
 # Load all data
 for (x in x_range) {
   for (y in y_range) {
-    file <- sprintf("%s/mc_x%d_y%d_v1.rds", base_path, x, y)
-    data <- readRDS(file)
-
-    for (v in vars) {
-      daily_mat <- hourly_to_daily(data[[v]])
-      data_daily[[v]][x, y, , ] <- daily_mat
+    file <- sprintf("%s/mc_x%d_y%d.rds", base_path, x, y)
+    if (!file.exists(file)) {
+      print(paste0("File does not exist, skipping...", file))
+      next  # Skip if file does not exist
     }
+    data <- readRDS(file)
+    sim[x, y, , ] <- data$data[, c(1, 7)]
   }
 }
 
-# Convert to time series format for ggplot
-plot_data <- list()
+# Compute average profiles
+avg_tair   <- apply(sim[,,,1], 3, mean, na.rm = TRUE)
+avg_relhum <- apply(sim[,,,2], 3, mean, na.rm = TRUE)
 
-for (v in vars) {
-  # Average over grid (x, y)
-  mean_grid <- apply(data_daily[[v]], c(3, 4), mean, na.rm = TRUE)  # [z, day]
+# Get dimensions
+nx <- dim(sim)[1]
+ny <- dim(sim)[2]
+nz <- dim(sim)[3]
 
-  df <- data.frame(
-    date = rep(dates_2024, times = 3),
-    value = c(mean_grid[2, ], mean_grid[15, ], mean_grid[50, ]),
-    height = factor(rep(c("z = 1.5m", "z = 14.5m", "z = 49.5"), each = n_days))
-  )
-  df$variable <- v
-  plot_data[[v]] <- df
+# Heights (replace with actual height vector if available)
+heights <- seq(0.5, nz - 0.5, by = 1)
+
+# RELATIVE HUMIDITY PLOT
+pdf("../../figs/mc_output/regua_relhum_24_v5.pdf")
+plot(avg_relhum, heights, type = "n",
+     xlab = "Average Relative Humidity (%)",
+     ylab = "Height (m)")
+
+# Loop over all (x, y) points
+for (ix in 1:nx) {
+  for (iy in 1:ny) {
+    lines(sim[ix, iy, , 2], heights,
+          col = rgb(0.5, 0.5, 0.5, alpha = 0.05), lwd = 0.5)
+  }
 }
 
-combined_df <- bind_rows(plot_data)
-
-# Clean temp
-combined_df <- combined_df %>%
-  mutate(value = ifelse(variable %in% c("tair", "tcanopy") & value > 60, NA, value))
-
-# Plot time series for each variable
-p1 <- ggplot(combined_df, aes(x = date, y = value, color = height)) +
-  geom_line(size = 0.7, alpha = 0.7) +
-  facet_wrap(~ variable, scales = "free_y", ncol = 1) +
-  labs(title = "Daily Mean Time Series (Grid Avg.)",
-       x = "Date (2024)", y = "Value", color = "Height (z)") +
-  theme_minimal() +
-  scale_color_manual(values = c("z = 1.5m" = "darkred",
-                                "z = 14.5m" = "steelblue",
-                                "z = 49.5" = "forestgreen"))
-# Print plots to a pdf file
-pdf("../../figs/mc_output/ts_24_mc_v5.pdf")
-print(p1)
+# Average on top
+lines(avg_relhum, heights, col = "blue", lwd = 2)
 dev.off()
 
-# --- Rel Hum profile
+# TEMPERATURE PLOT
+pdf("../../figs/mc_output/regua_tair_24_v5.pdf")
+plot(avg_tair, heights, type = "n",
+     xlab = "Average Temperature (°C)",
+     ylab = "Height (m)")
 
-# Average over x, y, and time (dims 1, 2, 4)
-relhum_profile <- apply(data_daily[["relhum"]], 3, mean, na.rm = TRUE)  # length 59
-z_levels <- 1:59
+for (ix in 1:nx) {
+  for (iy in 1:ny) {
+    lines(sim[ix, iy, , 1], heights,
+          col = rgb(0.5, 0.5, 0.5, alpha = 0.05), lwd = 0.5)
+  }
+}
 
-profile_df <- data.frame(
-  height = z_levels,
-  relhum = relhum_profile
-)
-
-p2 <- ggplot(profile_df, aes(x = relhum, y = height)) +
-  geom_line(color = "dodgerblue", size = 1.2) +
-  scale_y_reverse() +  # Optional: reverse to show height increasing upwards
-  labs(
-    title = "Average Relative Humidity Profile",
-    x = "Relative Humidity (%)",
-    y = "Height (z-level)"
-  ) +
-  theme_minimal()
-
-pdf("../../figs/mc_output/regua_relhum_24_v5.pdf")
-print(p2)
+lines(avg_tair, heights, col = "blue", lwd = 2)
 dev.off()
