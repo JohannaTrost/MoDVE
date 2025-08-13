@@ -1,7 +1,7 @@
 #require(devtools)
 # install_github("ilyamaclean/microclimf")
-#remotes::install_local("/Users/johanna/Uni/masterarbeit/code/forks/micropoint",
-#                       force = TRUE)
+# remotes::install_local("/Users/johanna/Uni/masterarbeit/code/forks/micropoint",
+#                        force = TRUE)
 
 library(micropoint)
 library(terra)
@@ -331,36 +331,13 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
   max_hgt <- max(values(terra::unwrap(vegp_reg$h)))
   paii <- pai[x, y, 1:max_hgt]
 
-  res <- list()
-
-  for (i in seq_along(heights)) {
-    h <- heights[i]
-    immediateMessage(paste(x, y, "height:", h))
-    print(h)
-
-    mout <- micropoint::runpointmodel(climdata_reg, reqhgt = h, vegparams,
+  res <- micropoint::runpointmodel(climdata_reg, reqhgt = heights, vegparams,
                                       paii, grndparams, lat = lat, long = lon)
 
-    immediateMessage("Point model run completed.")
-
-    # Which variables to save
-    if (i == 1 & x == 1 & y == 1) {
-      exp_vars <- c("tair", "tcanopy", "relhum", "windspeed", "obs_time")
-    } else {
-      exp_vars <- c("tair", "tcanopy", "relhum", "windspeed")
-    }
-
-    for (var in exp_vars) {
-      message(paste(x, y, var, h))
-      if (i == 1) {
-        res[[var]] <- array(NA, dim = c(length(heights), length(mout[[var]])))
-      }
-      res[[var]][i, ] <- mout[[var]]
-    }
-  }
+  immediateMessage("Point model run completed.")
 
   # aggregate yearly microclimate data
-  agg_res <- aggregate_mc(res, timestamps, n_temp_metrics)
+  agg_res <- aggregate_mc(res, timestamps, n_temp_metrics) # Expects heights x time and not time x heights
 
   end_time <- Sys.time()
   processing_time <- end_time - start_time
@@ -390,12 +367,17 @@ n_temp_metrics <- 14
 year <- 2024
 
 # Define output directory
-outdir <- "/Users/johanna/Uni/masterarbeit/data/mc_output/v5"
+region <- "regua"
+outdir <- paste0("/Users/johanna/Uni/masterarbeit/data/mc_output/v5/", region)
+
+if (!dir.exists(outdir)) {
+    dir.create(outdir, recursive = TRUE)
+}
 
 # Save heights of MC simulations
-in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
+in_dir <- paste0("/Users/johanna/Uni/masterarbeit/data/mc_input/", region)
 #microhab_path <- "/Users/johanna/Uni/masterarbeit/output/modev_zach_25_01_07/MicrohabitatMatrix99.rds"
-microhab_path <- "/Users/johanna/Uni/masterarbeit/data/modve_output/regua/a1/MicrohabitatMatrix199.rds"
+microhab_path <- paste0("/Users/johanna/Uni/masterarbeit/data/modve_output/", region, "/a1/MicrohabitatMatrix199.rds")
 vegp_path <- paste(in_dir, "vegp_mof3d_ptm_199_v4.RDS", sep = "/")
 soilc_path <- paste(in_dir, "soilc_v2.RDS", sep = "/")
 climdata_path <- paste(in_dir, "cmip6_climdata_2024_v1.csv", sep = "/")
