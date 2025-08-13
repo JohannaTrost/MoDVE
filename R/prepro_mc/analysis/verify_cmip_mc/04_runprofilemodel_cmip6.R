@@ -117,29 +117,38 @@ indices2coords <- function(x, y, raster, crs_out = "EPSG:4326") {
 # soilc 1m resolution
 # climdata is equal for the whole grid
 # ----------------------------------------------------------
+
+region <- "pirineus"
+
+# Filter relevant dates 2024-09-20 to 2024-09-23 (inclusive)
+
+# start_date <- "2024-10-27 00:00:00" # regua
+# end_date <- "2024-10-31 23:59:59" # regua
+start_date <- "2024-09-20 00:00:00" # pirineus
+end_date <- "2024-09-23 23:59:59" # Pirineus
+
+
 # Define output directory
-outdir <- "/Users/johanna/Uni/masterarbeit/data/mc_output/regua_2024_test_v4"
+outdir <- paste0("/Users/johanna/Uni/masterarbeit/data/mc_output/", region, "_2024_test_v6")
+dir.create(outdir)
 
 # Save heights of MC simulations
-in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
-vegp_reg <- readRDS(paste(in_dir, "vegp_mof3d_ptm_v3.RDS", sep = "/"))
+in_dir <- paste0("/Users/johanna/Uni/masterarbeit/data/mc_input/", region)
+vegp_path <- paste(in_dir, "vegp_mof3d_ptm_199_v4.RDS", sep = "/")
+vegp_reg <- readRDS(vegp_path)
 max_veg_height <- max(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE)
 heights <- seq(0.5, max_veg_height + 1)
 
 # Load data for one year
 soilc_reg <- readRDS(paste(in_dir, "soilc_v2.RDS", sep = "/"))
-climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2024_v2.csv", sep = "/"))
-microhab_file <- "/Users/johanna/Uni/masterarbeit/output/modev_zach_25_01_07/MicrohabitatMatrix99.rds"
-pai <- readRDS(microhab_file)[,,,5]
+climdata_path <- paste(in_dir, "cmip6_climdata_2024_v2.csv", sep = "/")
+climdata_reg <- read_csv(climdata_path)
+microhab_file <- paste0("/Users/johanna/Uni/masterarbeit/data/modve_output/", region, "/a1/MicrohabitatMatrix199.rds")
+pai <- readRDS(microhab_file)[,,,4]
 
 # Veg heights
 max_veg_height <- max(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE)
 heights <- seq(0.5, max_veg_height)
-
-# Filter relevant dates 2024-09-20 to 2024-09-23 (inclusive)
-
-start_date <- "2024-10-27 00:00:00" # pirineus ymd_hms("2024-09-20 00:00:00")
-end_date <- "2024-10-31 23:59:59" # Pirineus ymd_hms("2024-09-23 23:59:59")
 
 climdata_reg <- climdata_reg %>%
   filter(obs_time >= ymd_hms(start_date),
@@ -148,12 +157,12 @@ climdata_reg <- climdata_reg %>%
 # Run MC model
 
 # Set grid dimensions
-nx <- 50
-ny <- 50
+nx <- 4
+ny <- 4
 
 # Example: run the model once to get structure
-x0 <- 1
-y0 <- 1
+x0 <- 22
+y0 <- 22
 coords0 <- indices2coords(x0, y0, terra::unwrap(vegp_reg$pai))[c("x", "y")]
 lon0 <- coords0[[1]]
 lat0 <- coords0[[2]]
@@ -170,17 +179,24 @@ mout_example <- micropoint::runpointmodel(climdata_reg, reqhgt = heights,
 
 # Initialize 4D arrays for each output variable
 output_vars <- names(mout_example)
-time_dim <- dim(mout_example[[1]])[1]
-height_dim <- dim(mout_example[[1]])[2]
+time_dim <- dim(mout_example[[1]])[2]
+height_dim <- dim(mout_example[[1]])[1]
 
 mout_fp_combined <- list()
 for (var in output_vars) {
-  mout_fp_combined[[var]] <- array(NA_real_, dim = c(nx, ny, time_dim, height_dim))
+  mout_fp_combined[[var]] <- array(NA_real_, dim = c(nx, ny, height_dim, time_dim))
 }
 
 # Main loop over grid
-for (x in 1:nx) {
-  for (y in 1:ny) {
+start <- 21
+for (i in 1:nx) {
+  for (j in 1:ny) {
+
+    x <- start + i
+    y <- start + j
+
+    print(paste("Processing grid cell:", x, y))
+
     coords <- indices2coords(x, y, terra::unwrap(vegp_reg$pai))[c("x", "y")]
     lon <- coords[[1]]
     lat <- coords[[2]]
@@ -201,7 +217,7 @@ for (x in 1:nx) {
 
     if (!is.null(result)) {
       for (var in output_vars) {
-        mout_fp_combined[[var]][x, y, , ] <- result[[var]]
+        mout_fp_combined[[var]][i, j, , ] <- result[[var]]
       }
       print(dim(result$tair))
     }
@@ -213,6 +229,7 @@ if (!dir.exists(outdir)) {
   dir.create(outdir, recursive = TRUE)
 }
 saveRDS(mout_fp_combined, file = paste0(outdir, "/sim_with_era5_",
+                                        start + 1 , "_", start + nx, "_",
                                         substr(start_date, 1, 10),
                                         "_",
                                         substr(end_date, 1, 10),
