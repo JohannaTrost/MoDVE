@@ -62,27 +62,27 @@ cmip_baf <- rast("/Users/johanna/Uni/masterarbeit/data/mc_input/climate/cmip6_ce
 
 # -- REGUA
 #
-# out <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
-# dir.create(file.path(out))
-#
-# # Define the center point - 22°23′44.75″S, 42°44′15.78″W
-# lat <- dms_to_decimal("22°23′44.75″S")
-# lon <- dms_to_decimal("42°44′15.78″W")
-# center_coords <- st_sfc(st_point(c(lon, lat)), crs = 4326)
-# center_proj <- st_transform(center_coords, crs = 31983)
-# center_coords_m <- st_coordinates(center_proj)
-
-# -- Pirineus
-
-out <- "/Users/johanna/Uni/masterarbeit/data/mc_input/pirineus"
+out <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
 dir.create(file.path(out))
 
-# Define the center point
-lat <- dms_to_decimal("22°26′46.74″S")
-lon <- dms_to_decimal("42°30′06.16″W")
+# Define the center point - 22°23′44.75″S, 42°44′15.78″W
+lat <- dms_to_decimal("22°23′44.75″S")
+lon <- dms_to_decimal("42°44′15.78″W")
 center_coords <- st_sfc(st_point(c(lon, lat)), crs = 4326)
 center_proj <- st_transform(center_coords, crs = 31983)
 center_coords_m <- st_coordinates(center_proj)
+
+# -- Pirineus
+
+# out <- "/Users/johanna/Uni/masterarbeit/data/mc_input/pirineus"
+# dir.create(file.path(out))
+#
+# # Define the center point
+# lat <- dms_to_decimal("22°26′46.74″S")
+# lon <- dms_to_decimal("42°30′06.16″W")
+# center_coords <- st_sfc(st_point(c(lon, lat)), crs = 4326)
+# center_proj <- st_transform(center_coords, crs = 31983)
+# center_coords_m <- st_coordinates(center_proj)
 
 # Create a 50m x 50m square (i.e., a 50m buffer in all directions)
 extent_box <- st_buffer(center_proj, dist = 25, endCapStyle = "SQUARE")
@@ -179,12 +179,30 @@ cmip6_hourly <- cmip6_long %>%
   ) %>%
   select(-hour)
 
-# - Merge CMIP6 with remaining ERA5 data
+# -- Add a diurnal cycle to temperature and relative humidity
 
-# Replace ERA5 with cmip6 data
-climdata_cmip6_regua <- climdata_regua %>%
+# 1. Compute daily anolmaly for Era5 data
+climdata_regua_anomaly <- climdata_regua %>%
+  mutate(
+    day = as.Date(obs_time),
+  ) %>%
+  group_by(day) %>%
+  mutate(
+    temp_anom = temp - mean(temp, na.rm = TRUE),
+    relhum_anom = relhum - mean(relhum, na.rm = TRUE),
+  ) %>%
+  ungroup()
+
+# 2. Merge CMIP6 with remaining ERA5 data
+climdata_cmip6_regua <- climdata_regua_anomaly %>%
   select(-c(precip, temp, relhum, pres, windspeed)) %>%
-  inner_join(., cmip6_hourly, by = "obs_time")
+  inner_join(., cmip6_hourly, by = "obs_time") %>%
+    mutate(
+        # Add diurnal cycle to temperature and relative humidity
+        temp = temp + temp_anom,
+        relhum = relhum + relhum_anom
+    ) %>%
+  select(-temp_anom, -relhum_anom, -day)
 
 # -  Prep Vegetation
 
@@ -246,7 +264,7 @@ writeRaster(dtm_square, paste(out, "dtm_v2.tif", sep = "/"),
             filetype = "GTiff", overwrite = TRUE)
 saveRDS(soil_square, paste(out, "soilc_v2.RDS", sep = "/"))
 write.csv(climdata_cmip6_regua,
-          paste(out, "cmip6_climdata_2024_v1.csv", sep = "/"),
+          paste(out, "cmip6_climdata_2024_v2.csv", sep = "/"),
           row.names=FALSE)
 
 # Visualize data:
