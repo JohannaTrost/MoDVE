@@ -5,16 +5,19 @@
 # Parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
-dirout <- args[1]
+dirin <- args[1]
+dirout <- args[2]
 
 # Validate output directory
-if (!dir.exists(dirout)) {
-  cat("Error: Output directory does not exist:", dirout, "\n")
+if (!dir.exists(dirin)) {
+  cat("Error: Input directory does not exist:", dirin, "\n")
   cat("Please create the directory first or provide a valid path.\n")
   quit(status = 1)
 }
 
-cat("Output directory:", dirout, "\n")
+cat("Input directory:", dirin, "\n")
+
+dir.create(dirout)
 
 # Read all available remaining args
 # and convert them to integers for year range
@@ -22,7 +25,7 @@ cat("Output directory:", dirout, "\n")
 # 2092, 2078, 2042, 2089
 # -> era5 here: 2024, 2022, 2021, 2020
 years <- c()
-for (arg in args[2:length(args)]) {
+for (arg in args[3:length(args)]) {
   if (grepl("^\\d{4}$", arg)) {  # Check if the argument is a valid year
     years <- c(years, as.integer(arg))
   } else {
@@ -136,9 +139,9 @@ crs(r) <- "EPSG:4326"
 r <- project(r, "EPSG:31983", res = 10)
 
 # Define output path
-if (!dir.exists(dirout)) {
-  dir.create(dirout, recursive = TRUE)
-  cat("Created directory:", dirout, "\n")
+if (!dir.exists(dirin)) {
+  dir.create(dirin, recursive = TRUE)
+  cat("Created directory:", dirin, "\n")
 }
 
 # -- Process years
@@ -162,7 +165,7 @@ for (i in seq_along(years)) {
   # Define file prefix
   file_prefix <- paste0(gsub("-", "_", substr(Sys.time(), 1, 10)), "_")
   file <- list.files(
-    path = dirout,
+    path = dirin,
     pattern = paste0("__", year, "_12\\.nc$"),
     full.names = TRUE
   )
@@ -187,7 +190,7 @@ for (i in seq_along(years)) {
                                   paste0("_", year, "_"), month, ".nc")
 
     # Correct subset name in nc files
-    nc_path <- file.path(dirout, req[[month]]$target)
+    nc_path <- file.path(dirin, req[[month]]$target)
     if (file.exists(nc_path)) {
       tryCatch({
         rename_nc_subset(nc_path, "avg_sdlwrf", "msdwlwrf")
@@ -204,10 +207,10 @@ for (i in seq_along(years)) {
 
   # Process data
   tryCatch({
-    era5climdata <- era5_process(req, paste(dirout, "/", sep = ""), r, tme)
+    era5climdata <- era5_process(req, paste(dirin, "/", sep = ""), r, tme)
 
     # Save processed data
-    output_file <- file.path(climate_dir, paste0("era5_climdata_", year, ".RDS"))
+    output_file <- file.path(dirout, paste0("/era5_climdata_", year, ".RDS"))
     saveRDS(era5climdata, output_file)
     cat("Saved processed data to:", output_file, "\n")
 
@@ -280,5 +283,5 @@ for (i in seq_along(years)) {
 }
 
 cat("\n=== Processing complete! ===\n")
-cat("Output directory:", climate_dir, "\n")
+cat("Output directory:", dirout, "\n")
 cat("Processed", total_years, "years of ERA5 climate data.\n")
