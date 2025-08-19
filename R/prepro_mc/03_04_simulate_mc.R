@@ -390,8 +390,9 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
 option_list <- list(
   make_option(c("-c", "--config"), type = "character", default = "config.toml",
               help = "Path to TOML configuration file [default %default]", metavar = "FILE"),
-
-  make_option(c("--verbose"), action = "store_true", default = FALSE,
+  make_option(c("-ch", "--chunk"), type = "integer", default = "10",
+              help = "Number of chunk that determines which cells to simulate [default %default]"),
+  make_option(c("--v", "--verbose"), action = "store_true", default = FALSE,
               help = "Enable verbose output")
 )
 
@@ -435,7 +436,7 @@ year <- ifelse(is.null(config$simulation$year), 1981, config$simulation$year)
 ts <- ifelse(is.null(config$simulation$ts), 80, config$simulation$ts)
 
 # Processing parameters
-chunk <- ifelse(is.null(config$processing$chunk), 1, config$processing$chunk)
+chunk <- ifelse(is.null(opt$chunk), 1, opt$chunk)
 chunk_size <- ifelse(is.null(config$processing$chunk_size), 2, config$processing$chunk_size)
 cores_config <- config$processing$cores
 
