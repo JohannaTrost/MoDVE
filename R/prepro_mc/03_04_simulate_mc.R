@@ -2,18 +2,25 @@
 # install_github("ilyamaclean/microclimf")
 # remotes::install_local("/Users/johanna/Uni/masterarbeit/code/forks/micropoint",
 #                        force = TRUE)
+#!/usr/bin/env Rscript
 
-library(micropoint)
-library(terra)
-library(readr)
-library(viridis)
-library(microclimf)
-library(dplyr)
-library(lubridate)
-library("foreach")
-library("doParallel")
-library("doRNG")
+# Microclimate Simulation CLI with TOML Configuration
+# Usage: Rscript microclimate_cli.R --config config.toml [--verbose]
 
+suppressPackageStartupMessages({
+  library(optparse)
+  library(RcppTOML)
+  library(foreach)
+  library(doParallel)
+  library(doRNG)
+  library(terra)
+  library(micropoint)
+  library(readr)
+  library(viridis)
+  library(microclimf)
+  library(dplyr)
+  library(lubridate)
+})
 
 get_xy_pairs <- function(xdim, ydim, outdir) {
   missing_x <- c()
@@ -331,8 +338,33 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
   max_hgt <- max(values(terra::unwrap(vegp_reg$h)))
   paii <- pai[x, y, 1:max_hgt]
 
-  res <- micropoint::runpointmodel(climdata_reg, reqhgt = heights, vegparams,
+    res <- list()
+
+  for (i in seq_along(heights)) {
+    h <- heights[i]
+    immediateMessage(paste(x, y, "height:", h))
+    print(h)
+
+    mout <- micropoint::runpointmodel(climdata_reg, reqhgt = h, vegparams,
                                       paii, grndparams, lat = lat, long = lon)
+
+    immediateMessage("Point model run completed.")
+
+    # Which variables to save
+    if (i == 1 & x == 1 & y == 1) {
+      exp_vars <- c("tair", "relhum", "windspeed", "obs_time")
+    } else {
+      exp_vars <- c("tair", "relhum", "windspeed")
+    }
+
+    for (var in exp_vars) {
+      message(paste(x, y, var, h))
+      if (i == 1) {
+        res[[var]] <- array(NA, dim = c(length(heights), length(mout[[var]])))
+      }
+      res[[var]][i, ] <- mout[[var]]
+    }
+  }
 
   immediateMessage("Point model run completed.")
 
@@ -354,166 +386,225 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
   ))
 }
 
-# vegp 1m resolution
-# dtm 1m resolution
-# soilc 1m resolution
-# climdata is equal for the whole grid
+# Define command line options
+option_list <- list(
+  make_option(c("-c", "--config"), type = "character", default = "config.toml",
+              help = "Path to TOML configuration file [default %default]", metavar = "FILE"),
+
+  make_option(c("--verbose"), action = "store_true", default = FALSE,
+              help = "Enable verbose output")
+)
+
+# Parse command line arguments
+opt_parser <- OptionParser(option_list = option_list,
+                          description = "Microclimate simulation processing script using TOML configuration")
+opt <- parse_args(opt_parser)
+
+# Check if config file exists
+if (!file.exists(opt$config)) {
+  cat("Error: Configuration file not found:", opt$config, "\n")
+  quit(status = 1)
+}
+
+# Load configuration
+tryCatch({
+  config <- parseTOML(opt$config)
+}, error = function(e) {
+  cat("Error parsing TOML configuration file:", opt$config, "\n")
+  cat("Error message:", e$message, "\n")
+  quit(status = 1)
+})
+
+# Validate required sections
+required_sections <- c("simulation", "processing", "paths")
+missing_sections <- setdiff(required_sections, names(config))
+if (length(missing_sections) > 0) {
+  cat("Error: Missing required sections in configuration file:\n")
+  for (section in missing_sections) {
+    cat("  -", section, "\n")
+  }
+  quit(status = 1)
+}
+
+# Extract configuration values with defaults
+# Simulation parameters
+x_dim <- ifelse(is.null(config$simulation$x_dim), 50, config$simulation$x_dim)
+y_dim <- ifelse(is.null(config$simulation$y_dim), 50, config$simulation$y_dim)
+n_temp_metrics <- ifelse(is.null(config$simulation$n_temp_metrics), 14, config$simulation$n_temp_metrics)
+year <- ifelse(is.null(config$simulation$year), 1981, config$simulation$year)
+ts <- ifelse(is.null(config$simulation$ts), 80, config$simulation$ts)
+
+# Processing parameters
+chunk <- ifelse(is.null(config$processing$chunk), 1, config$processing$chunk)
+chunk_size <- ifelse(is.null(config$processing$chunk_size), 2, config$processing$chunk_size)
+cores_config <- config$processing$cores
+
+# Path parameters
+region <- ifelse(is.null(config$paths$region), "pirineus", config$paths$region)
+veg_indir_base <- ifelse(is.null(config$paths$veg_indir),
+                        "/Users/johanna/Uni/masterarbeit/data/modve_output",
+                        config$paths$veg_indir)
+in_dir_base <- ifelse(is.null(config$paths$in_dir),
+                     "/Users/johanna/Uni/masterarbeit/data/mc_input",
+                     config$paths$in_dir)
+outdir_base <- ifelse(is.null(config$paths$outdir),
+                     "/Users/johanna/Uni/masterarbeit/data/mc_output/v5",
+                     config$paths$outdir)
+
+# Output parameters (can be overridden by command line)
+verbose <- opt$verbose || (!is.null(config$output$verbose) && config$output$verbose)
 
 # ---------------------------------------------------------- Configure
 
-x_dim <- 50
-y_dim <- 50
-n_temp_metrics <- 14
-year <- 2024
+# Define full directory paths
+veg_indir <- file.path(veg_indir_base, region, "a1_1")
+in_dir <- file.path(in_dir_base, region)
+outdir <- file.path(outdir_base, region, year)
 
-# Define output directory
-region <- "regua"
-outdir <- paste0("/Users/johanna/Uni/masterarbeit/data/mc_output/v5/", region)
+if (verbose) {
+  cat("Configuration loaded from:", opt$config, "\n")
+  cat("Settings:\n")
+  cat("  Region:", region, "\n")
+  cat("  Year:", year, "\n")
+  cat("  Dimensions:", x_dim, "x", y_dim, "\n")
+  cat("  Time step:", ts, "\n")
+  cat("  Temperature metrics:", n_temp_metrics, "\n")
+  cat("  Chunk:", chunk, "of size", chunk_size, "\n")
+  cat("  Vegetation input dir:", veg_indir, "\n")
+  cat("  Main input dir:", in_dir, "\n")
+  cat("  Output directory:", outdir, "\n")
+}
 
 if (!dir.exists(outdir)) {
-    dir.create(outdir, recursive = TRUE)
+  dir.create(outdir, recursive = TRUE)
+  if (verbose) cat("Created output directory:", outdir, "\n")
+}
+
+# Define file paths
+microhab_path <- file.path(veg_indir, paste0("MicrohabitatMatrix", ts, ".rds"))
+vegp_path <- file.path(in_dir, paste0("vegp_mof3d_ptm_", ts, "_v4.RDS"))
+soilc_path <- file.path(in_dir, "soilc_v2.RDS")
+climdata_path <- file.path(in_dir, paste0("climdata_era5_cmip6_", year, "_v3.csv"))
+
+# Validate input files exist
+required_files <- c(microhab_path, vegp_path, soilc_path, climdata_path)
+missing_files <- required_files[!file.exists(required_files)]
+
+if (length(missing_files) > 0) {
+  cat("Error: Missing required input files:\n")
+  for (file in missing_files) {
+    cat("  -", file, "\n")
+  }
+  quit(status = 1)
+}
+
+if (verbose) {
+  cat("All required input files found.\n")
 }
 
 # Save heights of MC simulations
-in_dir <- paste0("/Users/johanna/Uni/masterarbeit/data/mc_input/", region)
-#microhab_path <- "/Users/johanna/Uni/masterarbeit/output/modev_zach_25_01_07/MicrohabitatMatrix99.rds"
-microhab_path <- paste0("/Users/johanna/Uni/masterarbeit/data/modve_output/", region, "/a1/MicrohabitatMatrix199.rds")
-vegp_path <- paste(in_dir, "vegp_mof3d_ptm_199_v4.RDS", sep = "/")
-soilc_path <- paste(in_dir, "soilc_v2.RDS", sep = "/")
-climdata_path <- paste(in_dir, "cmip6_climdata_2024_v1.csv", sep = "/")
-
-# Get forest heights for which microclimate will be simulated
 vegp_reg <- readRDS(vegp_path)
 max_veg_height <- max(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE)
 heights <- seq(0.5, max_veg_height + 1)
 max_hgt <- length(heights)
-saveRDS(heights, paste0(outdir, "/mc_heights.rds"))
+
+heights_file <- file.path(outdir, "mc_heights.rds")
+if (!file.exists(heights_file)) {
+  saveRDS(heights, heights_file)
+  if (verbose) cat("Saved heights to:", heights_file, "\n")
+}
 
 # Get all cells for which we need to run the microclimate model
 cells <- get_xy_pairs(x_dim, y_dim, outdir)
 
-nTasks <- Sys.getenv("SLURM_NTASKS")
-if (nTasks != "") {
+# Get the ith chunk of cells
+first_cells_idx <- (chunk - 1) * chunk_size + 1
+last_cells_idx <- min(chunk * chunk_size, length(cells$x))
+
+cat("Simulating microclimate for cells", first_cells_idx, "to", last_cells_idx, "\n")
+
+# Determine number of cores
+if (cores_config == "auto") {
+  nTasks <- Sys.getenv("SLURM_NTASKS")
+  if (nTasks != "") {
     numCores <- strtoi(nTasks)
+  } else {
+    numCores <- parallel::detectCores() - 1
+  }
 } else {
-    numCores <- detectCores() - 1
+  numCores <- cores_config
 }
 
 registerDoParallel(numCores)
+cat("Using", numCores, "cores for parallel processing.\n")
 
-output <- foreach (pair_idx=seq_len(length(cells$x)),
-                   .export=c("process_cell", "mean_diurnal_temp_vectorized", "month_stats_vectorized",
-                             "hourly_to_daily_medians", "aggregate_mc", "immediateMessage",
-                             "get_monthly_mc_stats", "extract_params", "indices2coords"
-                   )) %dorng% {
-    x <- cells$x[pair_idx]
-    y <- cells$y[pair_idx]
+# Main processing loop
+output <- foreach(pair_idx = seq(first_cells_idx, last_cells_idx),
+                 .export = c("process_cell", "mean_diurnal_temp_vectorized", "month_stats_vectorized",
+                            "hourly_to_daily_medians", "aggregate_mc", "immediateMessage",
+                            "get_monthly_mc_stats", "extract_params", "indices2coords")) %dorng% {
+  x <- cells$x[pair_idx]
+  y <- cells$y[pair_idx]
 
-    c <- process_cell(x, y, year, n_temp_metrics, microhab_path,
-                 vegp_path, soilc_path, climdata_path, outdir)
+  c <- process_cell(x, y, year, n_temp_metrics, microhab_path,
+                   vegp_path, soilc_path, climdata_path, outdir)
 
-    out_path <- paste0(outdir, "/mc_x", x, "_y", y, ".rds")
-    mc <- readRDS(out_path)
-    if(is.null(mc$data)) {
-      warning(paste("No data for cell:", x, y))
-    } else {
-      message(paste("Processed cell:", x, y, "with data."))
-    }
-    return(NULL)
+  out_path <- paste0(outdir, "/mc_x", x, "_y", y, ".rds")
+  mc <- readRDS(out_path)
+
+  if (is.null(mc$data)) {
+    warning(paste("No data for cell:", x, y))
+  } else if (verbose) {
+    message(paste("Processed cell:", x, y, "with data."))
+  }
+
+  return(NULL)
 }
 
 # Check for missing cells after processing
 missing_x <- c()
 missing_y <- c()
-for (x in seq(50)) {
-    for (y in seq(50)) {
-        out_path <- paste0(outdir, "/mc_x", x, "_y", y, ".rds")
-        mc <- readRDS(out_path)
-        if(is.null(mc$data)) {
-            missing_x <- c(missing_x, x)
-            missing_y <- c(missing_y, y)
-        }
-        else {
-            # Count nas in data
-            nas_count <- sum(is.na(mc$data))
-            if (nas_count > 0) {
-                message(paste("Cell:", x, y, "has", nas_count, "missing values in data."))
-            }
-        }
-    }
-}
-message("No. missing cells: ", length(missing_x))
+total_nas <- 0
 
-#
-# # DEEBUG new method
-#
-# # Load data for one year
-# vegp_reg <- readRDS(vegp_path)
-# soilc_reg <- readRDS(soilc_path)
-# climdata_reg <- read_csv(climdata_path)
-# pai <- readRDS(microhab_path)[,,,4]
-#
-# # Check for missing cells after processing
-# nImgs <- 0
-# while (nImgs < 4) {
-#   x <- sample(1:50, 1)
-#   y <- sample(1:50, 1)
-#   out_path <- paste0(outdir, "/mc_x", x, "_y", y, ".rds")
-#   mc <- readRDS(out_path)
-#   if(!is.null(mc$data)) {
-#
-#       # Veg heights
-#       max_veg_height <- max(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE)
-#       heights <- seq(0.5, max_veg_height + 1)
-#
-#       immediateMessage(paste("Processing cell:", x, y))
-#
-#       coords <- indices2coords(x, y, terra::unwrap(vegp_reg$pai))[c("x", "y")]
-#       lon <- coords[[1]]
-#       lat <- coords[[2]]
-#
-#       vegparams <- extract_params(vegp_reg, lon, lat)
-#       grndparams <- extract_params(soilc_reg, lon, lat)
-#       #paii <- pai[x, y, 1:max(vegparams$h, 0.5)]
-#       max_hgt <- max(values(terra::unwrap(vegp_reg$h)))
-#       paii <- pai[x, y, 1:max_hgt]
-#
-#       # try plotprofile
-#       ppout <- plotprofile(climdata_reg, hr = 1029, "relhum",
-#                             vegparams, paii = paii[1:vegparams$h], grndparams, lat = lat, long= lon)
-#       #
-#       #pmout <- runprofilemodel(climdata_reg, vegparams,
-#       #                           paii = paii[1:vegparams$h], grndparams, lat = lat, long= lon)
-#
-#       pmout <- micropoint::runpointmodel(climdata_reg, reqhgt = seq(0.5, length(paii)), vegparams,
-#                                          paii, grndparams, lat = lat, long = lon)
-#
-#       # Extract x values from all three line data sources
-#       x1 <- ppout$var
-#       x2 <- mc$data[1:length(ppout$z), 7] # 1 airt , 7 relhum, 11 windspeed
-#       #x3 <- apply(pmout$profile[,,2], 2, mean)
-#       x3 <- apply(pmout$relhum, 2, mean)
-#
-#       # Determine the global x-axis range
-#       x_range <- range(c(x2, x3), na.rm = TRUE)
-#       y_range <- range(c(ppout$z, seq(length(pmout$height))), na.rm = TRUE)
-#
-#       pdf(paste0("../../figs/mc_output/test_profile_relhum_cppfct4_comp_", x, "_", y, "_v2.pdf"))
-#
-#       # Plot the first line with axis labels
-#       plot(ppout$z ~ x2, type = "l", xlim = x_range, ylim = y_range,
-#            xlab = "Relative Humidity (%)", ylab = "Height (m)")
-#
-#       # Add the second line
-#       lines(pmout$heights ~ x3, col = "red")
-#
-#       # Add a legend
-#       legend("topright",
-#              legend = c("Original 'runmodel' for each height", "New cpp 'runmodelProfile'"),
-#              col = c("black", "red"), lty = 1, bty = "n")
-#
-#       dev.off()
-#
-#       nImgs <- nImgs + 1
-#   }
-# }
+for (i in seq(first_cells_idx, last_cells_idx)) {
+  x <- cells$x[i]
+  y <- cells$y[i]
+  out_path <- paste0(outdir, "/mc_x", x, "_y", y, ".rds")
+
+  if (file.exists(out_path)) {
+    mc <- readRDS(out_path)
+    if (is.null(mc$data)) {
+      missing_x <- c(missing_x, x)
+      missing_y <- c(missing_y, y)
+    } else {
+      # Count NAs in data
+      nas_count <- sum(is.na(mc$data))
+      total_nas <- total_nas + nas_count
+      if (nas_count > 0 && verbose) {
+        message(paste("Cell:", x, y, "has", nas_count, "missing values in data."))
+      }
+    }
+  } else {
+    warning(paste("Output file not found for cell:", x, y))
+    missing_x <- c(missing_x, x)
+    missing_y <- c(missing_y, y)
+  }
+}
+
+# Summary report
+cat("\n--- Processing Summary ---\n")
+cat("Configuration file:", opt$config, "\n")
+cat("Processed cells:", first_cells_idx, "to", last_cells_idx, "\n")
+cat("Missing cells:", length(missing_x), "\n")
+cat("Total NA values across all cells:", total_nas, "\n")
+
+if (length(missing_x) > 0) {
+  cat("Missing cell coordinates:\n")
+  for (i in seq_along(missing_x)) {
+    cat("  x =", missing_x[i], ", y =", missing_y[i], "\n")
+  }
+  quit(status = 1)
+} else {
+  cat("All cells processed successfully!\n")
+  quit(status = 0)
+}
