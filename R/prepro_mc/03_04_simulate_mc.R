@@ -390,7 +390,7 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
 option_list <- list(
   make_option(c("-c", "--config"), type = "character", default = "config.toml",
               help = "Path to TOML configuration file [default %default]", metavar = "FILE"),
-  make_option(c("-ch", "--chunk"), type = "integer", default = "10",
+  make_option(c("-k", "--chunk"), type = "integer", default = "10",
               help = "Number of chunk that determines which cells to simulate [default %default]"),
   make_option(c("--v", "--verbose"), action = "store_true", default = FALSE,
               help = "Enable verbose output")
