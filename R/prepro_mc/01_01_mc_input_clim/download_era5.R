@@ -24,18 +24,18 @@ cat("Output directory:", dirout, "\n")
 
 year <- args[2]  # Year to download, e.g., "2024"
 
-# 1983 -> running
-# 1984 -> 7-12 missing
-# 1985 -> all missing?
-# 1986 -> 12 missing
-# 1987 -> 11,12 missing
-# 1988 -> 11, 12 missing
-# 1989 -> 2-12
-# 1990 -> 2-12
-# 1993 -> 2-12
-# 1994 -> 2-12
-# 1995, -> 5-12
-# 1997, -> 5-12
+# 1983 -> 7-12
+# 1984 -> done
+# 1985 -> done
+# 1986 -> done
+# 1987 -> done
+# 1988 -> done
+# 1989 -> done
+# 1990 -> done
+# 1993 -> done
+# 1994 -> done
+# 1995, -> done
+# 1997, -> 11-12
 # 1998, -> 5-12
 # 1999, -> 5-12
 # 2000, -> 5-12
@@ -51,9 +51,9 @@ year <- args[2]  # Year to download, e.g., "2024"
 # 2012,
 # 2013,
 # 2014,
-# 2015,
+# 2015, -> 9-12
 # 2018,
-# 2019)
+# 2019 -> done
 
 # obs_time – UTC POSIXlt object of observation times for each climate variable, 2017-01-01 00:00:00
 # temp – temperatures (deg C)
@@ -122,27 +122,21 @@ all_tme <- as.POSIXlt(seq(
       as.POSIXct(paste0(year, "-12-31 23:00"), tz = "UTC"),
       by = "1 hour"
 ))
-if (year <= 1994 & year >= 1989) {
-    tme <- as.POSIXlt(seq(
-      as.POSIXct(paste0(year, "-02-01 00:00"), tz = "UTC"),
-      as.POSIXct(paste0(year, "-12-31 23:00"), tz = "UTC"),
-      by = "1 hour"
-    ))
-} else if (year <= 2000 & year >= 1995) {
+if (year <= 2002 & year >= 1996) {
     tme <- as.POSIXlt(seq(
         as.POSIXct(paste0(year, "-05-01 00:00"), tz = "UTC"),
         as.POSIXct(paste0(year, "-12-31 23:00"), tz = "UTC"),
         by = "1 hour"
     ))
-} else if (year == 1984) {
+} else if (year == 2003) {
     tme <- as.POSIXlt(seq(
         as.POSIXct(paste0(year, "-07-01 00:00"), tz = "UTC"),
         as.POSIXct(paste0(year, "-12-31 23:00"), tz = "UTC"),
         by = "1 hour"
     ))
-} else if (year == 1983) {
+} else if (year == 2004) {
     tme <- as.POSIXlt(seq(
-        as.POSIXct(paste0(year, "-06-01 00:00"), tz = "UTC"),
+        as.POSIXct(paste0(year, "-09-01 00:00"), tz = "UTC"),
         as.POSIXct(paste0(year, "-12-31 23:00"), tz = "UTC"),
         by = "1 hour"
     ))
@@ -152,7 +146,13 @@ if (year <= 1994 & year >= 1989) {
         as.POSIXct(paste0(year, "-12-31 23:00"), tz = "UTC"),
         by = "1 hour"
     ))
-} else if (year == 1987 || year == 1988) {
+} else if (year == 2004 || year == 2015) {
+    tme <- as.POSIXlt(seq(
+        as.POSIXct(paste0(year, "-09-01 00:00"), tz = "UTC"),
+        as.POSIXct(paste0(year, "-12-31 23:00"), tz = "UTC"),
+        by = "1 hour"
+    ))
+} else if (year == 1997) {
     tme <- as.POSIXlt(seq(
         as.POSIXct(paste0(year, "-11-01 00:00"), tz = "UTC"),
         as.POSIXct(paste0(year, "-12-31 23:00"), tz = "UTC"),
