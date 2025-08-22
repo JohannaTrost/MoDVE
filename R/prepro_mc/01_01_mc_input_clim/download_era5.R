@@ -122,9 +122,15 @@ all_tme <- as.POSIXlt(seq(
       as.POSIXct(paste0(year, "-12-31 23:00"), tz = "UTC"),
       by = "1 hour"
 ))
-if (year <= 2002 & year >= 1996) {
+if (year <= 2003 & year >= 1996) {
     tme <- as.POSIXlt(seq(
         as.POSIXct(paste0(year, "-05-01 00:00"), tz = "UTC"),
+        as.POSIXct(paste0(year, "-12-31 23:00"), tz = "UTC"),
+        by = "1 hour"
+    ))
+} else if (year == 2013) {
+    tme <- as.POSIXlt(seq(
+        as.POSIXct(paste0(year, "-04-01 00:00"), tz = "UTC"),
         as.POSIXct(paste0(year, "-12-31 23:00"), tz = "UTC"),
         by = "1 hour"
     ))
@@ -140,9 +146,9 @@ if (year <= 2002 & year >= 1996) {
         as.POSIXct(paste0(year, "-12-31 23:00"), tz = "UTC"),
         by = "1 hour"
     ))
-} else if (year == 1986) {
+} else if (year == 2002) {
     tme <- as.POSIXlt(seq(
-        as.POSIXct(paste0(year, "-12-01 00:00"), tz = "UTC"),
+        as.POSIXct(paste0(year, "-11-01 00:00"), tz = "UTC"),
         as.POSIXct(paste0(year, "-12-31 23:00"), tz = "UTC"),
         by = "1 hour"
     ))
