@@ -152,9 +152,9 @@ if (year <= 2003 & year >= 1996) {
         as.POSIXct(paste0(year, "-12-31 23:00"), tz = "UTC"),
         by = "1 hour"
     ))
-} else if (year == 2004 || year == 2015) {
+} else if (year == 2015) {
     tme <- as.POSIXlt(seq(
-        as.POSIXct(paste0(year, "-09-01 00:00"), tz = "UTC"),
+        as.POSIXct(paste0(year, "-12-01 00:00"), tz = "UTC"),
         as.POSIXct(paste0(year, "-12-31 23:00"), tz = "UTC"),
         by = "1 hour"
     ))
