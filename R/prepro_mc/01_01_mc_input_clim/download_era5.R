@@ -24,39 +24,36 @@ cat("Output directory:", dirout, "\n")
 
 year <- args[2]  # Year to download, e.g., "2024"
 
-# missing
-
 era5_months <- list(
-  "1983" = c(3, 4, 8, 9, 10),
-  "1984" = 2:12,
+  "1984" = 7:12,
   "1985" = 3:12,
   "1986" = 2:11,
   "1987" = 2:10,
   "1988" = 2:10,
-  "1989" = c(3, 4, 8, 9, 10),
-  "1990" = c(3, 4, 8, 9, 10),
+  "1989" = c(3, 4), #8, 9, 10),
+  "1990" = c(3, 4), #8, 9, 10),
   "1991" = 2:12,
   "1992" = 2:12,
-  "1993" = c(3, 4, 8, 9, 10),
-  "1994" = c(3, 4, 8, 9, 10),
-  "1995" = c(5, 11, 12),
+  "1993" = c(3, 4), # 8, 9, 10),
+  "1994" = c(3, 4), #8, 9, 10),
+  "1995" = c(5), # 11, 12),
   "1996" = 2:12,
-  "1997" = c(5, 6, 7, 8, 12),
-  "1998" = c(5, 11, 12),
-  "1999" = c(5, 11, 12),
-  "2000" = c(5, 11, 12),
+  "1997" = c(5, 6, 7, 8), #12),
+  "1998" = c(5), #11, 12),
+  "1999" = c(5), #11, 12),
+  "2000" = c(5), # 11, 12),
   "2001" = 3:9,
   "2002" = 5,
-  "2003" = c(5, 11, 12),
+  "2003" = c(5), #11, 12),
   "2004" = 11,
   "2005" = 4:12,
-  "2007" = c(3, 4, 8, 9, 10),
-  "2009" = c(3, 4, 8, 9, 10),
-  "2010" = c(1, 4, 9, 10),
-  "2011" = c(3, 4, 8, 9, 10),
-  "2012" = c(3, 4, 8, 9, 10),
-  "2013" = c(3, 4, 8, 9, 10),
-  "2014" = c(3, 8, 9, 10),
+  "2007" = c(3, 4), #8, 9, 10),
+  "2009" = c(3, 4),#8, 9, 10),
+  "2010" = c(1), #4, 9, 10),
+  "2011" = c(3, 4), #8, 9, 10),
+  "2012" = c(3, 4), #8, 9, 10),
+  "2013" = c(3, 4), #8, 9, 10),
+  "2014" = c(3), #8, 9, 10),
   "2015" = 11,
   "2016" = 4
 )
@@ -128,13 +125,8 @@ all_tme <- as.POSIXlt(seq(
       as.POSIXct(paste0(year, "-12-31 23:00"), tz = "UTC"),
       by = "1 hour"
 ))
-if (year == 1983) {
-    tme <- as.POSIXlt(c(
-        seq(as.POSIXct("1983-03-01 00:00", tz="UTC"), as.POSIXct("1983-04-30 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("1983-08-01 00:00", tz="UTC"), as.POSIXct("1983-10-31 23:00", tz="UTC"), by="1 hour")
-    ))
-} else if (year == 1984) {
-    tme <- as.POSIXlt(seq(as.POSIXct("1984-02-01 00:00", tz="UTC"), as.POSIXct("1984-12-31 23:00", tz="UTC"), by="1 hour"))
+if (year == 1984) {
+    tme <- as.POSIXlt(seq(as.POSIXct("1984-07-01 00:00", tz="UTC"), as.POSIXct("1984-12-31 23:00", tz="UTC"), by="1 hour"))
 } else if (year == 1985) {
     tme <- as.POSIXlt(seq(as.POSIXct("1985-03-01 00:00", tz="UTC"), as.POSIXct("1985-12-31 23:00", tz="UTC"), by="1 hour"))
 } else if (year == 1986) {
@@ -145,13 +137,13 @@ if (year == 1983) {
     tme <- as.POSIXlt(seq(as.POSIXct("1988-02-01 00:00", tz="UTC"), as.POSIXct("1988-10-31 23:00", tz="UTC"), by="1 hour"))
 } else if (year == 1989) {
     tme <- as.POSIXlt(c(
-        seq(as.POSIXct("1989-03-01 00:00", tz="UTC"), as.POSIXct("1989-04-30 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("1989-08-01 00:00", tz="UTC"), as.POSIXct("1989-10-31 23:00", tz="UTC"), by="1 hour")
+        seq(as.POSIXct("1989-03-01 00:00", tz="UTC"), as.POSIXct("1989-04-30 23:00", tz="UTC"), by="1 hour")
+        #seq(as.POSIXct("1989-08-01 00:00", tz="UTC"), as.POSIXct("1989-10-31 23:00", tz="UTC"), by="1 hour")
     ))
 } else if (year == 1990) {
     tme <- as.POSIXlt(c(
-        seq(as.POSIXct("1990-03-01 00:00", tz="UTC"), as.POSIXct("1990-04-30 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("1990-08-01 00:00", tz="UTC"), as.POSIXct("1990-10-31 23:00", tz="UTC"), by="1 hour")
+        seq(as.POSIXct("1990-03-01 00:00", tz="UTC"), as.POSIXct("1990-04-30 23:00", tz="UTC"), by="1 hour")
+        #seq(as.POSIXct("1990-08-01 00:00", tz="UTC"), as.POSIXct("1990-10-31 23:00", tz="UTC"), by="1 hour")
     ))
 } else if (year == 1991) {
     tme <- as.POSIXlt(seq(as.POSIXct("1991-02-01 00:00", tz="UTC"), as.POSIXct("1991-12-31 23:00", tz="UTC"), by="1 hour"))
@@ -159,40 +151,37 @@ if (year == 1983) {
     tme <- as.POSIXlt(seq(as.POSIXct("1992-02-01 00:00", tz="UTC"), as.POSIXct("1992-12-31 23:00", tz="UTC"), by="1 hour"))
 } else if (year == 1993) {
     tme <- as.POSIXlt(c(
-        seq(as.POSIXct("1993-03-01 00:00", tz="UTC"), as.POSIXct("1993-04-30 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("1993-08-01 00:00", tz="UTC"), as.POSIXct("1993-10-31 23:00", tz="UTC"), by="1 hour")
+        seq(as.POSIXct("1993-03-01 00:00", tz="UTC"), as.POSIXct("1993-04-30 23:00", tz="UTC"), by="1 hour")
+        #seq(as.POSIXct("1993-08-01 00:00", tz="UTC"), as.POSIXct("1993-10-31 23:00", tz="UTC"), by="1 hour")
     ))
 } else if (year == 1994) {
     tme <- as.POSIXlt(c(
-        seq(as.POSIXct("1994-03-01 00:00", tz="UTC"), as.POSIXct("1994-04-30 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("1994-08-01 00:00", tz="UTC"), as.POSIXct("1994-10-31 23:00", tz="UTC"), by="1 hour")
+        seq(as.POSIXct("1994-03-01 00:00", tz="UTC"), as.POSIXct("1994-04-30 23:00", tz="UTC"), by="1 hour")
+        #seq(as.POSIXct("1994-08-01 00:00", tz="UTC"), as.POSIXct("1994-10-31 23:00", tz="UTC"), by="1 hour")
     ))
 } else if (year == 1995) {
     tme <- as.POSIXlt(c(
-        seq(as.POSIXct("1995-05-01 00:00", tz="UTC"), as.POSIXct("1995-05-31 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("1995-11-01 00:00", tz="UTC"), as.POSIXct("1995-12-31 23:00", tz="UTC"), by="1 hour")
+        seq(as.POSIXct("1995-05-01 00:00", tz="UTC"), as.POSIXct("1995-05-31 23:00", tz="UTC"), by="1 hour")
+        #seq(as.POSIXct("1995-11-01 00:00", tz="UTC"), as.POSIXct("1995-12-31 23:00", tz="UTC"), by="1 hour")
     ))
 } else if (year == 1996) {
     tme <- as.POSIXlt(seq(as.POSIXct("1996-02-01 00:00", tz="UTC"), as.POSIXct("1996-12-31 23:00", tz="UTC"), by="1 hour"))
 } else if (year == 1997) {
     tme <- as.POSIXlt(c(
-        seq(as.POSIXct("1997-05-01 00:00", tz="UTC"), as.POSIXct("1997-08-31 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("1997-12-01 00:00", tz="UTC"), as.POSIXct("1997-12-31 23:00", tz="UTC"), by="1 hour")
+        seq(as.POSIXct("1997-05-01 00:00", tz="UTC"), as.POSIXct("1997-08-31 23:00", tz="UTC"), by="1 hour")
+        #seq(as.POSIXct("1997-12-01 00:00", tz="UTC"), as.POSIXct("1997-12-31 23:00", tz="UTC"), by="1 hour")
     ))
 } else if (year == 1998) {
-    tme <- as.POSIXlt(c(
-        seq(as.POSIXct("1998-05-01 00:00", tz="UTC"), as.POSIXct("1998-05-31 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("1998-11-01 00:00", tz="UTC"), as.POSIXct("1998-12-31 23:00", tz="UTC"), by="1 hour")
-    ))
+    tme <- as.POSIXlt(seq(as.POSIXct("1998-05-01 00:00", tz="UTC"), as.POSIXct("1998-05-31 23:00", tz="UTC"), by="1 hour"))
 } else if (year == 1999) {
     tme <- as.POSIXlt(c(
-        seq(as.POSIXct("1999-05-01 00:00", tz="UTC"), as.POSIXct("1999-05-31 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("1999-11-01 00:00", tz="UTC"), as.POSIXct("1999-12-31 23:00", tz="UTC"), by="1 hour")
+        seq(as.POSIXct("1999-05-01 00:00", tz="UTC"), as.POSIXct("1999-05-31 23:00", tz="UTC"), by="1 hour")
+        #seq(as.POSIXct("1999-11-01 00:00", tz="UTC"), as.POSIXct("1999-12-31 23:00", tz="UTC"), by="1 hour")
     ))
 } else if (year == 2000) {
     tme <- as.POSIXlt(c(
-        seq(as.POSIXct("2000-05-01 00:00", tz="UTC"), as.POSIXct("2000-05-31 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("2000-11-01 00:00", tz="UTC"), as.POSIXct("2000-12-31 23:00", tz="UTC"), by="1 hour")
+        seq(as.POSIXct("2000-05-01 00:00", tz="UTC"), as.POSIXct("2000-05-31 23:00", tz="UTC"), by="1 hour")
+        #seq(as.POSIXct("2000-11-01 00:00", tz="UTC"), as.POSIXct("2000-12-31 23:00", tz="UTC"), by="1 hour")
     ))
 } else if (year == 2001) {
     tme <- as.POSIXlt(seq(as.POSIXct("2001-03-01 00:00", tz="UTC"), as.POSIXct("2001-09-30 23:00", tz="UTC"), by="1 hour"))
@@ -200,8 +189,8 @@ if (year == 1983) {
     tme <- as.POSIXlt(seq(as.POSIXct("2002-05-01 00:00", tz="UTC"), as.POSIXct("2002-05-31 23:00", tz="UTC"), by="1 hour"))
 } else if (year == 2003) {
     tme <- as.POSIXlt(c(
-        seq(as.POSIXct("2003-05-01 00:00", tz="UTC"), as.POSIXct("2003-05-31 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("2003-11-01 00:00", tz="UTC"), as.POSIXct("2003-12-31 23:00", tz="UTC"), by="1 hour")
+        seq(as.POSIXct("2003-05-01 00:00", tz="UTC"), as.POSIXct("2003-05-31 23:00", tz="UTC"), by="1 hour")
+        #seq(as.POSIXct("2003-11-01 00:00", tz="UTC"), as.POSIXct("2003-12-31 23:00", tz="UTC"), by="1 hour")
     ))
 } else if (year == 2004) {
     tme <- as.POSIXlt(seq(as.POSIXct("2004-11-01 00:00", tz="UTC"), as.POSIXct("2004-11-30 23:00", tz="UTC"), by="1 hour"))
@@ -209,39 +198,39 @@ if (year == 1983) {
     tme <- as.POSIXlt(seq(as.POSIXct("2005-04-01 00:00", tz="UTC"), as.POSIXct("2005-12-31 23:00", tz="UTC"), by="1 hour"))
 } else if (year == 2007) {
     tme <- as.POSIXlt(c(
-        seq(as.POSIXct("2007-03-01 00:00", tz="UTC"), as.POSIXct("2007-04-30 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("2007-08-01 00:00", tz="UTC"), as.POSIXct("2007-10-31 23:00", tz="UTC"), by="1 hour")
+        seq(as.POSIXct("2007-03-01 00:00", tz="UTC"), as.POSIXct("2007-04-30 23:00", tz="UTC"), by="1 hour")
+        #seq(as.POSIXct("2007-08-01 00:00", tz="UTC"), as.POSIXct("2007-10-31 23:00", tz="UTC"), by="1 hour")
     ))
 } else if (year == 2009) {
     tme <- as.POSIXlt(c(
-        seq(as.POSIXct("2009-03-01 00:00", tz="UTC"), as.POSIXct("2009-04-30 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("2009-08-01 00:00", tz="UTC"), as.POSIXct("2009-10-31 23:00", tz="UTC"), by="1 hour")
+        seq(as.POSIXct("2009-03-01 00:00", tz="UTC"), as.POSIXct("2009-04-30 23:00", tz="UTC"), by="1 hour")
+        #seq(as.POSIXct("2009-08-01 00:00", tz="UTC"), as.POSIXct("2009-10-31 23:00", tz="UTC"), by="1 hour")
     ))
 } else if (year == 2010) {
     tme <- as.POSIXlt(c(
-        seq(as.POSIXct("2010-01-01 00:00", tz="UTC"), as.POSIXct("2010-01-31 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("2010-04-01 00:00", tz="UTC"), as.POSIXct("2010-04-30 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("2010-09-01 00:00", tz="UTC"), as.POSIXct("2010-10-31 23:00", tz="UTC"), by="1 hour")
+        seq(as.POSIXct("2010-01-01 00:00", tz="UTC"), as.POSIXct("2010-01-31 23:00", tz="UTC"), by="1 hour")
+        #seq(as.POSIXct("2010-04-01 00:00", tz="UTC"), as.POSIXct("2010-04-30 23:00", tz="UTC"), by="1 hour"),
+        #seq(as.POSIXct("2010-09-01 00:00", tz="UTC"), as.POSIXct("2010-10-31 23:00", tz="UTC"), by="1 hour")
     ))
 } else if (year == 2011) {
     tme <- as.POSIXlt(c(
-        seq(as.POSIXct("2011-03-01 00:00", tz="UTC"), as.POSIXct("2011-04-30 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("2011-08-01 00:00", tz="UTC"), as.POSIXct("2011-10-31 23:00", tz="UTC"), by="1 hour")
+        seq(as.POSIXct("2011-03-01 00:00", tz="UTC"), as.POSIXct("2011-04-30 23:00", tz="UTC"), by="1 hour")
+        #seq(as.POSIXct("2011-08-01 00:00", tz="UTC"), as.POSIXct("2011-10-31 23:00", tz="UTC"), by="1 hour")
     ))
 } else if (year == 2012) {
     tme <- as.POSIXlt(c(
-        seq(as.POSIXct("2012-03-01 00:00", tz="UTC"), as.POSIXct("2012-04-30 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("2012-08-01 00:00", tz="UTC"), as.POSIXct("2012-10-31 23:00", tz="UTC"), by="1 hour")
+        seq(as.POSIXct("2012-03-01 00:00", tz="UTC"), as.POSIXct("2012-04-30 23:00", tz="UTC"), by="1 hour")
+        #seq(as.POSIXct("2012-08-01 00:00", tz="UTC"), as.POSIXct("2012-10-31 23:00", tz="UTC"), by="1 hour")
     ))
 } else if (year == 2013) {
     tme <- as.POSIXlt(c(
-        seq(as.POSIXct("2013-03-01 00:00", tz="UTC"), as.POSIXct("2013-04-30 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("2013-08-01 00:00", tz="UTC"), as.POSIXct("2013-10-31 23:00", tz="UTC"), by="1 hour")
+        seq(as.POSIXct("2013-03-01 00:00", tz="UTC"), as.POSIXct("2013-04-30 23:00", tz="UTC"), by="1 hour")
+        #seq(as.POSIXct("2013-08-01 00:00", tz="UTC"), as.POSIXct("2013-10-31 23:00", tz="UTC"), by="1 hour")
     ))
 } else if (year == 2014) {
     tme <- as.POSIXlt(c(
-        seq(as.POSIXct("2014-03-01 00:00", tz="UTC"), as.POSIXct("2014-03-31 23:00", tz="UTC"), by="1 hour"),
-        seq(as.POSIXct("2014-08-01 00:00", tz="UTC"), as.POSIXct("2014-10-31 23:00", tz="UTC"), by="1 hour")
+        seq(as.POSIXct("2014-03-01 00:00", tz="UTC"), as.POSIXct("2014-03-31 23:00", tz="UTC"), by="1 hour")
+        #seq(as.POSIXct("2014-08-01 00:00", tz="UTC"), as.POSIXct("2014-10-31 23:00", tz="UTC"), by="1 hour")
     ))
 } else if (year == 2015) {
     tme <- as.POSIXlt(seq(as.POSIXct("2015-11-01 00:00", tz="UTC"), as.POSIXct("2015-11-30 23:00", tz="UTC"), by="1 hour"))
