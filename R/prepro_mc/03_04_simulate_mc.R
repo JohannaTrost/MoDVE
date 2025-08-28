@@ -316,7 +316,7 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
   # Load data for one year
   vegp_reg <- readRDS(vegp_path)
   soilc_reg <- readRDS(soilc_path)
-  climdata_reg <- read_csv(climdata_path)
+  climdata_reg <- read_csv(climdata_path) %>% filter(year(obs_time) == year)
   pai <- readRDS(microhab_path)[,,,4]
 
   # Create hourly timestamps for 2024
@@ -343,7 +343,6 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
   for (i in seq_along(heights)) {
     h <- heights[i]
     immediateMessage(paste(x, y, "height:", h))
-    print(h)
 
     mout <- micropoint::runpointmodel(climdata_reg, reqhgt = h, vegparams,
                                       paii, grndparams, lat = lat, long = lon)
@@ -392,13 +391,18 @@ option_list <- list(
               help = "Path to TOML configuration file [default %default]", metavar = "FILE"),
   make_option(c("-k", "--chunk"), type = "integer", default = "10",
               help = "Number of chunk that determines which cells to simulate [default %default]"),
-  make_option(c("--v", "--verbose"), action = "store_true", default = FALSE,
+  make_option(c("-y", "--year"), type = "integer", default = "2024",
+              help = "Year for which microclimate will be simulated (must be within the climdata)  [default %default]"),
+  make_option(c("-t", "--timestep"), type = "integer", default = "1",
+              help = "Time step to take from forest simulation [default %default]"),
+  make_option(c("-v", "--verbose"), action = "store_true", default = FALSE,
               help = "Enable verbose output")
 )
 
 # Parse command line arguments
 opt_parser <- OptionParser(option_list = option_list,
                           description = "Microclimate simulation processing script using TOML configuration")
+
 opt <- parse_args(opt_parser)
 
 # Check if config file exists
@@ -432,8 +436,8 @@ if (length(missing_sections) > 0) {
 x_dim <- ifelse(is.null(config$simulation$x_dim), 50, config$simulation$x_dim)
 y_dim <- ifelse(is.null(config$simulation$y_dim), 50, config$simulation$y_dim)
 n_temp_metrics <- ifelse(is.null(config$simulation$n_temp_metrics), 14, config$simulation$n_temp_metrics)
-year <- ifelse(is.null(config$simulation$year), 1981, config$simulation$year)
-ts <- ifelse(is.null(config$simulation$ts), 80, config$simulation$ts)
+year <- opt$year
+ts <- opt$timestep
 
 # Processing parameters
 chunk <- ifelse(is.null(opt$chunk), 1, opt$chunk)
