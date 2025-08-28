@@ -343,7 +343,6 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
   for (i in seq_along(heights)) {
     h <- heights[i]
     immediateMessage(paste(x, y, "height:", h))
-    print(h)
 
     mout <- micropoint::runpointmodel(climdata_reg, reqhgt = h, vegparams,
                                       paii, grndparams, lat = lat, long = lon)
@@ -392,7 +391,7 @@ option_list <- list(
               help = "Path to TOML configuration file [default %default]", metavar = "FILE"),
   make_option(c("-k", "--chunk"), type = "integer", default = "10",
               help = "Number of chunk that determines which cells to simulate [default %default]"),
-  make_option(c("--v", "--verbose"), action = "store_true", default = FALSE,
+  make_option(c("-v", "--verbose"), action = "store_true", default = FALSE,
               help = "Enable verbose output")
 )
 
@@ -526,9 +525,9 @@ cat("Simulating microclimate for cells", first_cells_idx, "to", last_cells_idx, 
 
 # Determine number of cores
 if (cores_config == "auto") {
-  nTasks <- Sys.getenv("SLURM_NTASKS")
-  if (nTasks != "") {
-    numCores <- strtoi(nTasks)
+  cpus <- Sys.getenv("SLURM_CPUS_PER_TASK")
+  if (cpus != "") {
+    numCores <- strtoi(cpus)
   } else {
     numCores <- parallel::detectCores() - 1
   }
