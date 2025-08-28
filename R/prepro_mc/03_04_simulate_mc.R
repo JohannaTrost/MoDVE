@@ -22,6 +22,42 @@ suppressPackageStartupMessages({
   library(lubridate)
 })
 
+get_chunk_indices <- function(chunk, chunk_size, x, name = deparse(substitute(x))) {
+  # Basic validation
+  if (length(chunk) != 1L || !is.numeric(chunk) || is.na(chunk) || chunk %% 1 != 0 || chunk <= 0)
+    stop("`chunk` must be a positive integer length-1 value.", call. = FALSE)
+  if (length(chunk_size) != 1L || !is.numeric(chunk_size) || is.na(chunk_size) || chunk_size %% 1 != 0 || chunk_size <= 0)
+    stop("`chunk_size` must be a positive integer length-1 value.", call. = FALSE)
+
+  n <- length(x)
+  if (n == 0L)
+    stop(sprintf("Object `%s` has length 0; there are no elements to chunk.", name), call. = FALSE)
+
+  first <- (chunk - 1L) * chunk_size + 1L
+  last  <- min(chunk * chunk_size, n)
+  max_chunk <- ceiling(n / chunk_size)
+
+  # Error when the chunk would start past the end (i.e., empty/nonexistent chunk)
+  if (first > n) {
+    msg <- sprintf(paste(
+      "Requested chunk is out of range.",
+      "Requested: chunk=%d (chunk_size=%d)",
+      "Computed indices: [%d, %d]",
+      "Length of `%s`: %d",
+      "Last non-empty chunk index: %d",
+      "Reason: start index %d > length %d (empty chunk).",
+      "Hints:",
+      " - If looping, stop at max_chunk (%d).",
+      " - Check off-by-one errors (R indices are 1-based).",
+      sep = "\n"),
+      chunk, chunk_size, first, last, name, n, max_chunk, first, n, max_chunk
+    )
+    stop(msg, call. = FALSE)
+  }
+
+  list(first = first, last = last, max_chunk = max_chunk)
+}
+
 get_xy_pairs <- function(xdim, ydim, outdir) {
   missing_x <- c()
   missing_y <- c()
@@ -68,7 +104,7 @@ mean_diurnal_temp_vectorized <- function(tair_matrix, timestamps) {
   dates <- as.Date(timestamps)
   unique_dates <- unique(dates)
 
-  # Pre-allocate results
+  # Pre-alloimmediateMessagee results
   n_dates <- length(unique_dates)
   n_heights <- nrow(tair_matrix)
   daily_ranges <- matrix(NA, nrow = n_heights, ncol = n_dates)
@@ -97,7 +133,7 @@ month_stats_vectorized <- function(data_matrix, timestamps) {
   n_heights <- nrow(data_matrix)
   n_months <- length(unique_months)
 
-  # Pre-allocate monthly means matrix
+  # Pre-alloimmediateMessagee monthly means matrix
   monthly_means <- matrix(NA, nrow = n_heights, ncol = n_months)
   monthly_max <- matrix(NA, nrow = n_heights, ncol = n_months)
   monthly_min <- matrix(NA, nrow = n_heights, ncol = n_months)
@@ -156,7 +192,7 @@ aggregate_mc <- function(mc, timestamps, n_temp_metrics) {
 
   actual_max_hgt <- dim(mc$tair)[1]
 
-  # Pre-allocate result matrix for this cell
+  # Pre-alloimmediateMessagee result matrix for this cell
   cell_matrix <- array(NA, dim = c(actual_max_hgt, n_temp_metrics))
 
   # Verify data dimensions
@@ -200,7 +236,7 @@ aggregate_mc <- function(mc, timestamps, n_temp_metrics) {
 
   end_time_cell <- Sys.time()
   processing_time <- end_time_cell - start_time_cell
-  #cat("Finished processing cell:", x, y, "in", round(processing_time, 2), "seconds\n")
+  #immediateMessage("Finished processing cell:", x, y, "in", round(processing_time, 2), "seconds\n")
 
   return(list(
     data = cell_matrix,
@@ -293,7 +329,7 @@ indices2coords <- function(x, y, raster, crs_out = "EPSG:4326") {
 
 # Function to process a single (x, y) cell
 process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
-                         vegp_path, soilc_path, climdata_path, out_dir) {
+                         vegp_path, soilc_path, climdata_path, out_dir, verbose = FALSE) {
 
   start_time <- Sys.time()
 
@@ -316,7 +352,8 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
   # Load data for one year
   vegp_reg <- readRDS(vegp_path)
   soilc_reg <- readRDS(soilc_path)
-  climdata_reg <- read_csv(climdata_path) %>% filter(year(obs_time) == year)
+  climdata_reg <- read_csv(climdata_path, show_col_types = FALSE) %>%
+    filter(year(obs_time) == year)
   pai <- readRDS(microhab_path)[,,,4]
 
   # Create hourly timestamps for 2024
@@ -342,12 +379,14 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
 
   for (i in seq_along(heights)) {
     h <- heights[i]
-    immediateMessage(paste(x, y, "height:", h))
-
+    if (verbose) {
+      immediateMessage(paste(x, y, "height:", h))
+    }
     mout <- micropoint::runpointmodel(climdata_reg, reqhgt = h, vegparams,
                                       paii, grndparams, lat = lat, long = lon)
-
-    immediateMessage("Point model run completed.")
+    if (verbose) {
+      immediateMessage("Point model run completed.")
+    }
 
     # Which variables to save
     if (i == 1 & x == 1 & y == 1) {
@@ -357,15 +396,12 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
     }
 
     for (var in exp_vars) {
-      message(paste(x, y, var, h))
       if (i == 1) {
         res[[var]] <- array(NA, dim = c(length(heights), length(mout[[var]])))
       }
       res[[var]][i, ] <- mout[[var]]
     }
   }
-
-  immediateMessage("Point model run completed.")
 
   # aggregate yearly microclimate data
   agg_res <- aggregate_mc(res, timestamps, n_temp_metrics) # Expects heights x time and not time x heights
@@ -407,7 +443,7 @@ opt <- parse_args(opt_parser)
 
 # Check if config file exists
 if (!file.exists(opt$config)) {
-  cat("Error: Configuration file not found:", opt$config, "\n")
+  immediateMessage("Error: Configuration file not found:", opt$config, "\n")
   quit(status = 1)
 }
 
@@ -415,8 +451,8 @@ if (!file.exists(opt$config)) {
 tryCatch({
   config <- parseTOML(opt$config)
 }, error = function(e) {
-  cat("Error parsing TOML configuration file:", opt$config, "\n")
-  cat("Error message:", e$message, "\n")
+  immediateMessage("Error parsing TOML configuration file:", opt$config, "\n")
+  immediateMessage("Error message:", e$message, "\n")
   quit(status = 1)
 })
 
@@ -424,9 +460,9 @@ tryCatch({
 required_sections <- c("simulation", "processing", "paths")
 missing_sections <- setdiff(required_sections, names(config))
 if (length(missing_sections) > 0) {
-  cat("Error: Missing required sections in configuration file:\n")
+  immediateMessage("Error: Missing required sections in configuration file:\n")
   for (section in missing_sections) {
-    cat("  -", section, "\n")
+    immediateMessage("  -", section, "\n")
   }
   quit(status = 1)
 }
@@ -470,22 +506,22 @@ in_dir <- file.path(in_dir_base, region)
 outdir <- file.path(outdir_base, region, year)
 
 if (verbose) {
-  cat("Configuration loaded from:", opt$config, "\n")
-  cat("Settings:\n")
-  cat("  Region:", region, "\n")
-  cat("  Year:", year, "\n")
-  cat("  Dimensions:", x_dim, "x", y_dim, "\n")
-  cat("  Time step:", ts, "\n")
-  cat("  Temperature metrics:", n_temp_metrics, "\n")
-  cat("  Chunk:", chunk, "of size", chunk_size, "\n")
-  cat("  Vegetation input dir:", veg_indir, "\n")
-  cat("  Main input dir:", in_dir, "\n")
-  cat("  Output directory:", outdir, "\n")
+  immediateMessage("Configuration loaded from:", opt$config, "\n")
+  immediateMessage("Settings:\n")
+  immediateMessage("  Region:", region, "\n")
+  immediateMessage("  Year:", year, "\n")
+  immediateMessage("  Dimensions:", x_dim, "x", y_dim, "\n")
+  immediateMessage("  Time step:", ts, "\n")
+  immediateMessage("  Temperature metrics:", n_temp_metrics, "\n")
+  immediateMessage("  Chunk:", chunk, "of size", chunk_size, "\n")
+  immediateMessage("  Vegetation input dir:", veg_indir, "\n")
+  immediateMessage("  Main input dir:", in_dir, "\n")
+  immediateMessage("  Output directory:", outdir, "\n")
 }
 
 if (!dir.exists(outdir)) {
   dir.create(outdir, recursive = TRUE)
-  if (verbose) cat("Created output directory:", outdir, "\n")
+  if (verbose) immediateMessage("Created output directory:", outdir, "\n")
 }
 
 # Define file paths
@@ -498,15 +534,15 @@ required_files <- c(microhab_path, vegp_path, soilc_path, climdata_path)
 missing_files <- required_files[!file.exists(required_files)]
 
 if (length(missing_files) > 0) {
-  cat("Error: Missing required input files:\n")
+  immediateMessage("Error: Missing required input files:\n")
   for (file in missing_files) {
-    cat("  -", file, "\n")
+    immediateMessage("  -", file, "\n")
   }
   quit(status = 1)
 }
 
 if (verbose) {
-  cat("All required input files found.\n")
+  immediateMessage("All required input files found.\n")
 }
 
 # Save heights of MC simulations
@@ -518,17 +554,18 @@ max_hgt <- length(heights)
 heights_file <- file.path(outdir, "mc_heights.rds")
 if (!file.exists(heights_file)) {
   saveRDS(heights, heights_file)
-  if (verbose) cat("Saved heights to:", heights_file, "\n")
+  if (verbose) immediateMessage("Saved heights to:", heights_file, "\n")
 }
 
 # Get all cells for which we need to run the microclimate model
 cells <- get_xy_pairs(x_dim, y_dim, outdir)
 
 # Get the ith chunk of cells
-first_cells_idx <- (chunk - 1) * chunk_size + 1
-last_cells_idx <- min(chunk * chunk_size, length(cells$x))
+idx <- get_chunk_indices(chunk = chunk, chunk_size = chunk_size, x = cells$x)
+first_cells_idx <- idx$first
+last_cells_idx  <- idx$last
 
-cat("Simulating microclimate for cells", first_cells_idx, "to", last_cells_idx, "\n")
+immediateMessage("Simulating microclimate for cells", first_cells_idx, "to", last_cells_idx, "\n")
 
 # Determine number of cores
 if (cores_config == "auto") {
@@ -543,7 +580,7 @@ if (cores_config == "auto") {
 }
 
 registerDoParallel(numCores)
-cat("Using", numCores, "cores for parallel processing.\n")
+immediateMessage("Using", numCores, "cores for parallel processing.\n")
 
 # Main processing loop
 output <- foreach(pair_idx = seq(first_cells_idx, last_cells_idx),
@@ -599,19 +636,19 @@ for (i in seq(first_cells_idx, last_cells_idx)) {
 }
 
 # Summary report
-cat("\n--- Processing Summary ---\n")
-cat("Configuration file:", opt$config, "\n")
-cat("Processed cells:", first_cells_idx, "to", last_cells_idx, "\n")
-cat("Missing cells:", length(missing_x), "\n")
-cat("Total NA values across all cells:", total_nas, "\n")
+immediateMessage("\n--- Processing Summary ---\n")
+immediateMessage("Configuration file:", opt$config, "\n")
+immediateMessage("Processed cells:", first_cells_idx, "to", last_cells_idx, "\n")
+immediateMessage("Missing cells:", length(missing_x), "\n")
+immediateMessage("Total NA values across all cells:", total_nas, "\n")
 
 if (length(missing_x) > 0) {
-  cat("Missing cell coordinates:\n")
+  immediateMessage("Missing cell coordinates:\n")
   for (i in seq_along(missing_x)) {
-    cat("  x =", missing_x[i], ", y =", missing_y[i], "\n")
+    immediateMessage("  x =", missing_x[i], ", y =", missing_y[i], "\n")
   }
   quit(status = 1)
 } else {
-  cat("All cells processed successfully!\n")
+  immediateMessage("All cells processed successfully!\n")
   quit(status = 0)
 }
