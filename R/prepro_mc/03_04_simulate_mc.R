@@ -452,6 +452,9 @@ veg_indir_base <- ifelse(is.null(config$paths$veg_indir),
 in_dir_base <- ifelse(is.null(config$paths$in_dir),
                      "/Users/johanna/Uni/masterarbeit/data/mc_input",
                      config$paths$in_dir)
+climdata_path <- ifelse(is.null(config$paths$clim_path),
+                    "/Users/johanna/Uni/masterarbeit/data/mc_input/pirineus/scenarios/climdata_era5_cmip6_1906-2024_ssp245_119ts_v1.csv",
+                    config$paths$clim_path)
 outdir_base <- ifelse(is.null(config$paths$outdir),
                      "/Users/johanna/Uni/masterarbeit/data/mc_output/v5",
                      config$paths$outdir)
@@ -489,7 +492,6 @@ if (!dir.exists(outdir)) {
 microhab_path <- file.path(veg_indir, paste0("MicrohabitatMatrix", ts, ".rds"))
 vegp_path <- file.path(in_dir, paste0("vegp_mof3d_ptm_", ts, "_v4.RDS"))
 soilc_path <- file.path(in_dir, "soilc_v2.RDS")
-climdata_path <- file.path(in_dir, paste0("climdata_era5_cmip6_", year, "_v3.csv"))
 
 # Validate input files exist
 required_files <- c(microhab_path, vegp_path, soilc_path, climdata_path)
