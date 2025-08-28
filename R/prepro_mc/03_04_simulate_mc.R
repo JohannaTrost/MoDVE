@@ -197,7 +197,7 @@ aggregate_mc <- function(mc, timestamps, n_temp_metrics) {
 
   # Verify data dimensions
   if (dim(mc$tair)[2] != length(timestamps)) {
-    stop(paste("Timestamp mismatch in file:", mc_file))
+    stop(paste("Timestamp mismatch: tair has", dim(mc$tair)[2], "timestamps but", length(timestamps), "were provided."))
   }
 
   # Process all heights simultaneously where possible
@@ -357,7 +357,7 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
   pai <- readRDS(microhab_path)[,,,4]
 
   # Create hourly timestamps for 2024
-  timestamps <- seq(ymd_h(paste0(year, "-01-01 00")), ymd_h(paste0(year, "-12-31 23")), by = "hour")
+  timestamps <- climdata_reg$obs_time
 
   # Veg heights
   max_veg_height <- max(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE)
@@ -375,7 +375,7 @@ process_cell <- function(x, y, year, n_temp_metrics = 14, microhab_path,
   max_hgt <- max(values(terra::unwrap(vegp_reg$h)))
   paii <- pai[x, y, 1:max_hgt]
 
-    res <- list()
+  res <- list()
 
   for (i in seq_along(heights)) {
     h <- heights[i]
@@ -492,7 +492,7 @@ climdata_path <- ifelse(is.null(config$paths$clim_path),
                     "/Users/johanna/Uni/masterarbeit/data/mc_input/pirineus/scenarios/climdata_era5_cmip6_1906-2024_ssp245_119ts_v1.csv",
                     config$paths$clim_path)
 outdir_base <- ifelse(is.null(config$paths$outdir),
-                     "/Users/johanna/Uni/masterarbeit/data/mc_output/v5",
+                     "/Users/johanna/Uni/masterarbeit/data/mc_output/v6",
                      config$paths$outdir)
 
 # Output parameters (can be overridden by command line)
@@ -565,7 +565,7 @@ idx <- get_chunk_indices(chunk = chunk, chunk_size = chunk_size, x = cells$x)
 first_cells_idx <- idx$first
 last_cells_idx  <- idx$last
 
-immediateMessage("Simulating microclimate for cells", first_cells_idx, "to", last_cells_idx, "\n")
+immediateMessage("Simulating microclimate for cells ", first_cells_idx, " to ", last_cells_idx, "\n")
 
 # Determine number of cores
 if (cores_config == "auto") {
