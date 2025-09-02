@@ -1,37 +1,85 @@
+#!/usr/bin/env Rscript
 
+suppressPackageStartupMessages({
+  library(optparse)
+  library(RcppTOML)
+  library(terra)
+})
 
-x_dim <- 50
-y_dim <- 50
-out_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_output"
+# ----------------------------
+# CLI argument parsing
+# ----------------------------
+option_list <- list(
+  make_option(c("-c", "--config"), type = "character", help = "Path to TOML config file"),
+  make_option(c("-y", "--year"), type = "integer", help = "Year to process"),
+  make_option(c("-t", "--ts"), type = "integer", help = "Time step to process")
+)
 
+opt_parser <- OptionParser(option_list = option_list)
+opt <- parse_args(opt_parser)
 
-# Initialize the microclimate matrix
-max_hgt <- 59
+if (is.null(opt$config) || is.null(opt$year) || is.null(opt$ts)) {
+  print_help(opt_parser)
+  quit(status = 1)
+}
+
+# ----------------------------
+# Load config
+# ----------------------------
+config <- RcppTOML::parseTOML(opt$config)
+
+region    <- config$region
+x_dim     <- config$x_dim
+y_dim     <- config$y_dim
+scenario  <- config$scenario
+mc_dir    <- config$mc_dir
+veg_dir <- config$veg_dir
+
+year <- opt$year
+ts   <- opt$ts
+
+# ----------------------------
+# Define directories
+# ----------------------------
+
+mc_in_dir <- file.path(mc_dir, region, "scenarios", scenario, "mc_agg_raw", year)
+in_dir    <- file.path(veg_dir, region)
+out_dir   <- file.path(mc_dir, region, "scenarios", scenario, "mc_matrices")
+
+# Create output directory if needed
+if (!dir.exists(out_dir)) {
+  dir.create(out_dir, recursive = TRUE)
+}
+
+# ----------------------------
+# Extract maximum vegetation height
+# ----------------------------
+vegp_path <- file.path(in_dir, paste0("vegp_mof3d_ptm_", ts, "_v4.RDS"))
+vegp_reg  <- readRDS(vegp_path)
+max_hgt   <- max(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE) + 1
+
 n_temp_metrics <- 14
 mc_matrix <- array(rep(NA, x_dim * y_dim * max_hgt * n_temp_metrics),
                    dim = c(x_dim, y_dim, max_hgt, n_temp_metrics))
 
-# Populate the main matrix with results
+# ----------------------------
+# Process cells
+# ----------------------------
 total_time <- 0
 successful_cells <- 0
 
 for (x in 1:x_dim) {
   for (y in 1:y_dim) {
-    # Create a unique filename for each cell
-    file_path <- file.path(out_dir, paste0("/v3_mc_x", x, "_y", y, ".rds"))
+    file_path <- file.path(mc_in_dir, paste0("mc_x", x, "_y", y, ".rds"))
 
-    # Check if the file exists
     if (file.exists(file_path)) {
-      # Load the data from the file
       result <- readRDS(file_path)
 
-      # Ensure the result is not NULL
       if (!is.null(result)) {
         result$x <- x
         result$y <- y
         actual_heights <- nrow(result$data)
 
-        # Fill the matrix (up to the actual number of heights)
         mc_matrix[x, y, 1:actual_heights, ] <- result$data
 
         numNAs <- sum(is.na(result$data))
@@ -58,7 +106,15 @@ cat("Processing complete! Total successful cells:", successful_cells, "\n")
 cat("Total processing time:", round(total_time, 2), "seconds\n")
 cat("Average time per cell:", round(total_time / successful_cells, 3), "seconds\n")
 
-# Save the result
-saveRDS(mc_matrix, "/Users/johanna/Uni/masterarbeit/data/mc_output/v4_2024_regua_mc_matrix.rds")
+# ----------------------------
+# Save result
+# ----------------------------
+out_file <- file.path(out_dir, paste(year, region, "mc_matrix.rds", sep = "_"))
+saveRDS(mc_matrix, out_file)
 
-mc_test <- readRDS("/Users/johanna/Uni/masterarbeit/data/mc_output/v4_2024_regua_mc_matrix.rds")
+cat("Saved result to:", out_file, "\n")
+
+# ----------------------------
+# Test reload
+# ----------------------------
+mc_test <- readRDS(out_file)
