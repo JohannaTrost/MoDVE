@@ -75,7 +75,10 @@ for (TimeStep in int_seq(from=timeStepStart, to=timeStepEnd, by=1)) {
   Microhabitat <- readRDS(FileMatrix)
 
   # Load microclimate matrix
-  year <- yearStart + TimeStep - timeStepStart + 1
+  year <- yearStart + TimeStep - timeStepStart
+
+  print(paste("Year:", year, "Time step:", TimeStep))
+
   McFile <- paste0(year, "_", region, "_mc_matrix.rds")
   FileMcMatrix <- file.path(DirectoryMicroclimate, McFile)
   Microclimate <- readRDS(FileMcMatrix)
