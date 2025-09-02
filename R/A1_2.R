@@ -28,6 +28,9 @@ config <- parse_config()
 # start and end timestep
 timeStepStart <- config$timeStepStart
 timeStepEnd <- config$timeStepEnd
+yearStart <- config$yearStart
+
+region <- config$region # Region from where we use climate data
 
 # Directory paths
 DirectoryMicrohabitat <- config$DirectoryMicrohabitat
@@ -63,6 +66,7 @@ WindIndex <- indices["WindNicheOpt"]
 
 for (TimeStep in int_seq(from=timeStepStart, to=timeStepEnd, by=1)) {
 
+  cat("----------------------------------------\n")
   print(paste("Time step", TimeStep))
 
   # Load  microhabitat matrix
@@ -71,12 +75,16 @@ for (TimeStep in int_seq(from=timeStepStart, to=timeStepEnd, by=1)) {
   Microhabitat <- readRDS(FileMatrix)
 
   # Load microclimate matrix
-  McFile <- paste("MicroclimateMatrix", "1", ".rds", sep="")
+  year <- yearStart + TimeStep - timeStepStart + 1
+  McFile <- paste0(year, "_", region, "_mc_matrix.rds")
   FileMcMatrix <- file.path(DirectoryMicroclimate, McFile)
   Microclimate <- readRDS(FileMcMatrix)
 
   # 1. Select relevant microclimate variables
-  Microclimate <- Microclimate[,,,c(7, 1, 11)] # mean annual relhum, tair, windspeed
+  idxs <- c(7, 1, 11)[as.logical(c(options_list["HumNicheOpt"],
+                                   options_list["TempNicheOpt"],
+                                   options_list["WindNicheOpt"]))]
+  Microclimate <- Microclimate[,,, idxs] # mean annual relhum, tair, windspeed
 
   # 2. Fill up above canopy microclimate given microhabitat height
   MicrohabDims <- dim(Microhabitat)
@@ -112,6 +120,12 @@ for (TimeStep in int_seq(from=timeStepStart, to=timeStepEnd, by=1)) {
     Microclimate = Microclimate,
     indices = indices
   )
+
+  print(paste0("Microhabitat dimensions (A1_1): ",
+           paste(MicrohabDims, collapse = " x ")))
+  print(paste0("New microhabitat dimensions (A1_2): ",
+           paste(dim(NewMhMatrix), collapse = " x ")))
+
 
   # 4. Update microhabitat matrix
   NewMhFileMatrix <- file.path(DirectoryNewMicrohabitat, MhFile)
