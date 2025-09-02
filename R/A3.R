@@ -1,4 +1,5 @@
 # Create the initial epiphyte distrubution depending on the epiphyte traits and the initial microhabitat matrix
+setwd("/home/jtrost_ext/MoDVE/R/")
 source("utils.R")
 
 
