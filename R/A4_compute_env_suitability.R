@@ -94,8 +94,8 @@ main <- function() {
         EnvScoreVars <- EnvScoreVars[EnvScoreVars != "Light"]
     }
     MhIdx <- Inds[paste0(EnvScoreVars, "NicheOpt")]
-    allEnvVarNames <- c("Light", "Hum", "Temp", "Wind")
-    allEnvVarsIdx <- Inds[paste0(allEnvVarNames, "NicheOpt")]
+    #allEnvVarNames <- c("Light", "Hum", "Temp", "Wind")
+    allEnvVarsIdx <- Inds[paste0(EnvScoreVars, "NicheOpt")]
 
     # Create folder to save the model results
     dir.create(DirectoryOutput, recursive=TRUE)
@@ -145,7 +145,7 @@ main <- function() {
 
             SuitabilityScoresT <- array(NA, dim=c(dimPlot, nrow(SpeciesPool), length(allEnvVarsIdx)))
 
-            for (j in seq_along(allEnvVarsIdx)) {
+            for (j in seq_along(EnvScoreVars)) {
                 envVarIdx <- allEnvVarsIdx[j]
                 envVar <- c(Microhabitat[, , , envVarIdx])
                 VarName <- strsplit(names(envVarIdx), split='NicheOpt', fixed=TRUE)[[1]]
@@ -186,7 +186,7 @@ main <- function() {
 
             # - 1. Compute the global maximum suitability across all time steps
             globalMaxSuitability <- rep(-Inf, NSpecies)
-            activeNiches <- nicheFlags[allEnvVarNames]
+            activeNiches <- nicheFlags[EnvScoreVars]
 
             print(paste0("Computing max. suitability scores for species pool ", numPool, "for each species ..."))
             pb <- txtProgressBar(min = 0, max = (timeSteps + 1), style = 3)
