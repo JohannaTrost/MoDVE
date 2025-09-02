@@ -426,6 +426,59 @@ dev.off()
 # Final richness plot -> Showing last time step
 ts <- 199
 
+# --- Mid domain randomization to compare to actual richness
+
+# --- Step 1. Extract realized vertical ranges ---
+vertical_ranges <- speciesHeight %>%
+  filter(TimeStep == 199 & SpeciesPool == 1 & Replicate == 1) %>%
+  group_by(SpeciesID) %>%
+  summarise(height_range = max(height) - min(height), .groups = "drop")
+
+# Maximum observed height
+max_height <- speciesHeight %>%
+  filter(TimeStep == 199, SpeciesPool == 1, Replicate == 1) %>%
+  summarise(max_height = max(height)) %>%
+  pull(max_height)
+
+bins <- 0:ceiling(max_height)
+
+# --- Step 2. Function to run one MDR ---
+run_mdr <- function() {
+  vr <- vertical_ranges %>%
+    mutate(max_height = max_height - height_range,
+           min_h = runif(n(), min = 0, max = max_height),
+           max_h = min_h + height_range)
+
+  map_dfr(seq_along(bins[-length(bins)]), function(i) {
+    bin_min <- bins[i]
+    bin_max <- bins[i+1]
+
+    n_species <- vr %>%
+      filter(min_h < bin_max, max_h > bin_min) %>%
+      nrow()
+
+    tibble(bin_mid = (bin_min + bin_max)/2,
+           Richness = n_species)
+  })
+}
+
+# --- Step 3. Run many randomizations (Monte Carlo) ---
+set.seed(42)
+n_iter <- 10000
+
+null_results <- map_dfr(1:n_iter, ~run_mdr() %>% mutate(iter = .x))
+
+# --- Step 4. Aggregate across randomizations ---
+expected_curve <- null_results %>%
+  group_by(bin_mid) %>%
+  summarise(
+    mean_richness = mean(Richness),
+    sd_richness   = sd(Richness),
+    .groups = "drop"
+  ) %>%
+  rename(height = bin_mid)
+
+# --- Smooth actual richness data ---
 smooth_data <- speciesHeight %>%
   filter(TimeStep == ts) %>%
   group_by(Replicate, SpeciesPool, TimeStep, height) %>%
@@ -443,6 +496,44 @@ smooth_data <- speciesHeight %>%
     )
   )
 
+# --- Combine actual and expected data for plotting ---
+combined_sim_null <- smooth_data %>%
+  filter(SpeciesPool == 1, Replicate == 1) %>%
+  left_join(expected_curve, by = "height")
+
+# --- Step 5. Plot the smoothed actual richness against expected curve ---
+speciesRichnessPlot <- ggplot(combined_sim_null, aes(x = Richness_smoothed, y = height)) +
+  geom_path(aes(color = "Actual Richness"), size = 1) +
+  geom_point(aes(color = "Actual Richness"), size = 2, alpha = 0.8) +
+  geom_path(aes(x = mean_richness, y = height, color = "Avg. MDE Richness"), size = 1, linetype = "dashed") +
+  geom_ribbon(aes(y = height, xmin = mean_richness - sd_richness, xmax = mean_richness + sd_richness, fill = "MDE +-SD"), alpha = 0.2) +
+  scale_color_manual(name = "Richness Type", values = c("Actual Richness" = "darkblue", "Avg. MDE Richness" = "red")) +
+  scale_fill_manual(name = "MDE +-SD", values = c("MDE +-SD" = "lightgrey")) +
+  facet_grid(Replicate ~ SpeciesPool,
+             labeller = labeller(
+               Replicate = function(x) paste("Replicate", x),
+               SpeciesPool = function(x) paste("Species Pool", x)
+             )) +
+  labs(
+    x = "Species Richness",
+    y = "Height (m)"
+  ) +
+  theme_bw() +
+  theme(
+    strip.text = element_text(size = 10),
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(size = 12),       # tick label size
+    axis.title = element_text(size = 14)       # axis titles larger
+  )
+
+filename <- paste0(DirectoryPlots, "Replicate_1_SpeciesPool_1_MDnull_VerticalSpeciesRichness_", ts, ".pdf")
+
+pdf(filename)
+print(speciesRichnessPlot)
+dev.off()
+
+# --- Plot the smoothed actual richness against height ---
 speciesRichnessPlot_final <- smooth_data %>%
   ggplot(aes(x = Richness_smoothed, y = height)) +
   #geom_path(aes(), size = 1, color = "darkblue",) +
