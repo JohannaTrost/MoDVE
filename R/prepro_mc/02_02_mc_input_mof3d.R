@@ -27,13 +27,15 @@ vegp_mof3d <- vegp_unwrpd
 
 # --- Canopy height 
 
-start <- 100
-stop <- 199
+start <- 80
+stop <- 99
 
 for (ts in seq(start, stop)) {
 
+  cat("Processing time step:", ts, "\n")
+
   # MoF3D microhabitat matrix (generated with modified version of A1.R from MoDVE)
-  microhab_file <- paste0("/Users/johanna/Uni/masterarbeit/data/modve_output/pirineus/a1/MicrohabitatMatrix", ts, ".rds")
+  microhab_file <- paste0("/Users/johanna/Uni/masterarbeit/data/modve_output/pirineus/a1_1/MicrohabitatMatrix", ts, ".rds")
   mm <- readRDS(microhab_file)
 
   # --- For each cell that is NA extract the max veg. height from PAI
