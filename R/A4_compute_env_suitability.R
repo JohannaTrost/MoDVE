@@ -123,9 +123,10 @@ main <- function() {
         SpeciesPool <- read.csv(file.path(DirectorySpeciesPools, SpeciesPoolFileName), sep=",", header=TRUE)
         NSpecies <- nrow(SpeciesPool)
 
-        print(paste0("Computing suitability scores for species pool ", numPool, "for each variable ..."))
+        if (!is.na(singleStep)) {
 
-        if (is.na(singleStep)) {
+            print(paste0("Computing suitability scores for species pool ", numPool, "for each variable ..."))
+
             t <- singleStep
             print(paste0("Time step", t))
 
