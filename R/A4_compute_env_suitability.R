@@ -95,6 +95,7 @@ main <- function() {
     if (LightResponseFct != "Yan and Hunt") {
         EnvScoreVars <- EnvScoreVars[EnvScoreVars != "Light"]
     }
+    activeNiches <- nicheFlags[EnvScoreVars]
     MhIdx <- Inds[paste0(EnvScoreVars, "NicheOpt")]
     #allEnvVarNames <- c("Light", "Hum", "Temp", "Wind")
     allEnvVarsIdx <- Inds[paste0(EnvScoreVars, "NicheOpt")]
@@ -188,10 +189,19 @@ main <- function() {
                 }
             }
 
+            # -------- Combine scores across variables --------
+            selectedScores <- SuitabilityScoresT[,,,, activeNiches, drop = FALSE]
+
+            if (sum(nicheFlags) > 1) {
+                EnvSuitability <- apply(selectedScores, c(1, 2, 3, 4), prod)
+            } else {
+                EnvSuitability <- selectedScores
+            }
+
             # Save unscaled suitability (no scaling done in single-step mode)
             if (file.exists(savePath)) file.remove(savePath)
             rhdf5::h5createFile(savePath)
-            rhdf5::h5write(SuitabilityScoresT, savePath, "EnvironmentalSuitabilityScores")
+            rhdf5::h5write(EnvSuitability, savePath, "EnvironmentalSuitabilityScores")
 
         } else {
 
@@ -199,7 +209,6 @@ main <- function() {
 
             # - 1. Compute the global maximum suitability across all time steps
             globalMaxSuitability <- rep(-Inf, NSpecies)
-            activeNiches <- nicheFlags[EnvScoreVars]
 
             maxSuitFile <- file.path(
                 timestampedDir,
@@ -221,17 +230,7 @@ main <- function() {
 
                     savePath <- file.path(DirectoryOutputSpeciesPool,
                                           paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5"))
-                    SuitabilityScoresT <- rhdf5::h5read(savePath, "EnvironmentalSuitabilityScores")
-
-                    # Extract the relevant environmental variables
-                    selectedScores <- SuitabilityScoresT[,,,, activeNiches, drop = FALSE]
-
-                    # Multiply if more than one niche is selected
-                    if (sum(nicheFlags) > 1) {
-                        EnvSuitability <- apply(selectedScores, c(1, 2, 3, 4), prod)
-                    } else {
-                        EnvSuitability <- selectedScores
-                    }
+                    EnvSuitability <- rhdf5::h5read(savePath, "EnvironmentalSuitabilityScores")
 
                     # Get max per species
                     maxThisStep <- apply(EnvSuitability, 4, max, na.rm = TRUE)
@@ -278,14 +277,7 @@ main <- function() {
                     return(outFile)  # skip if already done
                 }
 
-                SuitabilityScoresT <- rhdf5::h5read(inFile, "EnvironmentalSuitabilityScores")
-                selectedScores <- SuitabilityScoresT[,,,, activeNiches, drop = FALSE]
-
-                if (sum(nicheFlags) > 1) {
-                    EnvSuitability <- apply(selectedScores, c(1, 2, 3, 4), prod)
-                } else {
-                    EnvSuitability <- selectedScores
-                }
+                EnvSuitability <- rhdf5::h5read(inFile, "EnvironmentalSuitabilityScores")
 
                 # Scale by species max
                 denom <- globalMaxSuitability
