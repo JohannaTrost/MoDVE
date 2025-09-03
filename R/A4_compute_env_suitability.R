@@ -41,7 +41,7 @@ main <- function() {
     # Detect the number of CPU cores and register the parallel backend
     # Note: detectCores() will detect the total number of cores on a HPC node,
     # so use the $SLURM_NTASKS env var if defined.
-    nTasks <- Sys.getenv("SLURM_NTASKS")
+    nTasks <- Sys.getenv("SLURM_CPUS_PER_TASK")
     if (nTasks != "") {
         numCores <- strtoi(nTasks)
     }
@@ -50,6 +50,8 @@ main <- function() {
     }
 
     registerDoParallel(numCores)
+
+    writeLines(paste("Using", numCores, "cores for parallel processing."))
 
     # Parse input configuration file
     args <- commandArgs(trailingOnly = TRUE)
@@ -193,6 +195,9 @@ main <- function() {
             # Parallel loop across time steps
             maxList <- foreach(step = 0:timeSteps, .combine = 'cbind', .packages = "rhdf5") %dopar% {
                 t <- InitialTimeStep + step
+
+                writeLines(paste("Processing time step", t))
+
                 savePath <- file.path(DirectoryOutputSpeciesPool,
                                       paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5"))
                 SuitabilityScoresT <- rhdf5::h5read(savePath, "EnvironmentalSuitabilityScores")
