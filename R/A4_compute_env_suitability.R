@@ -51,6 +51,8 @@ main <- function() {
 
     registerDoParallel(numCores)
 
+    writeLines(paste("Using", numCores, "cores for parallel processing."))
+
     # Parse input configuration file
     args <- commandArgs(trailingOnly = TRUE)
     configFile <- args[1]
