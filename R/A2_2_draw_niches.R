@@ -1,4 +1,5 @@
 # Create species matrices
+setwd("/home/jtrost_ext/MoDVE/R/")
 source("utils.R")
 
 library("dplyr")
