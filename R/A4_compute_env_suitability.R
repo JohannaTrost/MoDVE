@@ -223,6 +223,19 @@ main <- function() {
             # Guard: if any species were all NA across time, set to NA
             globalMaxSuitability[is.infinite(globalMaxSuitability)] <- NA_real_
 
+            # Store the per-species max used for scaling in the last file
+            maxSuitFile <- file.path(
+                timestampedDir,
+                paste0("GlobalMaxSuitability_", numPool, ".h5")
+            )
+            tryCatch({
+                rhdf5::h5createFile(maxSuitFile)
+                rhdf5::h5write(globalMaxSuitability, maxSuitFile, "GlobalMaxSuitability")
+            }, error = function(e) {
+                message("❌ Failed to save: ", maxSuitFile)
+                message("   Error: ", conditionMessage(e))
+                return(NA)  # mark this iteration as failed
+            })
 
             # - 2. Recompute suitability scores for each time step and scale them
             print(paste0("Recompute combined scores and scale them for species pool ", numPool, " ..."))
@@ -253,10 +266,10 @@ main <- function() {
                 scaledSuitability <- sweep(EnvSuitability, 4, denom, "/")
 
                 avgSuitability <- mean(EnvSuitability, na.rm=TRUE)
-                cat("Step", step, ": Avg. Suitability =", round(avgSuitability, 3), "\n")
+                cat("Step", t, ": Avg. Suitability =", round(avgSuitability, 3), "\n")
 
                 avgScaledSuitability <- mean(scaledSuitability, na.rm=TRUE)
-                cat("Step", step, ": Avg. Scaled Suitability =", round(avgScaledSuitability, 3), "\n")
+                cat("Step", t, ": Avg. Scaled Suitability =", round(avgScaledSuitability, 3), "\n")
 
                 # Clamp to [0,1]
                 scaledSuitability[is.na(scaledSuitability)] <- 0
@@ -264,17 +277,20 @@ main <- function() {
                 scaledSuitability[scaledSuitability < 0] <- 0
                 scaledSuitability[scaledSuitability > 1] <- 1
 
-                # Save file
-                if (file.exists(outFile)) file.remove(outFile)
-                rhdf5::h5createFile(outFile)
-                rhdf5::h5write(scaledSuitability, outFile, "ScaledSuitabilityScores")
+                # --- Safe file write ---
+                tryCatch({
+                    if (file.exists(outFile)) file.remove(outFile)
+                    rhdf5::h5createFile(outFile)
+                    rhdf5::h5write(as.array(scaledSuitability), outFile, "ScaledSuitabilityScores")
+                }, error = function(e) {
+                    message("❌ Failed to save: ", outFile)
+                    message("   Error: ", conditionMessage(e))
+                    return(NA)  # mark this iteration as failed
+                })
 
                 # return file name for debugging if needed
                 return(outFile)
             }
-
-            # Store the per-species max used for scaling in the last file
-            rhdf5::h5write(globalMaxSuitability, tail(dummy, 1), "GlobalMaxSuitability")
         }
     }
 }
