@@ -106,10 +106,21 @@ main <- function() {
     DirectoryOutputSpeciesPool <- file.path(DirectoryOutput, "EnvSuitability")
     dir.create(DirectoryOutputSpeciesPool, recursive=TRUE)
 
-    # Create timestamped directory
-    timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
-    timestampedDir <- file.path(DirectoryOutputSpeciesPool, timestamp)
-    dir.create(timestampedDir, recursive = TRUE)
+    # List all folders inside DirectoryOutputSpeciesPool, Extract folder names (just the timestamps)
+    dir_names <- basename(list.dirs(DirectoryOutputSpeciesPool, full.names = TRUE, recursive = FALSE))
+    # Keep only those that look like your timestamp format YYYYMMDD_HHMMSS
+    valid_dirs <- dir_names[grepl("^\\d{8}_\\d{6}$", dir_names)]
+    # If there are valid timestamped dirs, pick the most recent
+    if (length(valid_dirs) > 0) {
+        latest_timestamp <- max(valid_dirs)
+        timestampedDir <- file.path(DirectoryOutputSpeciesPool, latest_timestamp)
+    } else {
+        # Create timestamped directory
+        timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+        timestampedDir <- file.path(DirectoryOutputSpeciesPool, timestamp)
+        dir.create(timestampedDir, recursive = TRUE)
+    }
+    writeLines(paste0("Writing to folder: ", timestampedDir))
 
     # Parallelize across species pools and species
     output <- foreach(numPool=seq(numSpeciesPools),
@@ -190,52 +201,63 @@ main <- function() {
             globalMaxSuitability <- rep(-Inf, NSpecies)
             activeNiches <- nicheFlags[EnvScoreVars]
 
-            print(paste0("Computing max. suitability scores for species pool ", numPool, " for each species ..."))
-
-            # Parallel loop across time steps
-            maxList <- foreach(step = 0:timeSteps, .combine = 'cbind', .packages = "rhdf5") %dopar% {
-                t <- InitialTimeStep + step
-
-                writeLines(paste("Processing time step", t))
-
-                savePath <- file.path(DirectoryOutputSpeciesPool,
-                                      paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5"))
-                SuitabilityScoresT <- rhdf5::h5read(savePath, "EnvironmentalSuitabilityScores")
-
-                # Extract the relevant environmental variables
-                selectedScores <- SuitabilityScoresT[,,,, activeNiches, drop = FALSE]
-
-                # Multiply if more than one niche is selected
-                if (sum(nicheFlags) > 1) {
-                    EnvSuitability <- apply(selectedScores, c(1, 2, 3, 4), prod)
-                } else {
-                    EnvSuitability <- selectedScores
-                }
-
-                # Get max per species
-                maxThisStep <- apply(EnvSuitability, 4, max, na.rm = TRUE)
-                return(maxThisStep)
-            }
-
-            # Collapse across steps → take global max
-            globalMaxSuitability <- apply(maxList, 1, max, na.rm = TRUE)
-
-            # Guard: if any species were all NA across time, set to NA
-            globalMaxSuitability[is.infinite(globalMaxSuitability)] <- NA_real_
-
-            # Store the per-species max used for scaling in the last file
             maxSuitFile <- file.path(
                 timestampedDir,
                 paste0("GlobalMaxSuitability_", numPool, ".h5")
             )
-            tryCatch({
-                rhdf5::h5createFile(maxSuitFile)
-                rhdf5::h5write(globalMaxSuitability, maxSuitFile, "GlobalMaxSuitability")
-            }, error = function(e) {
-                message("❌ Failed to save: ", maxSuitFile)
-                message("   Error: ", conditionMessage(e))
-                return(NA)  # mark this iteration as failed
-            })
+
+            # Try to load if the file exists
+            if (file.exists(maxSuitFile)) {
+                globalMaxSuitability <- rhdf5::h5read(maxSuitFile, "GlobalMaxSuitability")
+                message("✅ Successfully loaded: ", maxSuitFile)
+            } else {
+                print(paste0("Computing max. suitability scores for species pool ", numPool, " for each species ..."))
+
+                # Parallel loop across time steps
+                maxList <- foreach(step = 0:timeSteps, .combine = 'cbind', .packages = "rhdf5") %dopar% {
+                    t <- InitialTimeStep + step
+
+                    writeLines(paste("Processing time step", t))
+
+                    savePath <- file.path(DirectoryOutputSpeciesPool,
+                                          paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5"))
+                    SuitabilityScoresT <- rhdf5::h5read(savePath, "EnvironmentalSuitabilityScores")
+
+                    # Extract the relevant environmental variables
+                    selectedScores <- SuitabilityScoresT[,,,, activeNiches, drop = FALSE]
+
+                    # Multiply if more than one niche is selected
+                    if (sum(nicheFlags) > 1) {
+                        EnvSuitability <- apply(selectedScores, c(1, 2, 3, 4), prod)
+                    } else {
+                        EnvSuitability <- selectedScores
+                    }
+
+                    # Get max per species
+                    maxThisStep <- apply(EnvSuitability, 4, max, na.rm = TRUE)
+                    return(maxThisStep)
+                }
+
+                # Collapse across steps → take global max
+                globalMaxSuitability <- apply(maxList, 1, max, na.rm = TRUE)
+
+                # Guard: if any species were all NA across time, set to NA
+                globalMaxSuitability[is.infinite(globalMaxSuitability)] <- NA_real_
+
+                # Store the per-species max used for scaling in the last file
+                maxSuitFile <- file.path(
+                    timestampedDir,
+                    paste0("GlobalMaxSuitability_", numPool, ".h5")
+                )
+                tryCatch({
+                    rhdf5::h5createFile(maxSuitFile)
+                    rhdf5::h5write(globalMaxSuitability, maxSuitFile, "GlobalMaxSuitability")
+                }, error = function(e) {
+                    message("❌ Failed to save: ", maxSuitFile)
+                    message("   Error: ", conditionMessage(e))
+                    return(NA)  # mark this iteration as failed
+                })
+            }
 
             # - 2. Recompute suitability scores for each time step and scale them
             print(paste0("Recompute combined scores and scale them for species pool ", numPool, " ..."))
@@ -250,6 +272,11 @@ main <- function() {
                     timestampedDir,
                     paste0("ScaledSuitability_", numPool, "_TimeStep", t, ".h5")
                 )
+
+                if (file.exists(outFile)) {
+                    message("✅ Already exists, skipping: ", outFile)
+                    return(outFile)  # skip if already done
+                }
 
                 SuitabilityScoresT <- rhdf5::h5read(inFile, "EnvironmentalSuitabilityScores")
                 selectedScores <- SuitabilityScoresT[,,,, activeNiches, drop = FALSE]
