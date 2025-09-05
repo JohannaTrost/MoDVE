@@ -11,6 +11,7 @@ library("foreach")
 library("doParallel")
 library("doRNG")
 library("readr")
+library(rhdf5)
 
 ###############################################################################
 
