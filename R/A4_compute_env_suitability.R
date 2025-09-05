@@ -124,7 +124,7 @@ main <- function() {
     writeLines(paste0("Writing to folder: ", timestampedDir))
 
     # Parallelize across species pools and species
-    output <- foreach(numPool=seq(numSpeciesPools),
+    output <- foreach(numPool=seq(numSpeciesPools[1], numSpeciesPools[2]),
                        .export=c("ComputeSuitabilityUnscaled", "int_seq", "Parabol", "SuitabilityScore")) %dorng% {
 
         # -------- Generate individual suitability scores for each species pool --------
