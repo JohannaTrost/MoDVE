@@ -298,9 +298,16 @@ main <- function() {
                     rhdf5::h5createFile(outFile)
                     rhdf5::h5write(as.array(scaledSuitability), outFile, "ScaledSuitabilityScores")
 
-                    # MEMORY FIX 6: Clean up immediately after saving
-                    rm(scaledSuitability)
-                    gc()
+                    # Check content of file
+                    contents <- h5ls(outFile)
+
+                    # Check if the dataset exists
+                    if (!"ScaledSuitabilityScores" %in% contents$name) {
+                          message("Contents of file: ")
+                          print(contents)
+                          stop("Dataset 'ScaledSuitabilityScores' not found in: ", envSuitPath)
+                    }
+                    EnvSuitScors <- h5read(envSuitPath, "ScaledSuitabilityScores")
 
                     # Delete input file after successful processing
                     #file.remove(inFile)
