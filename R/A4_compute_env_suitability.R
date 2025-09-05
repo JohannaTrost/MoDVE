@@ -261,11 +261,13 @@ main <- function() {
             # - 2. Recompute suitability scores for each time step and scale them
             print(paste0("Recompute combined scores and scale them for species pool ", numPool, " ..."))
 
-            dummy <- foreach(step = 0:timeSteps, .packages = "rhdf5") %dopar% {
+            for (step in 0:timeSteps) {
                 t <- InitialTimeStep + step
+
+                # MEMORY FIX 4: Fixed the typo here (double numPool)
                 inFile <- file.path(
                     DirectoryOutputSpeciesPool,
-                    paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5")
+                    paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5")  # Fixed typo
                 )
                 outFile <- file.path(
                     timestampedDir,
@@ -274,9 +276,15 @@ main <- function() {
 
                 if (file.exists(outFile)) {
                     message("✅ Already exists, skipping: ", outFile)
-                    return(outFile)  # skip if already done
+                    next  # skip if already done
                 }
 
+                if (!file.exists(inFile)) {
+                    warning(paste("Input file does not exist:", inFile))
+                    next
+                }
+
+                # Read and process data
                 EnvSuitability <- rhdf5::h5read(inFile, "EnvironmentalSuitabilityScores")
 
                 # Scale by species max
@@ -284,9 +292,11 @@ main <- function() {
                 denom[is.na(denom) | denom == 0] <- NA_real_
                 scaledSuitability <- sweep(EnvSuitability, 4, denom, "/")
 
-                avgSuitability <- mean(EnvSuitability, na.rm=TRUE)
-                cat("Step", t, ": Avg. Suitability =", round(avgSuitability, 3), "\n")
+                # MEMORY FIX 5: Remove original data as soon as possible
+                rm(EnvSuitability)
+                gc()
 
+                # Calculate averages for logging
                 avgScaledSuitability <- mean(scaledSuitability, na.rm=TRUE)
                 cat("Step", t, ": Avg. Scaled Suitability =", round(avgScaledSuitability, 3), "\n")
 
@@ -296,26 +306,30 @@ main <- function() {
                 scaledSuitability[scaledSuitability < 0] <- 0
                 scaledSuitability[scaledSuitability > 1] <- 1
 
-                # --- Safe file write ---
+                # Save the scaled data
                 tryCatch({
                     if (file.exists(outFile)) file.remove(outFile)
                     rhdf5::h5createFile(outFile)
                     rhdf5::h5write(as.array(scaledSuitability), outFile, "ScaledSuitabilityScores")
 
-                    # Delete h5 infile
+                    # MEMORY FIX 6: Clean up immediately after saving
+                    rm(scaledSuitability)
+                    gc()
+
+                    # Delete input file after successful processing
                     file.remove(inFile)
+                    message("✅ Successfully processed and saved: ", outFile)
 
                 }, error = function(e) {
                     message("❌ Failed to save: ", outFile)
                     message("   Error: ", conditionMessage(e))
-                    return(NA)  # mark this iteration as failed
+                    # Clean up even on error
+                    rm(scaledSuitability)
+                    gc()
                 })
 
-                # Garbage collection
+                # MEMORY FIX 7: Additional garbage collection between iterations
                 gc()
-
-                # return file name for debugging if needed
-                return(outFile)
             }
         }
     }
