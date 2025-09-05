@@ -475,6 +475,7 @@ main <- function() {
     ###############################################################################
     # Main loop for the community model for each species pool and for each replicate
     pairs <- create_pairs(numSpeciesPools, replicatePerSpeciesPool)
+    writeLines(paste0("Starting community model with ", nrow(pairs), " runs using ", numCores, " cores..."))
 
     # Each loop employs a different random number generator (RNG) stream, resulting in distinct,
     # statistically independent random sequences. These sequences are reproducible across multiple
@@ -491,6 +492,9 @@ main <- function() {
         # Check if a initial distribution for the species pool exists. If not, move on to the next species pool
         FileNameInitalDistribution <- file.path(DirectoryModelMain, paste("ID_SpeciesP_", numPool, "_Rep_", r, ".csv", sep=""))
         if (!file.exists(FileNameInitalDistribution)) {
+            writeLines(paste0("Initial distribution for species pool ", numPool, " and replicate ",
+                              r, " in ", FileNameInitalDistribution,
+                              "not found. Skipping to next replicate..."))
             return(NULL)
         }
 
@@ -499,6 +503,9 @@ main <- function() {
         SpeciesPoolFileName <- paste("SpeciesPool", numPool, ".csv", sep="")
         SpeciesPool <- read.csv(file.path(DirectorySpeciesPools, SpeciesPoolFileName), sep=",", header=TRUE)
         NumberOfSpecies <- nrow(SpeciesPool)  # number of species per 25X25m plot
+
+        # Give some general information of the current run
+        writeLines(paste0("No. species: ", NumberOfSpecies, ", Species pool: ", numPool, ", Replicate: ", r))
 
         ###########################################################################
         # Erzeugen der Distanzmatrix und der Wahrscheinlichkeitsmatrix für jede Art
@@ -567,7 +574,18 @@ main <- function() {
             # Load environmental scores for the current time step
             envSuitPath <- file.path(DirectoryEnvScores,
                                      paste0("ScaledSuitability_", numPool, "_TimeStep", timeStep, ".h5"))
-            EnvSuitScors <- rhdf5::h5read(envSuitPath, "ScaledSuitabilityScores")
+
+            # List contents of the HDF5 file
+            contents <- h5ls(envSuitPath)
+
+            # Check if the dataset exists
+            if ("ScaledSuitabilityScores" %in% contents$name) {
+              EnvSuitScors <- h5read(envSuitPath, "ScaledSuitabilityScores")
+            } else {
+              message("Dataset 'ScaledSuitabilityScores' not found in: ", envSuitPath)
+              message("Contents of file: ")
+              print(contents)
+            }
 
             ###############################################################################
             # 1. Dispersal
