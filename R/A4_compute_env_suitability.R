@@ -265,7 +265,7 @@ main <- function() {
                 t <- InitialTimeStep + step
                 inFile <- file.path(
                     DirectoryOutputSpeciesPool,
-                    paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5")
+                    paste0("ID_SpeciesP_", numPoolnumPool, "_TimeStep", t, ".h5")
                 )
                 outFile <- file.path(
                     timestampedDir,
@@ -310,6 +310,9 @@ main <- function() {
                     message("   Error: ", conditionMessage(e))
                     return(NA)  # mark this iteration as failed
                 })
+
+                # Garbage collection
+                gc()
 
                 # return file name for debugging if needed
                 return(outFile)
