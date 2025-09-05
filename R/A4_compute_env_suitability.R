@@ -305,9 +305,9 @@ main <- function() {
                     if (!"ScaledSuitabilityScores" %in% contents$name) {
                           message("Contents of file: ")
                           print(contents)
-                          stop("Dataset 'ScaledSuitabilityScores' not found in: ", envSuitPath)
+                          stop(paste0("Dataset 'ScaledSuitabilityScores' not found in: ", envSuitPath))
                     }
-                    EnvSuitScors <- h5read(envSuitPath, "ScaledSuitabilityScores")
+                    EnvSuitScors <- h5read(outFile, "ScaledSuitabilityScores")
 
                     # Delete input file after successful processing
                     #file.remove(inFile)
@@ -316,9 +316,6 @@ main <- function() {
                 }, error = function(e) {
                     message("❌ Failed to save: ", outFile)
                     message("   Error: ", conditionMessage(e))
-                    # Clean up even on error
-                    rm(scaledSuitability)
-                    gc()
                 })
 
                 # MEMORY FIX 7: Additional garbage collection between iterations
