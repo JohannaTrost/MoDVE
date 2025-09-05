@@ -284,7 +284,7 @@ main <- function() {
 
                 # Calculate averages for logging
                 avgScaledSuitability <- mean(scaledSuitability, na.rm=TRUE)
-                cat("Step", t, ": Avg. Scaled Suitability =", round(avgScaledSuitability, 3), "\n")
+                writeLines(paste0("Step", t, ": Avg. Scaled Suitability =", round(avgScaledSuitability, 3), "\n"))
 
                 # Clamp to [0,1]
                 scaledSuitability[is.na(scaledSuitability)] <- 0
@@ -303,8 +303,8 @@ main <- function() {
                     gc()
 
                     # Delete input file after successful processing
-                    file.remove(inFile)
-                    message("✅ Successfully processed and saved: ", outFile)
+                    #file.remove(inFile)
+                    writeLines(paste0("✅ Successfully processed and saved: ", outFile))
 
                 }, error = function(e) {
                     message("❌ Failed to save: ", outFile)
