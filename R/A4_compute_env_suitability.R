@@ -107,21 +107,7 @@ main <- function() {
     DirectoryOutputSpeciesPool <- file.path(DirectoryOutput, "EnvSuitability")
     dir.create(DirectoryOutputSpeciesPool, recursive=TRUE)
 
-    # List all folders inside DirectoryOutputSpeciesPool, Extract folder names (just the timestamps)
-    dir_names <- basename(list.dirs(DirectoryOutputSpeciesPool, full.names = TRUE, recursive = FALSE))
-    # Keep only those that look like your timestamp format YYYYMMDD_HHMMSS
-    valid_dirs <- dir_names[grepl("^\\d{8}_\\d{6}$", dir_names)]
-    # If there are valid timestamped dirs, pick the most recent
-    if (length(valid_dirs) > 0) {
-        latest_timestamp <- max(valid_dirs)
-        timestampedDir <- file.path(DirectoryOutputSpeciesPool, latest_timestamp)
-    } else {
-        # Create timestamped directory
-        timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
-        timestampedDir <- file.path(DirectoryOutputSpeciesPool, timestamp)
-        dir.create(timestampedDir, recursive = TRUE)
-    }
-    writeLines(paste0("Writing to folder: ", timestampedDir))
+    writeLines(paste0("Writing to folder: ", DirectoryOutputSpeciesPool))
 
     # Parallelize across species pools and species
     output <- foreach(numPool=seq(numSpeciesPools[1], numSpeciesPools[2]),
@@ -211,7 +197,7 @@ main <- function() {
             globalMaxSuitability <- rep(-Inf, NSpecies)
 
             maxSuitFile <- file.path(
-                timestampedDir,
+                DirectoryOutputSpeciesPool,
                 paste0("GlobalMaxSuitability_", numPool, ".h5")
             )
 
@@ -245,7 +231,7 @@ main <- function() {
 
                 # Store the per-species max used for scaling in the last file
                 maxSuitFile <- file.path(
-                    timestampedDir,
+                    DirectoryOutputSpeciesPool,
                     paste0("GlobalMaxSuitability_", numPool, ".h5")
                 )
                 tryCatch({
@@ -270,7 +256,7 @@ main <- function() {
                     paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5")  # Fixed typo
                 )
                 outFile <- file.path(
-                    timestampedDir,
+                    DirectoryOutputSpeciesPool,
                     paste0("ScaledSuitability_", numPool, "_TimeStep", t, ".h5")
                 )
 
