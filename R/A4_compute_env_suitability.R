@@ -301,6 +301,10 @@ main <- function() {
                     if (file.exists(outFile)) file.remove(outFile)
                     rhdf5::h5createFile(outFile)
                     rhdf5::h5write(as.array(scaledSuitability), outFile, "ScaledSuitabilityScores")
+
+                    # Delete h5 infile
+                    file.remove(inFile)
+
                 }, error = function(e) {
                     message("❌ Failed to save: ", outFile)
                     message("   Error: ", conditionMessage(e))
