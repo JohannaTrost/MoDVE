@@ -73,7 +73,7 @@ dms_to_decimal <- function(dms) {
   return(sign * (parts[1] + parts[2] / 60 + parts[3] / 3600))
 }
 
-region <- "pirineus"  # "regua" or "pirineus"
+region <- "regua"  # "regua" or "pirineus"
 if (region == "regua") {
   # -- REGUA
 
@@ -119,8 +119,8 @@ crs(ceiled_box) <- crs(extent_vect)  # Set CRS to match original
 #cmip6_yrs <- c(2006, 2008, 2017, 2023, 2092, 2078, 2042, 2089)
 
 #era5_yrs <- setdiff(seq(1981, 2024), c(2006, 2008, 2017, 2023, 2001)) # missing: 2001
-era5_yrs <- c(2001)
-cmip6_yrs <- era5_yrs
+era5_yrs <- rep(seq(2020, 2024), 16)[((16*5)-75):(16*5)] # 2025-2100 repeat 2020-2024
+cmip6_yrs <- seq(2025, 2100)
 
 for (i in 1:length(era5_yrs)) {
 
@@ -248,7 +248,7 @@ for (i in 1:length(era5_yrs)) {
       arrange(obs_time)
   } else if (n_cmip6 == 8784 && n_clim == 8760) {
     # Insert Feb 29
-    clim_aligned <- insert_feb29(climdata_regua_anomaly)
+    clim_aligned <- insert_feb29(climdata_regua_anomaly, year = cmip6_year)
   } else {
     if (n_clim != n_cmip6){
       cat("CMIP6 != ERA5, ERA5: ", n_clim, "CMIP6: ", n_cmip6)

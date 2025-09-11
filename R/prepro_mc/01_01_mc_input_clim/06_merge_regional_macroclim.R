@@ -1,5 +1,8 @@
 library(dplyr)
 library(readr)
+library(ggplot2)
+library(patchwork)
+
 
 region <- "pirineus"
 in_dir <- file.path("/Users/johanna/Uni/masterarbeit/data/mc_input", region)
@@ -88,3 +91,80 @@ p <- ggplot(annual_temp, aes(x = year, y = annual_temp)) +
 pdf("../../figs/mc_input/compare_temp_cmip6_annual_present_cc_119ts_pirineus_v1.pdf")
 print(p)
 dev.off()
+
+# --- 2. Scenario: 119 years until 2100 with CC - REGUA
+
+region <- "regua"
+in_dir <- file.path("/Users/johanna/Uni/masterarbeit/data/mc_input", region)
+out_dir <- file.path("/Users/johanna/Uni/masterarbeit/data/mc_input", region, "scenarios")
+
+for (year in 1981:2100) {
+  file <- paste(in_dir, paste0("climdata_era5_cmip6_", year, "_v3.csv"), sep = "/")
+  climdata_year <- read_csv(file)
+
+  if (year == 1981) {
+    climdata_all <- climdata_year
+  } else {
+    climdata_all <- bind_rows(climdata_all, climdata_year)
+  }
+}
+
+climdata_all <- climdata_all %>% select(-windspeed_anom)
+
+# Check if there are NAs
+sum(is.na(climdata_all))
+
+# --- PLot CHECK
+
+# ---- Annual statistics for temperature ----
+annual_temp <- climdata_all %>%
+  mutate(year = lubridate::year(obs_time)) %>%
+  group_by(year) %>%
+  summarise(
+    mean_temp = mean(temp, na.rm = TRUE),
+    sd_temp   = sd(temp, na.rm = TRUE)
+  )
+
+# ---- Annual statistics for relative humidity ----
+
+annual_hum <- climdata_all %>%
+  mutate(year = lubridate::year(obs_time)) %>%
+  group_by(year) %>%
+  summarise(
+    mean_hum = mean(relhum, na.rm = TRUE),
+    sd_hum   = sd(relhum, na.rm = TRUE)
+  )
+
+# ---- Plot for temperature ----
+p_temp <- ggplot(annual_temp, aes(x = year, y = mean_temp)) +
+  geom_ribbon(aes(ymin = mean_temp - sd_temp,
+                  ymax = mean_temp + sd_temp),
+              fill = "steelblue", alpha = 0.2) +
+  geom_line(color = "steelblue", size = 1) +
+  geom_point(color = "steelblue", size = 1) +
+  labs(x = "Year",
+       y = "Temperature (°C)") +
+  theme_minimal(base_size = 14)
+
+# ---- Plot for relative humidity ----
+p_hum <- ggplot(annual_hum, aes(x = year, y = mean_hum)) +
+  geom_ribbon(aes(ymin = mean_hum - sd_hum,
+                  ymax = mean_hum + sd_hum),
+              fill = "darkgreen", alpha = 0.2) +
+  geom_line(color = "darkgreen", size = 1) +
+  geom_point(color = "darkgreen", size = 1) +
+  labs(x = "Year",
+       y = "Relative Humidity (%)") +
+  theme_minimal(base_size = 14)
+
+# ---- Combine plots with patchwork ----
+combined_plot <- p_temp / p_hum  # stacked vertically
+
+# ---- Save to PDF ----
+pdf("../../figs/mc_input/compare_temp_hum_cmip6_annual_cc_1981-2100_119ts_regua_v1.pdf",
+    width = 8, height = 8)
+print(combined_plot)
+dev.off()
+
+
+write_csv(climdata_all, file.path(out_dir, "climdata_era5_cmip6_1981-2100_ssp245.csv"))
