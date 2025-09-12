@@ -482,6 +482,8 @@ cores_config <- config$processing$cores
 
 # Path parameters
 region <- ifelse(is.null(config$paths$region), "pirineus", config$paths$region)
+rep <- config$paths$replicate
+
 veg_indir_base <- ifelse(is.null(config$paths$veg_indir),
                         "/Users/johanna/Uni/masterarbeit/data/modve_output",
                         config$paths$veg_indir)
@@ -501,9 +503,9 @@ verbose <- opt$verbose || (!is.null(config$output$verbose) && config$output$verb
 # ---------------------------------------------------------- Configure
 
 # Define full directory paths
-veg_indir <- file.path(veg_indir_base, region, "a1_1")
+veg_indir <- file.path(veg_indir_base, region, "a1_1", paste0("rep", rep))
 in_dir <- file.path(in_dir_base, region)
-outdir <- file.path(outdir_base, region, year)
+outdir <- file.path(outdir_base, region, paste0("rep", rep), year)
 
 if (verbose) {
   immediateMessage("Configuration loaded from:", opt$config, "\n")
@@ -526,7 +528,7 @@ if (!dir.exists(outdir)) {
 
 # Define file paths
 microhab_path <- file.path(veg_indir, paste0("MicrohabitatMatrix", ts, ".rds"))
-vegp_path <- file.path(in_dir, paste0("vegp_mof3d_ptm_", ts, "_v4.RDS"))
+vegp_path <- file.path(in_dir, paste0("rep", rep), paste0("vegp_mof3d_ptm_", ts, "_v4.RDS"))
 soilc_path <- file.path(in_dir, "soilc_v2.RDS")
 
 # Validate input files exist
