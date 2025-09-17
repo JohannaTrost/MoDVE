@@ -211,3 +211,10 @@ pdf("../../figs/mc_input/compare_relhum_cmip6_annual_no_cc_1981-2100_119ts_regua
     width = 8, height = 8)
 print(p_hum_ncc)
 dev.off()
+
+# -- SAve data
+climdata_detrended2["temp"] <- climdata_detrended2["temp_detrended"]
+climdata_detrended2["relhum"] <- climdata_detrended2["relhum_detrended"]
+climdata_detrended2 <- climdata_detrended2 %>%
+  select(-temp_detrended, -relhum_detrended)
+write_csv(climdata_detrended2, file.path(out_dir, "climdata_era5_cmip6_1981-2100_ssp245_no_cc.csv"))
