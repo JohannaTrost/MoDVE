@@ -32,6 +32,7 @@ x_dim     <- config$x_dim
 y_dim     <- config$y_dim
 mc_dir    <- config$mc_dir
 veg_dir <- config$veg_dir
+region <- config$region
 
 year <- opt$year
 ts   <- opt$ts
