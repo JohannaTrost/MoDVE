@@ -28,10 +28,8 @@ if (is.null(opt$config) || is.null(opt$year) || is.null(opt$ts)) {
 # ----------------------------
 config <- RcppTOML::parseTOML(opt$config)
 
-region    <- config$region
 x_dim     <- config$x_dim
 y_dim     <- config$y_dim
-scenario  <- config$scenario
 mc_dir    <- config$mc_dir
 veg_dir <- config$veg_dir
 
@@ -42,19 +40,12 @@ ts   <- opt$ts
 # Define directories
 # ----------------------------
 
-mc_in_dir <- file.path(mc_dir, region, "scenarios", scenario, "mc_agg_raw", year)
-in_dir    <- file.path(veg_dir, region)
-out_dir   <- file.path(mc_dir, region, "scenarios", scenario, "mc_matrices")
-
-# Create output directory if needed
-if (!dir.exists(out_dir)) {
-  dir.create(out_dir, recursive = TRUE)
-}
+mc_in_dir <- file.path(mc_dir, year)
 
 # ----------------------------
 # Extract maximum vegetation height
 # ----------------------------
-vegp_path <- file.path(in_dir, paste0("vegp_mof3d_ptm_", ts, "_v4.RDS"))
+vegp_path <- file.path(veg_dir, paste0("vegp_mof3d_ptm_", ts, "_v4.RDS"))
 vegp_reg  <- readRDS(vegp_path)
 max_hgt   <- max(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE) + 1
 
@@ -109,7 +100,7 @@ cat("Average time per cell:", round(total_time / successful_cells, 3), "seconds\
 # ----------------------------
 # Save result
 # ----------------------------
-out_file <- file.path(out_dir, paste(year, region, "mc_matrix.rds", sep = "_"))
+out_file <- file.path(mc_dir, paste(year, region, "mc_matrix.rds", sep = "_"))
 saveRDS(mc_matrix, out_file)
 
 cat("Saved result to:", out_file, "\n")
