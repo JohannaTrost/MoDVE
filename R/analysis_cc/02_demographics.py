@@ -36,6 +36,8 @@ for scenario in scenarios:
 # Map time steps from 80-199 to 1981-2100
 community["Year"] = community["timeStep"] + 1901
 
+community.to_csv(base_dir / "a5_demography_cc_vs_no_cc.csv", index=False)
+
 # --- Plot on forest level for each scenario
 
 # Columns to plot
@@ -117,3 +119,6 @@ for scenario in scenarios_str:
     plt.tight_layout()
     plt.show()
     plt.savefig(DirectoryPlots / f"demography_species_pools_{scenario}.pdf")
+
+# TODO optional Compare scenarios over last 10 time steps (boxplots)
+

@@ -515,7 +515,7 @@ for metric in metrics:
     plt.tight_layout(rect=[0, 0.05, 1, 1])  # leave space at bottom
     plt.savefig(DirectoryPlots / f"{metric}_peak_height_mean_across_species_pools_CI.pdf")
     plt.show()
-
+ 
 # Save processed data
 div.to_csv(base_dir / "a5_vertical_diversity_cc_vs_no_cc.csv")
 div_peak.to_csv(base_dir / "a5_vertical_diversity_peak_cc_vs_no_cc.csv")

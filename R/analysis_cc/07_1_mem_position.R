@@ -244,31 +244,20 @@ pdf(file.path(DirectoryPlots, "diag_pos_res_spread_forest.pdf"))
 plot(mem_pos, resid(.) ~ fitted(.) | ForestID, abline = 0)
 dev.off()
 
-# ------ Fit variance structure for each Scenario ------ #
+# ------ Prepro ------ #
 
 species_distr_stats$ForestID <- as.factor(species_distr_stats$ForestID)
+species_distr_stats$SpeciesPool <- as.factor(species_distr_stats$SpeciesPool)
+species_distr_stats %>% filter(Year > 2000) -> species_distr_stats
 
-
-# ---- LRT to decide which structure is best
-
-mem_pos_lme <- lme(Position ~ Scenario * Year_c * ForestID,
-                   random = ~Scenario + ForestID | SpeciesPool,
-                   weights = varIdent(form = ~1 | Scenario),
+mem_pos_lme_var <- lme(Position ~ Scenario * Year_c,
+                   random = list(SpeciesPool=~Scenario+Year_c,
+                                 ForestID=~Scenario+Year_c),
+                   #weights = varIdent(form = ~1 | Scenario),
                    data = species_distr_stats,
                    method = "REML")
-
-mem_pos_lme_max <- lme(Position ~ Scenario * Year_c * ForestID,
-                   random = ~Scenario + ForestID + Year_c | SpeciesPool,
-                   weights = varIdent(form = ~1 | Scenario),
-                   data = species_distr_stats,
-                   method = "REML")
-
-mem_pos_lme_var <- lme(Position ~ Scenario * Year_c * ForestID,
-                   random = ~Scenario + ForestID | SpeciesPool,
-                   weights = varComb( varIdent(form = ~1 | Scenario),
-                                      varIdent(form = ~1 | ForestID)),
-                   data = species_distr_stats,
-                   method = "REML")
+# weights = varComb( varIdent(form = ~1 | Scenario),
+#                                       varIdent(form = ~1 | Year_c))
 
 # -> no convergence
 # mem_pos_lme_max_var <- lme(Position ~ Scenario * Year_c * ForestID,
@@ -279,20 +268,19 @@ mem_pos_lme_var <- lme(Position ~ Scenario * Year_c * ForestID,
 #                    method = "REML")
 # -> Also with var structure for SpeciesPools it did not converfe
 
-# Refit models with ML for LRT
-models_ml <- list(
-  base     = update(mem_pos_lme, method = "ML"),
-  max_re   = update(mem_pos_lme_max, method = "ML"),
-  var      = update(mem_pos_lme_var, method = "ML")
-)
-
-# Compare all models
-anova(models_ml$base, models_ml$max_re, models_ml$var)
-
 # Best model structure
-mem_pos_lme <- mem_pos_lme_max
+mem_pos_lme <- lme(Position ~ Scenario * Year_c,
+                   random = list(SpeciesPool=~Year_c,
+                                 ForestID=~Scenario+Year_c),
+                   #weights = varIdent(form = ~1 | Scenario),
+                   data = species_distr_stats,
+                   method = "REML")
 
-summary(mem_pos_lme)
+# A more complex random structure did not converge
+mem_pos <- lmer(Position ~ Scenario * Year_c + (Scenario | SpeciesPool) + (1 | ForestID),
+                data = species_distr_stats)
+
+summary(mem_pos)
 # - Main take away from summary
 # Climate change effect: Species position is lower under climate change, and the gap widens over time.
 # Context dependence: Forests differ strongly in how species respond, and these differences also play out over time.
@@ -303,12 +291,12 @@ summary(mem_pos_lme)
 # 1. - Heteroscedasticity across Scenarios and Forests
 
 # Extract scaled residuals
-res <- resid(mem_pos_lme, scaled = TRUE)
+res <- resid(mem_pos, scaled = TRUE)
 levs <- levels(species_distr_stats$Scenario)
 x <- as.numeric(species_distr_stats$Scenario)
 
 # Make the plot
-pdf(file.path(DirectoryPlots, "diag_pos_res_scenario_v4.pdf"))
+pdf(file.path(DirectoryPlots, "diag_pos_res_scenario_frand_v4.pdf"))
 plot(x, res,
      xaxt = "n",  # suppress default x-axis
      xlab = "Scenario",
@@ -322,7 +310,7 @@ dev.off()
 levs <- levels(as.factor(species_distr_stats$SpeciesPool))
 x <- as.numeric(species_distr_stats$SpeciesPool)
 
-pdf(file.path(DirectoryPlots, "diag_pos_res_sp_v4_byScenario.pdf"))
+pdf(file.path(DirectoryPlots, "diag_pos_res_sp_frand_v4_byScenario.pdf"))
 
 # Get unique Scenarios
 scenarios <- unique(species_distr_stats$Scenario)
@@ -342,26 +330,26 @@ for (sc in scenarios) {
 dev.off()
 
 # Residual spread by Scenario
-pdf(file.path(DirectoryPlots, "diag_pos_res_spread_scenario_v4.pdf"))
-plot(mem_pos_lme, resid(., type = "normalized") ~ fitted(.) | Scenario, abline = 0)
+pdf(file.path(DirectoryPlots, "diag_pos_res_spread_scenario_frand_v4.pdf"))
+plot(mem_pos, resid(.) ~ fitted(.) | Scenario, abline = 0)
 dev.off()
 # -> this violates the assumption of homogeneous (constant) variance along a predictor.
 
-pdf(file.path(DirectoryPlots, "diag_pos_res_spread_forest_v4.pdf"))
-plot(mem_pos_lme, resid(., type = "normalized") ~ fitted(.) | ForestID, abline = 0)
+pdf(file.path(DirectoryPlots, "diag_pos_res_spread_forest_frand_v4.pdf"))
+plot(mem_pos, resid(.) ~ fitted(.) | ForestID, abline = 0)
 dev.off()
 
-pdf(file.path(DirectoryPlots, "diag_pos_res_spread_sp_v4.pdf"))
-plot(mem_pos_lme, resid(., type = "normalized") ~ fitted(.) | as.factor(SpeciesPool), abline = 0)
+pdf(file.path(DirectoryPlots, "diag_pos_res_spread_sp_frand_v4.pdf"))
+plot(mem_pos, resid(.) ~ fitted(.) | as.factor(SpeciesPool), abline = 0)
 dev.off()
 
 # - VarCov RFs
 
-getVarCov(mem_pos_lme, type = "random.effects")
+#getVarCov(mem_pos, type = "random.effects")
 
 # Get variance for each Scenario
-cc_var <- 0 # TODO
-cat("CC scenario variance estimate: ", mem_pos_lme$sigma^2 * cc_var^2)
+#cc_var <- 0 # TODO
+#cat("CC scenario variance estimate: ", mem_pos$sigma^2 * cc_var^2)
 
 # - Relative heteroscedasticity: The CC scenario is noisier — your model suggests the spread of residuals is larger there than in the No CC scenario.
 # - Implication: Predictions for the CC scenario will be less precise (larger error spread).
@@ -370,38 +358,32 @@ cat("CC scenario variance estimate: ", mem_pos_lme$sigma^2 * cc_var^2)
 # 2. - Normality of random effects
 
 # Extract random effects
-species_pool <- ranef(mem_pos_lme)[,1]
-sp_slope_scenario <- ranef(mem_pos_lme)$ScenarioCC
-sp_slope_frst1 <- ranef(mem_pos_lme)$ForestID1
-sp_slope_frst2 <- ranef(mem_pos_lme)$ForestID2
+species_pool <- ranef(mem_pos)$SpeciesPool[,1]
+sp_slope_scenario <- ranef(mem_pos)$SpeciesPool$ScenarioCC
+sp_frst <- ranef(mem_pos)$ForestID[,1]
 
 # Plot histograms
-pdf(file.path(DirectoryPlots, "diag_pos_rf_sp_normal_v4.pdf"))
+pdf(file.path(DirectoryPlots, "diag_pos_rf_sp_normal_frand_v4.pdf"))
 hist(species_pool)
 dev.off()
 
-pdf(file.path(DirectoryPlots, "diag_pos_rf_sp_slope_scenario_normal_v4.pdf"))
+pdf(file.path(DirectoryPlots, "diag_pos_rf_sp_slope_scenario_normal_frand_v4.pdf"))
 hist(sp_slope_scenario)
 dev.off()
 
-pdf(file.path(DirectoryPlots, "diag_pos_rf_sp_slope_frst1_normal_v4.pdf"))
-hist(sp_slope_frst1)
-dev.off()
-
-pdf(file.path(DirectoryPlots, "diag_pos_rf_sp_slope_frst2_normal_v4.pdf"))
-hist(sp_slope_frst2)
+pdf(file.path(DirectoryPlots, "diag_pos_rf_sp_frst_normal_frand_v4.pdf"))
+hist(sp_frst)
 dev.off()
 
 # Test for normality
 shapiro.test(species_pool) # W = 0.96094, p-value = 0.7966 -> normal
 shapiro.test(sp_slope_scenario) # W = 0.92941, p-value = 0.4421 -> normal
-shapiro.test(sp_slope_frst1) # W = 0.90383, p-value = 0.2413 -> normal
-shapiro.test(sp_slope_frst2) # W = 0.936, p-value = 0.5094 -> normal
+shapiro.test(sp_frst) # W = 0.90383, p-value = 0.2413 -> normal
 
 # 3. - QQ plot of random effects
 
 # 1. QQ plot of residuals
-pdf(file.path(DirectoryPlots, "diag_pos_rf_sp_qq_v4.pdf"))
+pdf(file.path(DirectoryPlots, "diag_pos_rf_sp_qq_frand_v4.pdf"))
 qqmath(species_pool,
        id = 0.05,
        panel = function(x, ...) {
@@ -410,7 +392,7 @@ qqmath(species_pool,
        })
 dev.off()
 
-pdf(file.path(DirectoryPlots, "diag_pos_rf_sp_slope_scenario_qq_v4.pdf"))
+pdf(file.path(DirectoryPlots, "diag_pos_rf_sp_slope_scenario_qq_frand_v4.pdf"))
 qqmath(sp_slope_scenario,
        id = 0.05,
        panel = function(x, ...) {
@@ -419,8 +401,8 @@ qqmath(sp_slope_scenario,
        })
 dev.off()
 
-pdf(file.path(DirectoryPlots, "diag_pos_rf_sp_slope_frst1_qq_v4.pdf"))
-qqmath(sp_slope_frst1,
+pdf(file.path(DirectoryPlots, "diag_pos_rf_sp_frst_qq_frand_v4.pdf"))
+qqmath(sp_frst,
        id = 0.05,
        panel = function(x, ...) {
          panel.qqmath(x, ...)                 # default Q-Q plot
@@ -428,7 +410,7 @@ qqmath(sp_slope_frst1,
        })
 dev.off()
 
-pdf(file.path(DirectoryPlots, "diag_pos_rf_sp_slope_frst2_qq_v4.pdf"))
+pdf(file.path(DirectoryPlots, "diag_pos_rf_sp_slope_frst2_qq_frand_v4.pdf"))
 qqmath(sp_slope_frst2,
        id = 0.05,
        panel = function(x, ...) {
@@ -439,15 +421,15 @@ dev.off()
 
 # 2. Check distribution of Residuals
 
-pdf(file.path(DirectoryPlots, "diag_pos_res_overall_v4.pdf"))
-plot(mem_pos_lme)
+pdf(file.path(DirectoryPlots, "diag_pos_res_overall_frand_v4.pdf"))
+plot(mem_pos)
 dev.off()
 
 # QQ plot
-pdf(file.path(DirectoryPlots, "diag_pos_res_qq_v4.pdf"))
+pdf(file.path(DirectoryPlots, "diag_pos_res_qq_frand_v4.pdf"))
 
 # Extract residuals
-resids <- resid(mem_pos_lme, type = "p")
+resids <- resid(mem_pos)
 
 # Create Q-Q plot with line
 qqnorm(resids, main = "Normal Q-Q Plot of Standardized Residuals")
@@ -473,8 +455,8 @@ dev.off()
 # Investigate outliers
 
 # Or identify programmatically
-resid_std <- residuals(mem_pos_lme, type = "pearson") /
-             sd(residuals(mem_pos_lme, type = "pearson"))
+resid_std <- residuals(mem_pos, type = "pearson") /
+             sd(residuals(mem_pos, type = "pearson"))
 outliers <- which(abs(resid_std) > 3)
 
 # Examine them
@@ -496,3 +478,139 @@ dev.off()
 
 shapiro.test(sample(species_distr_stats$log_Position, 5000))
 
+# --- To overcome all hurdles (crossed + variance structure + 3 forests only) --- #
+
+
+library(brms)
+
+get_prior(Position ~ Scenario * Year_c + (Scenario | SpeciesPool) + (1 | ForestID), data=species_distr_stats)
+
+mem_pos <- brm(
+  bf(Position ~ Scenario * Year_c + (Scenario | SpeciesPool) + (1 | ForestID),
+     sigma ~ Scenario),
+  data = species_distr_stats, family = gaussian(),
+  # Consider priors for ForestID to regularize the 3-level variance
+  prior = c(
+    prior(cauchy(0, 1), class = sd)
+  ),
+  chains = 4, iter = 5000, warmup = 1000,
+  save_pars = save_pars(all=TRUE) # for marginal likelihood
+)
+
+# --- Alternative
+
+library(glmmTMB)
+
+mem_pos <- glmmTMB(
+  Position ~ Scenario * Year_c + (Scenario + Year_c | SpeciesPool) + (1 | ForestID),
+  dispformula = ~ SpeciesPool + Scenario,  # models variance structure
+  data = species_distr_stats,
+  REML = TRUE
+)
+
+# 1. Check convergence
+mem_pos$sdr$pdHess  # Should be TRUE
+
+# 2. Check for singular fit (near-zero variances)
+summary(mem_pos)  # Look at random effect variances
+VarCorr(mem_pos)  # Detailed variance-covariance
+
+# 3. Check gradient
+mem_pos$sdr$gradient.fixed  # Should be close to zero
+
+# 4. Convergence code
+mem_pos$fit$convergence  # Should be 0
+
+resids <- residuals(mem_pos, type = "pearson")
+
+# Extract scaled residuals
+res <- residuals(mem_pos, type = "pearson")
+levs <- levels(species_distr_stats$Scenario)
+x <- as.numeric(species_distr_stats$Scenario)
+
+# Make the plot
+pdf(file.path(DirectoryPlots, "diag_pos_res_scenario_frand_v5.pdf"))
+plot(x, res,
+     xaxt = "n",  # suppress default x-axis
+     xlab = "Scenario",
+     ylab = "Scaled Residuals",
+     main = "Residuals vs Scenario")
+abline(h = 0, col = "red", lty = 2)
+axis(1, at = 1:length(levs), labels = levs)
+dev.off()
+
+# - Residuals by SpeciesPool and Scenario
+levs <- levels(as.factor(species_distr_stats$SpeciesPool))
+x <- as.numeric(species_distr_stats$SpeciesPool)
+
+pdf(file.path(DirectoryPlots, "diag_pos_res_sp_frand_v5_byScenario.pdf"))
+
+# Get unique Scenarios
+scenarios <- unique(species_distr_stats$Scenario)
+
+par(mfrow = c(length(scenarios), 1), mar = c(6, 4, 3, 1))  # one row per scenario
+for (sc in scenarios) {
+  idx <- species_distr_stats$Scenario == sc
+  plot(x[idx], res[idx],
+       xaxt = "n",
+       xlab = "Species pool",
+       ylab = "Scaled Residuals",
+       main = paste("Residuals vs species pools - Scenario:", sc))
+  abline(h = 0, col = "red", lty = 2)
+  axis(1, at = 1:length(levs), labels = levs, las = 2)
+}
+
+dev.off()
+
+# Residual spread by Scenario
+pdf(file.path(DirectoryPlots, "diag_pos_res_spread_scenario_frand_v5.pdf"))
+plot(mem_pos, resid(.) ~ fitted(.) | Scenario, abline = 0)
+dev.off()
+
+# -> this violates the assumption of homogeneous (constant) variance along a predictor.
+
+pdf(file.path(DirectoryPlots, "diag_pos_res_spread_forest_frand_v5.pdf"))
+plot(mem_pos, resid(.) ~ fitted(.) | ForestID, abline = 0)
+dev.off()
+
+pdf(file.path(DirectoryPlots, "diag_pos_res_spread_sp_frand_v5.pdf"))
+plot(mem_pos, resid(.) ~ fitted(.) | as.factor(SpeciesPool), abline = 0)
+dev.off()
+
+
+# QQ plot
+pdf(file.path(DirectoryPlots, "diag_pos_res_qq_dharma_glmmtmb2_v5.pdf"))
+
+# Create Q-Q plot with line
+qqnorm(resids, main = "Normal Q-Q Plot of Standardized Residuals")
+qqline(resids, col = "red", lwd = 2)
+
+# Identify outliers and annotate with SpeciesPool
+outlier_threshold <- 3
+outliers <- which(abs(scale(resids)) > outlier_threshold)
+
+# Get theoretical quantiles for outliers
+qq_data <- qqnorm(resids, plot.it = FALSE)
+
+# Add text labels for SpeciesPool
+text(qq_data$x[outliers],
+     resids[outliers],
+     labels = species_distr_stats$SpeciesPool[outliers],
+     col = "darkgrey",
+     cex = 0.7,
+     pos = 4)  # pos = 4 places text to the right of points
+
+dev.off()
+
+pdf(file.path(DirectoryPlots, "diag_pos_res_qq_dharma_glmmtmb_v5.pdf"))
+library(DHARMa)
+
+# Create scaled residuals
+simulationOutput <- simulateResiduals(fittedModel = mem_pos, n = 1000)
+
+# QQ plot
+plotQQunif(simulationOutput)
+
+# Or full diagnostic plot (includes QQ plot + more)
+plot(simulationOutput)
+dev.off()

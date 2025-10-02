@@ -4,6 +4,8 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy.stats import alpha
+
 matplotlib.use("MacOSX")
 
 scenarios = ["climdata_era5_cmip6_1981-2100_ssp245_no_cc", "climdata_era5_cmip6_1981-2100_ssp245"]
@@ -45,6 +47,8 @@ species_distr["Height"] = species_distr["Z"] - 0.5
 species_distr = species_distr[species_distr["Status"] == 1]
 
 species_distr.to_csv(base_dir / "a5_species_distribution_cc_vs_no_cc.csv", index=False)
+
+species_distr = pd.read_csv(base_dir / "a5_species_distribution_cc_vs_no_cc.csv")
 
 # --- Plot position and range for each replicate (sp, forest) --- #
 
@@ -453,7 +457,7 @@ for forest in forests:
         df_pivot = df_pivot.dropna(subset=scenarios_str)
 
         # Calculate difference: "No CC" - "CC"
-        df_pivot["diff"] = df_pivot["No CC"] - df_pivot["CC"]
+        df_pivot["diff"] = df_pivot["CC"] - df_pivot["No CC"]
 
         # Now summarize: mean and std of the differences at each time step
         df_diff_summary = df_pivot.groupby("Year")["diff"].agg(
@@ -476,7 +480,7 @@ for forest in forests:
         plt.hlines(y=0, xmin=ts_start + 1901, xmax=ts_end + 1901,
                    color='darkgrey', linestyles='--', label='No Difference')
         plt.xlabel("Year")
-        plt.ylabel("Absolute height difference (No CC - CC) (m)")
+        plt.ylabel("Absolute height difference (CC - No CC) (m)")
         plt.title("Mean ± SD of species height differences between scenarios")
         plt.legend()
         plt.tight_layout()
@@ -485,6 +489,119 @@ for forest in forests:
         # Save figure
         plt.savefig(
             DirectoryPlots / f"Species_HeightDiff_ts_Forest{forest}_SP{sp}.pdf")
+
+# Species-wise Difference mean forests
+for sp in species_pools:
+
+    plt.close("all")
+
+    df_plot = species_distr[species_distr["SpeciesPool"] == sp]
+
+    # Pivot the data so we have species heights per scenario per time step
+    df_pivot = df_plot.pivot_table(
+        index=["SpeciesID", "Year", "SpeciesPool", "ForestID"],
+        columns="Scenario",
+        values="Height"
+    ).reset_index()
+
+    # Remove rows where either scenario is missing (species not present in both scenarios at this timestep)
+    df_pivot = df_pivot.dropna(subset=scenarios_str)
+
+    # Calculate difference: "No CC" - "CC"
+    df_pivot["diff"] = df_pivot["CC"] - df_pivot["No CC"]
+
+    # Take average height of individual
+    df_plot = df_pivot.groupby(
+        ["SpeciesPool", "SpeciesID", "Year"]
+    )["diff"].mean().reset_index()
+
+    # Restrict to 2001–2100
+    subset_range = df_plot[
+        (df_plot["Year"] >= 2030) & (df_plot["Year"] <= 2100)]
+
+    # Compute median diff per species
+    medians = subset_range.groupby("SpeciesID")["diff"].median().reset_index(
+        name="median_diff")
+
+    # Split into negative and positive median groups
+    neg_species = medians[medians["median_diff"] < 0]["SpeciesID"]
+    pos_species = medians[medians["median_diff"] >= 0]["SpeciesID"]
+
+    # Last year per species (for annotation)
+    last_years = df_plot.groupby("SpeciesID")["Year"].max().reset_index()
+    last_values = df_plot.merge(last_years, on=["SpeciesID", "Year"],
+                                how="inner")
+
+    # Build one shared palette for all species
+    all_species = pd.concat([neg_species, pos_species]).unique()
+    palette = sns.color_palette("colorblind", n_colors=len(all_species))
+
+    # Map SpeciesID -> unique color
+    color_map = dict(zip(all_species, palette))
+
+    # Define plotting function
+    def plot_species(ax, species_list, title):
+        data = df_plot[df_plot["SpeciesID"].isin(species_list)]
+
+        # Map species in this group to their unique color
+        group_palette = {sp: color_map[sp] for sp in species_list}
+
+        sns.lineplot(
+            data=data,
+            x="Year",
+            y="diff",
+            hue="SpeciesID",
+            palette=group_palette,
+            ax=ax,
+            legend=False,
+            alpha=0.6
+        )
+
+        ax.hlines(
+            y=0,
+            xmin=df_plot["Year"].min(),
+            xmax=df_plot["Year"].max(),
+            color="darkgrey",
+            linestyles="--",
+            alpha=0.6
+        )
+        ax.set_title(title)
+        ax.set_ylabel("Species position shift (CC - No CC) (m)")
+
+        # annotate each species at its last year
+        for sp in species_list:
+            sp_last = last_values[last_values["SpeciesID"] == sp].iloc[0]
+            ax.text(
+                sp_last["Year"] + 1,
+                sp_last["diff"],
+                str(sp),
+                fontsize=14,
+                va="center",
+                color=color_map[sp]  # match annotation color with line
+            )
+
+
+    # --- Step 7: Make subplots
+    fig, axes = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+
+    plot_species(
+        axes[0],
+        neg_species,
+        "Downward shift with climate change (2030–2100)"
+    )
+    plot_species(
+        axes[1],
+        pos_species,
+        "Upward shift with climate change (2030–2100)"
+    )
+
+    axes[1].set_xlabel("Year")
+    plt.tight_layout()
+    plt.show()
+
+    # Save figure
+    plt.savefig(
+        DirectoryPlots / f"Species_HeightShift_ts_SP{sp}.pdf")
 
 # - 2. Range (IQR)
 for forest in forests:
@@ -512,7 +629,7 @@ for forest in forests:
         df_pivot = df_pivot.dropna(subset=scenarios_str)
 
         # Calculate difference: "No CC" - "CC"
-        df_pivot["diff"] = df_pivot["No CC"] - df_pivot["CC"]
+        df_pivot["diff"] = df_pivot["CC"] - df_pivot["No CC"]
 
         # Now summarize: mean and std of the differences at each time step
         df_diff_summary = df_pivot.groupby("Year")["diff"].agg(
@@ -535,7 +652,7 @@ for forest in forests:
         plt.hlines(y=0, xmin=ts_start + 1901, xmax=ts_end + 1901,
                    color='darkgrey', linestyles='--', label='No Difference')
         plt.xlabel("Year")
-        plt.ylabel("Absolute range difference (No CC - CC) (m)")
+        plt.ylabel("Absolute range difference (CC - No CC) (m)")
         plt.title("Mean ± SD of species range differences between scenarios")
         plt.legend()
         plt.tight_layout()
@@ -585,3 +702,38 @@ g = sns.relplot(
 plt.tight_layout()
 plt.savefig(DirectoryPlots / f"Species_Position_vs_Range_scatter_facet.pdf")
 
+
+# ---------------- PLot Preds Pos ---------------- #
+
+
+preds = pd.read_csv(base_dir / "a5_pred_pos_cc_vs_no_cc.csv")
+
+g = sns.FacetGrid(
+    preds,
+    col="ForestID",
+    row="SpeciesPool",
+    hue="Scenario",
+    margin_titles=True,
+    height=3,
+    aspect=1.5
+)
+
+# observed "Position" lines
+g.map_dataframe(sns.lineplot, x="Year", y="Position", linestyle="--",
+                alpha=0.6)
+
+# predicted "fit" line
+g.map_dataframe(sns.lineplot, x="Year", y="fit")
+
+# CI ribbon (upr / lwr)
+def add_ci(data, color, **kwargs):
+    plt.fill_between(
+        data["Year"], data["lwr"], data["upr"],
+        color=color, alpha=0.2, **kwargs
+    )
+
+g.map_dataframe(add_ci)
+
+g.add_legend()
+plt.show()
+plt.savefig(DirectoryPlots / "pred_position_facet.pdf")

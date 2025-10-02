@@ -28,6 +28,8 @@ div = (
     .reset_index()
 )
 
+div.to_csv(base_dir / "a5_diversity_cc_vs_no_cc.csv")
+
 # ---- Plot individual replicates ----
 # Richness over time
 g = sns.FacetGrid(
