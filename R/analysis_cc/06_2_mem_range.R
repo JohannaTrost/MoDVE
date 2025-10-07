@@ -74,3 +74,4 @@ text(qq_data$x[outliers],
      pos = 4)  # pos = 4 places text to the right of points
 
 dev.off()
+
