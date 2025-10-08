@@ -14,6 +14,7 @@ library(DHARMa)
 library(MASS)
 library(performance)
 library(tidyr)
+library(purrr)
 
 # Repsonse vars:
 # - Avg. species position
@@ -264,7 +265,6 @@ for (sp in 1:10) {
 }
 
 # Compute ranges
-niches$RangeLight <- niches$MaxLight - niches$MinLight
 niches$RangeTemp <- niches$MaxTemp - niches$MinTemp
 niches$RangeHum <- niches$MaxHum - niches$MinHum
 
@@ -273,9 +273,8 @@ shift_niches <- summary_shift %>%
   left_join(niches, by = c("SpeciesPool", "SpeciesID"))
 
 # Compute species distances
-cols_to_use <- c("OptimumLight", "OptimumTemp", "OptimumHum",
-                 "MinLight", "MaxLight", "MinTemp", "MaxTemp", "MinHum", "MaxHum",
-                 "RangeLight", "RangeTemp", "RangeHum")
+cols_to_use <- c("OptimumTemp", "OptimumHum", "MinTemp", "MaxTemp", "MinHum", "MaxHum",
+                 "RangeTemp", "RangeHum")
 
 shift_niches_dist <- shift_niches %>%
   group_by(SpeciesPool, ForestID) %>%
@@ -289,20 +288,85 @@ shift_niches_dist <- shift_niches %>%
                 .names = "MeanDist_{.col}")) %>%
   ungroup()
 
+# - Compute niche overlap per species within group
+# Function to compute pairwise overlap for one variable
+range_overlap <- function(min1, max1, min2, max2) {
+  overlap <- pmax(0, pmin(max1, max2) - pmax(min1, min2))
+  union <- pmax(max1, max2) - pmin(min1, min2)
+  overlap / union
+}
+
+compute_niche_distance <- function(df) {
+  species_ids <- df$SpeciesID
+
+  # All species pairs (excluding self)
+  pairs <- expand.grid(SpeciesID1 = species_ids, SpeciesID2 = species_ids) %>%
+    filter(SpeciesID1 != SpeciesID2)
+
+  # Join data
+  pairs <- pairs %>%
+    left_join(df, by = c("SpeciesID1" = "SpeciesID")) %>%
+    rename_with(~ paste0(., "_1"), -SpeciesID1) %>%
+    left_join(df, by = c("SpeciesID2_1" = "SpeciesID")) %>%
+    rename_with(~ paste0(., "_2"), -SpeciesID2_1)
+
+  # Compute overlaps
+  pairs <- pairs %>%
+    mutate(
+      overlap_temp  = range_overlap(MinTemp_1_2, MaxTemp_1_2, MinTemp_2, MaxTemp_2),
+      overlap_hum   = range_overlap(MinHum_1_2, MaxHum_1_2, MinHum_2, MaxHum_2)
+    )
+
+  # Columns for which to compute absolute differences
+  diff_cols <- c("OptimumTemp", "OptimumHum", "MinTemp", "MaxTemp", "MinHum", "MaxHum", "RangeTemp", "RangeHum"
+  )
+
+  # Add average absolute differences dynamically
+  for (col in diff_cols) {
+    col1 <- paste0(col, "_1_2")
+    col2 <- paste0(col, "_2")
+    newcol <- paste0("AvgAbsDiff_", col)
+    pairs[[newcol]] <- abs(pairs[[col1]] - pairs[[col2]])
+  }
+
+  # Summarise by focal species
+  pairs <- pairs %>%
+    group_by(SpeciesID1_2) %>%
+    summarise(
+      AvgOverlapTemp  = mean(overlap_temp, na.rm = TRUE),
+      AvgOverlapHum   = mean(overlap_hum, na.rm = TRUE),
+      across(starts_with("AvgAbsDiff_"), ~ mean(.x, na.rm = TRUE))
+    ) %>%
+    rename(SpeciesID = SpeciesID1_2)
+
+  pairs
+}
+
+# Apply per ForestID + SpeciesPool
+niche_overlap <- shift_niches %>%
+  group_by(ForestID, SpeciesPool) %>%
+  group_modify(~ compute_niche_overlap(.x)) %>%
+  ungroup()
+
+shift_niches_dist <- shift_niches_dist %>%
+  left_join(., niche_overlap, by = c("SpeciesID", "ForestID", "SpeciesPool"))
+
 # 1. Visualize with PCA
 
-metric <- c("Min", "Max")
+metric <- c("AvgOverlap") # "Min", "Max"
+prefix <- "" # "MeanDist_"
 
 # Select all MeanDist columns for PCA
 dist_cols <- c()
 for (m in metric) {
   dist_cols <- c(dist_cols,
-                 grep(paste0("^MeanDist_", m), names(shift_niches_dist), value = TRUE))
+                 grep(paste0("^", prefix, m), names(shift_niches_dist), value = TRUE))
 }
 pca_data <- shift_niches_dist[, dist_cols]
+pca_data_scaled <- as.data.frame(scale(pca_data))
 
 # Remove any rows with missing values
-pca_data_complete <- na.omit(pca_data)
+pca_data_complete <- na.omit(pca_data_scaled)
 complete_indices <- complete.cases(shift_niches_dist[, dist_cols])
 data_for_plot <- shift_niches_dist[complete_indices, ]
 
@@ -324,7 +388,7 @@ plot_df <- data.frame(
   PC2 = pca_result$x[, 2],
   SpeciesID = data_for_plot$SpeciesID,
   diff = data_for_plot$diff,
-  positive_diff = data_for_plot$diff > 0
+  positive_diff = data_for_plot$diff > quantile(data_for_plot$diff, 0.9)
 )
 
 # Create the plot
@@ -360,6 +424,16 @@ pdf(file.path(DirectoryPlots, paste0("pc_distances_", paste(metric, collapse = "
 print(p)
 dev.off()
 
+# Compute correlations of distances with shift
+cor.test(shift_niches_dist$diff, pca_result$x[, 1])
+cor.test(shift_niches_dist$diff, pca_result$x[, 2])
+cor.test(shift_niches_dist$diff, shift_niches_dist$AvgOverlapTemp)
+cor.test(shift_niches_dist$diff, shift_niches_dist$AvgOverlapHum)
+cor.test(shift_niches_dist$diff, shift_niches_dist$MeanDist_RangeTemp)
+cor.test(shift_niches_dist$diff, shift_niches_dist$MeanDist_RangeHum)
+cor.test(shift_niches_dist$diff, shift_niches_dist$MeanDist_OptimumTemp)
+cor.test(shift_niches_dist$diff, shift_niches_dist$MeanDist_OptimumHum)
+
 # --- Try MEM
 
 pdf(file.path(DirectoryPlots, "diag_shift_hist.pdf"))
@@ -369,15 +443,50 @@ dev.off()
 shapiro.test(shift_niches_dist$diff)
 
 # Scale predictors
-shift_niches_dist <- shift_niches_dist %>%
-  mutate(across(starts_with("MeanDist_"),
-                ~ (.-mean(., na.rm = TRUE)) / sd(., na.rm = TRUE),
-                .names = "Scaled_{.col}"))
+shift_niches_dist_scaled <- data.frame(scale(shift_niches_dist))
 
-lm_shift <- lm(
+lm_shift_range <- lm(
    diff ~ MeanDist_RangeTemp *
-     MeanDist_RangeHum *
-     MeanDist_RangeLight,
-  data = shift_niches_dist)
+     MeanDist_RangeHum,
+  data = shift_niches_dist_scaled)
 
-summary(lm_shift)
+summary(lm_shift_range)
+
+lm_shift_opt <- lm(
+   diff ~ MeanDist_OptimumTemp *
+     MeanDist_OptimumHum,
+  data = shift_niches_dist_scaled)
+
+summary(lm_shift_opt)
+
+lm_shift_overlap <- lm(
+   diff ~ AvgOverlapTemp * AvgOverlapHum,
+  data = shift_niches_dist_scaled)
+
+summary(lm_shift_overlap)
+
+# - Try Binary response
+shift_niches_dist_scaled$diff_bin <- as.numeric(shift_niches_dist_scaled$diff > 0)
+glm_shift_bin <- glm(
+  diff_bin ~ MeanDist_RangeTemp *
+    MeanDist_RangeHum,
+  data = shift_niches_dist_scaled,
+  family = binomial(link = "logit")
+)
+summary(glm_shift_bin)
+
+glm_shift_bin_opt <- glm(
+  diff_bin ~ MeanDist_OptimumTemp *
+     MeanDist_OptimumHum,
+  data = shift_niches_dist_scaled,
+  family = binomial(link = "logit")
+)
+summary(glm_shift_bin_opt)
+
+glm_shift_bin_overlap <- glm(
+  diff_bin ~ AvgOverlapTemp * AvgOverlapHum,
+  data = shift_niches_dist_scaled,
+  family = binomial(link = "logit")
+)
+summary(glm_shift_bin_overlap)
+
