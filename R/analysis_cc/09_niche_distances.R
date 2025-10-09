@@ -1,3 +1,8 @@
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ade4)
+library(factoextra)
 
 # #################################################################################################
 #                               Why do some species shift upward?                                 #
@@ -43,7 +48,7 @@ summary_shift <- shift %>%
     diff = mean(tail(diff[!is.na(diff)], 20), na.rm = TRUE),
     last_year_alive = max(Year[!is.na(diff)]),
   ) %>%
-  filter(last_year_alive >= 2030)
+  filter(last_year_alive >= 2050)
 
 # Get species niches
 niches <- NULL
@@ -133,9 +138,9 @@ compute_niche_distance <- function(df) {
   pairs <- pairs %>%
     group_by(SpeciesID1_2) %>%
     summarise(
-      AvgOverlapTemp  = mean(overlap_temp, na.rm = TRUE),
-      AvgOverlapHum   = mean(overlap_hum, na.rm = TRUE),
-      AvgOverlapLight = mean(overlap_light, na.rm = TRUE),
+      MaxOverlapTemp  = max(overlap_temp, na.rm = TRUE),
+      MaxOverlapHum   = max(overlap_hum, na.rm = TRUE),
+      MaxOverlapLight = max(overlap_light, na.rm = TRUE),
       across(starts_with("AvgAbsDiff_"), ~ mean(.x, na.rm = TRUE))
     ) %>%
     rename(SpeciesID = SpeciesID1_2)
@@ -155,15 +160,15 @@ shift_niches_dist <- shift_niches_dist %>%
 # --- PCA
 
 res.pca <- shift_niches_dist %>%
-  select(MeanDist_OptimumHum, AvgOverlapHum,
-         MeanDist_OptimumTemp, AvgOverlapTemp,
-         MeanDist_OptimumLight, AvgOverlapLight
+  select(MeanDist_OptimumHum, MaxOverlapHum,
+         MeanDist_OptimumTemp, MaxOverlapTemp,
+         MeanDist_OptimumLight, MaxOverlapLight
   ) %>%
   scale(.) %>%
   dudi.pca(., scannf = FALSE, nf = 6)
 
 # PCA results
-DirectoryPlots <- file.path("../../figs/a5_plots_test/cc_vs_no_cc/functional_analysis")
+DirectoryPlots <- file.path("../../figs/a5_plots_test/cc_vs_no_cc/functional_analysis/MaxOverlap")
 dir.create(DirectoryPlots)
 
 # Variance explained
@@ -287,7 +292,7 @@ lm_shift_opt <- lm(
 summary(lm_shift_opt)
 
 lm_shift_overlap <- lm(
-   diff ~ AvgOverlapTemp * AvgOverlapHum,
+   diff ~ MaxOverlapTemp * MaxOverlapHum,
   data = shift_niches_dist_scaled)
 
 summary(lm_shift_overlap)
@@ -311,7 +316,7 @@ glm_shift_bin_opt <- glm(
 summary(glm_shift_bin_opt)
 
 glm_shift_bin_overlap <- glm(
-  diff_bin ~ AvgOverlapTemp * AvgOverlapHum,
+  diff_bin ~ MaxOverlapTemp * MaxOverlapHum,
   data = shift_niches_dist_scaled,
   family = binomial(link = "logit")
 )
