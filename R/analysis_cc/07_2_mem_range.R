@@ -230,7 +230,7 @@ xyplot(resid ~ fitted | as.factor(ForestID), data = df,
        xlab = "Fitted values", ylab = "Pearson residuals")
 dev.off()
 
-# Did the model improve at all?
-
+# Did the model improve at all? -> Yes better to estimate dispersions
 mem_range_null <- update(mem_range, dispformula = ~1)
 anova(mem_range_null, mem_range)
+

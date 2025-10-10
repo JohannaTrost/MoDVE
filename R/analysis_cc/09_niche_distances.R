@@ -56,7 +56,7 @@ for (sp in 1:10) {
   sp_niches <- read_csv(file.path(base_dir, "a2_1", paste0("SpeciesPool", sp, ".csv")),
                         show_col_types = FALSE) %>%
     dplyr::select("SpeciesID", "OptimumLight", "OptimumTemp", "OptimumHum",
-           "MinLight", "MaxLight", "MinTemp", "MaxTemp", "MinHum", "MaxHum") %>%
+           "MinLight", "MaxLight", "MinTemp", "MaxTemp", "MinHum", "MaxHum", "MaximumMass", "GrowthRate") %>%
     mutate(SpeciesPool = sp)
 
   if (is.null(niches)) {
@@ -159,13 +159,16 @@ shift_niches_dist <- shift_niches_dist %>%
 
 # --- PCA
 
-res.pca <- shift_niches_dist %>%
+pca_data <- shift_niches_dist %>%
   select(MeanDist_OptimumHum, MaxOverlapHum,
          MeanDist_OptimumTemp, MaxOverlapTemp,
-         MeanDist_OptimumLight, MaxOverlapLight
+         MeanDist_OptimumLight, MaxOverlapLight,
+         MaximumMass, GrowthRate
   ) %>%
   scale(.) %>%
-  dudi.pca(., scannf = FALSE, nf = 6)
+  data.frame(.) %>%
+  tibble(.)
+res.pca <- dudi.pca(pca_data, scannf = FALSE, nf = 6)
 
 # PCA results
 DirectoryPlots <- file.path("../../figs/a5_plots_test/cc_vs_no_cc/functional_analysis/MaxOverlap")
@@ -193,7 +196,7 @@ dev.off()
 
 # -- Plot shift
 
-pdf(file.path(DirectoryPlots, "niche_distance_pca_biplot_shift.pdf"))
+pdf(file.path(DirectoryPlots, "niche_distance_pca_biplot_shift_traits.pdf"))
 fviz_pca_biplot(res.pca,
                 label = "var",
                 labelsize = 3,
@@ -231,7 +234,7 @@ centroids <- pca_coords %>%
 # Compute explained variance (percent)
 eig_var <- res.pca$eig / sum(res.pca$eig) * 100
 
-pdf(file.path(DirectoryPlots, "niche_dist_pca_shift_group_centroids_density.pdf"), width = 7, height = 6)
+pdf(file.path(DirectoryPlots, "niche_dist_pca_shift_traits_group_centroids_density.pdf"), width = 7, height = 6)
 
 ggplot(pca_coords, aes(x = PC1, y = PC2, color = Shift, fill = Shift)) +
   # Convex hulls
@@ -275,50 +278,24 @@ dev.off()
 shapiro.test(shift_niches_dist$diff)
 
 # Scale predictors
-shift_niches_dist_scaled <- data.frame(scale(shift_niches_dist))
-
+pca_data$diff <- shift_niches_dist$diff
 lm_shift_range <- lm(
-   diff ~ MeanDist_RangeTemp *
-     MeanDist_RangeHum,
-  data = shift_niches_dist_scaled)
+   diff ~ MeanDist_OptimumHum + MaxOverlapHum + MeanDist_OptimumTemp + MaxOverlapTemp +
+    MeanDist_OptimumLight + MaxOverlapLight + MaximumMass + GrowthRate,
+  data = pca_data)
 
 summary(lm_shift_range)
 
-lm_shift_opt <- lm(
-   diff ~ MeanDist_OptimumTemp *
-     MeanDist_OptimumHum,
-  data = shift_niches_dist_scaled)
-
-summary(lm_shift_opt)
-
-lm_shift_overlap <- lm(
-   diff ~ MaxOverlapTemp * MaxOverlapHum,
-  data = shift_niches_dist_scaled)
-
-summary(lm_shift_overlap)
-
 # - Try Binary response
-shift_niches_dist_scaled$diff_bin <- as.numeric(shift_niches_dist_scaled$diff > 0)
+pca_data$diff_bin <- as.numeric(shift_niches_dist$diff > 0)
 glm_shift_bin <- glm(
-  diff_bin ~ MeanDist_RangeTemp *
-    MeanDist_RangeHum,
-  data = shift_niches_dist_scaled,
+  diff_bin ~ MeanDist_OptimumHum + MaxOverlapHum + MeanDist_OptimumTemp + MaxOverlapTemp +
+    MeanDist_OptimumLight + MaxOverlapLight + MaximumMass + GrowthRate,
+  data = pca_data,
   family = binomial(link = "logit")
 )
 summary(glm_shift_bin)
 
-glm_shift_bin_opt <- glm(
-  diff_bin ~ MeanDist_OptimumTemp *
-     MeanDist_OptimumHum,
-  data = shift_niches_dist_scaled,
-  family = binomial(link = "logit")
-)
-summary(glm_shift_bin_opt)
-
-glm_shift_bin_overlap <- glm(
-  diff_bin ~ MaxOverlapTemp * MaxOverlapHum,
-  data = shift_niches_dist_scaled,
-  family = binomial(link = "logit")
-)
-summary(glm_shift_bin_overlap)
-
+# -> Conclusion
+# Species with higher growth rates are significantly less likely to shift upwards
+# compared to those with lower growth rates (odds ratio = 0.30, p = 0.015).
