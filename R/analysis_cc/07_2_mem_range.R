@@ -58,6 +58,14 @@ pdf(file.path(DirectoryPlots, "diag_iqr_hist.pdf"))
 hist(species_distr_stats$IQR)
 dev.off()
 
+pdf(file.path(DirectoryPlots, "diag_log_range_hist.pdf"))
+hist(log(species_distr_stats$Range))
+dev.off()
+
+pdf(file.path(DirectoryPlots, "diag_iqr_hist.pdf"))
+hist(species_distr_stats$IQR)
+dev.off()
+
 # #################################################################################################
 #                               Mixed effects model for range                                  #
 # #################################################################################################
@@ -234,3 +242,143 @@ dev.off()
 mem_range_null <- update(mem_range, dispformula = ~1)
 anova(mem_range_null, mem_range)
 
+
+# -- Normality of randm effects -> OK but very small sample size to make strong statement
+
+# Extract random effects
+species_pool <- ranef(mem_range)$cond$SpeciesPool[,1]
+species_pool_scenario <- ranef(mem_range)$cond$SpeciesPool$ScenarioCC
+forest_id <- ranef(mem_range)$cond$ForestID[,1]
+
+# Plot histograms
+pdf(file.path(DirectoryPlots, "diag_rf_sp_normal_glmmtmb.pdf"))
+hist(species_pool)
+dev.off()
+
+pdf(file.path(DirectoryPlots, "diag_rf_sp_cc_normal_glmmtmb.pdf"))
+hist(species_pool_scenario)
+dev.off()
+
+pdf(file.path(DirectoryPlots, "diag_rf_forest_normal_glmmtmb.pdf"))
+hist(forest_id)
+dev.off()
+
+# Test for normality
+shapiro.test(species_pool)
+shapiro.test(species_pool_scenario)
+shapiro.test(forest_id)
+
+# ----- Variance partitioning -----
+
+# Extract standard deviations
+vc <- VarCorr(mem_range)
+
+# Get variances
+var_species_intercept <- vc$cond$SpeciesPool["(Intercept)", "(Intercept)"]^2
+var_species_slope     <- vc$cond$SpeciesPool["ScenarioCC", "ScenarioCC"]^2
+var_forest             <- vc$cond$ForestID["(Intercept)", "(Intercept)"]^2
+
+# Residual variance approx. from non-dispersion model
+meme_no_disp <- update(mem_range, dispformula = ~1)
+disp <- sigma(meme_no_disp)^2  # dispersion parameter φ
+resid_var <- log(1 + disp)  # approximate residual variance on link scale
+
+# Total random-effect variance
+total_var <- var_species_intercept + var_species_slope + var_forest + resid_var
+
+# Compute proportions
+prop_species_intercept <- var_species_intercept / total_var
+prop_species_slope     <- var_species_slope / total_var
+prop_forest            <- var_forest / total_var
+
+# Make tidy summary
+data.frame(
+  Component = c("SpeciesPool (Intercept)", "SpeciesPool (Scenario slope)", "ForestID (Intercept)", "Residual"),
+  Variance  = c(var_species_intercept, var_species_slope, var_forest, resid_var),
+  Proportion = c(prop_species_intercept, prop_species_slope, prop_forest, resid_var / total_var)
+)
+
+# Together random effects account for <1%
+
+icc_speciespool <- (var_species_intercept + var_species_slope) / total_var
+icc_forest <- var_forest / total_var
+print(icc_speciespool)
+print(icc_forest)
+
+# -- glm
+
+glm_range <- glm(
+  Range ~ Scenario * Year_c,
+  data = species_distr_stats,
+  family = Gamma(link = "log")
+)
+summary(glm_range)
+
+# Create scaled residuals
+simulationOutput <- simulateResiduals(fittedModel = glm_range, n = 1000)
+
+pdf(file.path(DirectoryPlots, "diag_range_res_qq_glm_dharma.pdf"),
+    width = 10, height = 5)
+plot(simulationOutput)
+dev.off()
+
+
+# --- Same for IQR
+
+mem_iqr <- species_distr_stats %>%
+  filter(IQR > 0) %>%
+  glmmTMB(
+    IQR ~ Scenario * Year_c + (Scenario | SpeciesPool) + (1 | ForestID),
+    dispformula = ~ Scenario + SpeciesPool,  # models variance structure
+    data = .,
+    family = Gamma(link = "log"),
+    REML = TRUE
+  )
+
+
+# 0. check singular fit
+performance::check_singularity(mem_iqr)
+
+# Check convergence
+mem_iqr$sdr$pdHess  # Should be TRUE
+
+summary(mem_iqr)  # Look at random effect variances
+
+# 3. Check gradient
+mem_iqr$sdr$gradient.fixed  # Should be close to zero
+
+# 4. Convergence code
+mem_iqr$fit$convergence  # Should be 0
+
+
+# ----- Variance partitioning -----
+
+# Extract standard deviations
+vc <- VarCorr(mem_iqr)
+
+# Get variances
+var_species_intercept <- vc$cond$SpeciesPool["(Intercept)", "(Intercept)"]^2
+var_species_slope     <- vc$cond$SpeciesPool["ScenarioCC", "ScenarioCC"]^2
+var_forest             <- vc$cond$ForestID["(Intercept)", "(Intercept)"]^2
+
+# Residual variance approx. from non-dispersion model
+meme_no_disp <- update(mem_range, dispformula = ~1)
+disp <- sigma(meme_no_disp)^2  # dispersion parameter φ
+resid_var <- log(1 + disp)  # approximate residual variance on link scale
+
+# Total random-effect variance
+total_var <- var_species_intercept + var_species_slope + var_forest + resid_var
+
+# Compute proportions
+prop_species_intercept <- var_species_intercept / total_var
+prop_species_slope     <- var_species_slope / total_var
+prop_forest            <- var_forest / total_var
+
+# Make tidy summary
+data.frame(
+  Component = c("SpeciesPool (Intercept)", "SpeciesPool (Scenario slope)", "ForestID (Intercept)", "Residual"),
+  Variance  = c(var_species_intercept, var_species_slope, var_forest, resid_var),
+  Proportion = c(prop_species_intercept, prop_species_slope, prop_forest, resid_var / total_var)
+)
+
+# Together random effects account for <1%
