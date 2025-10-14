@@ -186,6 +186,8 @@ mem_range$sdr$gradient.fixed  # Should be close to zero
 # 4. Convergence code
 mem_range$fit$convergence  # Should be 0
 
+exp(fixef(mem_range)$cond)
+
 # --- DIAGONSTICS
 
 # Create scaled residuals
@@ -270,40 +272,39 @@ shapiro.test(forest_id)
 
 # ----- Variance partitioning -----
 
-# Extract standard deviations
-vc <- VarCorr(mem_range)
-
-# Get variances
-var_species_intercept <- vc$cond$SpeciesPool["(Intercept)", "(Intercept)"]^2
-var_species_slope     <- vc$cond$SpeciesPool["ScenarioCC", "ScenarioCC"]^2
-var_forest             <- vc$cond$ForestID["(Intercept)", "(Intercept)"]^2
-
 # Residual variance approx. from non-dispersion model
 meme_no_disp <- update(mem_range, dispformula = ~1)
-disp <- sigma(meme_no_disp)^2  # dispersion parameter φ
-resid_var <- log(1 + disp)  # approximate residual variance on link scale
+
+r2 <- performance::r2_nakagawa(meme_no_disp)
+icc <- performance::icc(meme_no_disp)
+icc_unadj <- icc$ICC_unadjusted * 100
+
+# Get variances
+vc <- VarCorr(meme_no_disp)
+
+# Get variances
+var_species_intercept <- vc$cond$SpeciesPool["(Intercept)", "(Intercept)"]
+var_species_slope     <- vc$cond$SpeciesPool["ScenarioCC", "ScenarioCC"]
+var_forest             <- vc$cond$ForestID["(Intercept)", "(Intercept)"]
 
 # Total random-effect variance
-total_var <- var_species_intercept + var_species_slope + var_forest + resid_var
+total_var <- var_species_intercept + var_species_slope + var_forest
 
 # Compute proportions
-prop_species_intercept <- var_species_intercept / total_var
-prop_species_slope     <- var_species_slope / total_var
-prop_forest            <- var_forest / total_var
+prop_species_intercept <- (var_species_intercept / total_var) * icc_unadj
+prop_species_slope     <- (var_species_slope / total_var) * icc_unadj
+prop_forest            <- (var_forest / total_var) * icc_unadj
 
-# Make tidy summary
-data.frame(
-  Component = c("SpeciesPool (Intercept)", "SpeciesPool (Scenario slope)", "ForestID (Intercept)", "Residual"),
-  Variance  = c(var_species_intercept, var_species_slope, var_forest, resid_var),
-  Proportion = c(prop_species_intercept, prop_species_slope, prop_forest, resid_var / total_var)
+cat(
+  paste0(
+    "Conditional R2: ", round(r2$R2_conditional, 3), "\n",
+    "Marginal R2: ", round(r2$R2_marginal, 3), "\n",
+    "ICC unadjusted: ", round(icc_unadj, 3), "%\n",
+    "Sp: ", round(var_species_intercept, 2), "(", round(prop_species_intercept, 2), "%)\n",
+    "Sp_slope: ", round(var_species_slope, 2), "(", round(prop_species_slope, 2), "%)\n",
+    "Forest: ", round(var_forest, 2), "(", round(prop_forest, 2), "%)"
+  )
 )
-
-# Together random effects account for <1%
-
-icc_speciespool <- (var_species_intercept + var_species_slope) / total_var
-icc_forest <- var_forest / total_var
-print(icc_speciespool)
-print(icc_forest)
 
 # -- glm
 
@@ -325,12 +326,11 @@ dev.off()
 
 # --- Same for IQR
 
-mem_iqr <- species_distr_stats %>%
-  filter(IQR > 0) %>%
+mem_iqr <-
   glmmTMB(
     IQR ~ Scenario * Year_c + (Scenario | SpeciesPool) + (1 | ForestID),
     dispformula = ~ Scenario + SpeciesPool,  # models variance structure
-    data = .,
+    data = species_distr_stats %>% filter(IQR > 0),
     family = Gamma(link = "log"),
     REML = TRUE
   )
@@ -350,35 +350,48 @@ mem_iqr$sdr$gradient.fixed  # Should be close to zero
 # 4. Convergence code
 mem_iqr$fit$convergence  # Should be 0
 
+round(exp(fixef(mem_iqr)$cond), 2)
 
 # ----- Variance partitioning -----
 
-# Extract standard deviations
-vc <- VarCorr(mem_iqr)
+# Residual variance approx. from non-dispersion model
+meme_no_disp <- update(mem_iqr, dispformula = ~1)
+
+r2 <- performance::r2_nakagawa(meme_no_disp)
+icc <- performance::icc(meme_no_disp)
+icc_unadj <- icc$ICC_unadjusted * 100
 
 # Get variances
-var_species_intercept <- vc$cond$SpeciesPool["(Intercept)", "(Intercept)"]^2
-var_species_slope     <- vc$cond$SpeciesPool["ScenarioCC", "ScenarioCC"]^2
-var_forest             <- vc$cond$ForestID["(Intercept)", "(Intercept)"]^2
+vc <- VarCorr(meme_no_disp)
 
-# Residual variance approx. from non-dispersion model
-meme_no_disp <- update(mem_range, dispformula = ~1)
-disp <- sigma(meme_no_disp)^2  # dispersion parameter φ
-resid_var <- log(1 + disp)  # approximate residual variance on link scale
+# Get variances
+var_species_intercept <- vc$cond$SpeciesPool["(Intercept)", "(Intercept)"]
+var_species_slope     <- vc$cond$SpeciesPool["ScenarioCC", "ScenarioCC"]
+var_forest             <- vc$cond$ForestID["(Intercept)", "(Intercept)"]
 
 # Total random-effect variance
-total_var <- var_species_intercept + var_species_slope + var_forest + resid_var
+total_var <- var_species_intercept + var_species_slope + var_forest
 
 # Compute proportions
-prop_species_intercept <- var_species_intercept / total_var
-prop_species_slope     <- var_species_slope / total_var
-prop_forest            <- var_forest / total_var
+prop_species_intercept <- (var_species_intercept / total_var) * icc_unadj
+prop_species_slope     <- (var_species_slope / total_var) * icc_unadj
+prop_forest            <- (var_forest / total_var) * icc_unadj
 
-# Make tidy summary
-data.frame(
-  Component = c("SpeciesPool (Intercept)", "SpeciesPool (Scenario slope)", "ForestID (Intercept)", "Residual"),
-  Variance  = c(var_species_intercept, var_species_slope, var_forest, resid_var),
-  Proportion = c(prop_species_intercept, prop_species_slope, prop_forest, resid_var / total_var)
+cat(
+  paste0(
+    "Conditional R2: ", round(r2$R2_conditional, 3), "\n",
+    "Marginal R2: ", round(r2$R2_marginal, 3), "\n",
+    "ICC unadjusted: ", round(icc_unadj, 3), "%\n",
+    "Sp: ", round(var_species_intercept, 2), "(", round(prop_species_intercept, 2), "%)\n",
+    "Sp_slope: ", round(var_species_slope, 2), "(", round(prop_species_slope, 2), "%)\n",
+    "Forest: ", round(var_forest, 2), "(", round(prop_forest, 2), "%)"
+  )
 )
 
-# Together random effects account for <1%
+# Create scaled residuals
+simulationOutput <- simulateResiduals(fittedModel = mem_iqr, n = 1000)
+
+pdf(file.path(DirectoryPlots, "diag_range_res_qq_dharma.pdf"),
+    width = 10, height = 5)
+plot(simulationOutput)
+dev.off()

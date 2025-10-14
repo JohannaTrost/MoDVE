@@ -53,11 +53,11 @@ dev.off()
 #                               Mixed effects model for position                                  #
 # #################################################################################################
 
-DirectoryPlots <- file.path("../../figs/a5_plots_test/cc_vs_no_cc/Diagnostics")
+DirectoryPlots <- file.path("../../figs/a5_plots_test/cc_vs_no_cc/Position/Diagnostics")
 
 mem_pos <- glmmTMB(
   Position ~ Scenario * Year_c + (1 | SpeciesPool) + (1 | ForestID),
-  #dispformula = ~ SpeciesPool + Scenario,  # models variance structure
+  dispformula = ~ SpeciesPool + Scenario,  # models variance structure
   data = species_distr_stats,
   family = Gamma(link = "log"),
   REML = TRUE
@@ -190,9 +190,39 @@ shapiro.test(forest_id)
 
 # ----- Variance partitioning -----
 
-VarCorr(mem_pos)
+# Residual variance approx. from non-dispersion model
+meme_no_disp <- update(mem_pos, dispformula = ~1)
 
-performance::r2_nakagawa(mem_pos)
+r2 <- performance::r2_nakagawa(meme_no_disp)
+icc <- performance::icc(meme_no_disp)
+icc_unadj <- icc$ICC_unadjusted * 100
+
+# Get variances
+vc <- VarCorr(meme_no_disp)
+
+# Get variances
+var_species_intercept <- vc$cond$SpeciesPool["(Intercept)", "(Intercept)"]
+var_species_slope     <- vc$cond$SpeciesPool["ScenarioCC", "ScenarioCC"]
+var_forest             <- vc$cond$ForestID["(Intercept)", "(Intercept)"]
+
+# Total random-effect variance
+total_var <- var_species_intercept + var_species_slope + var_forest
+
+# Compute proportions
+prop_species_intercept <- (var_species_intercept / total_var) * icc_unadj
+prop_species_slope     <- (var_species_slope / total_var) * icc_unadj
+prop_forest            <- (var_forest / total_var) * icc_unadj
+
+cat(
+  paste0(
+    "Conditional R2: ", round(r2$R2_conditional, 3), "\n",
+    "Marginal R2: ", round(r2$R2_marginal, 3), "\n",
+    "ICC unadjusted: ", round(icc_unadj, 3), "%\n",
+    "Sp: ", round(var_species_intercept, 2), "(", round(prop_species_intercept, 2), "%)\n",
+    "Sp_slope: ", round(var_species_slope, 2), "(", round(prop_species_slope, 2), "%)\n",
+    "Forest: ", round(var_forest, 2), "(", round(prop_forest, 2), "%)"
+  )
+)
 
 # Try glmer
 
@@ -208,6 +238,18 @@ car::vif(lm(Position ~ Scenario * Year_c, data=species_distr_stats))
 
 summary(mem_pos_v2)
 
+# Estimates on response scal e
+exp(fixef(mem_pos_v2))
+
+
+# Create scaled residuals
+simulationOutput <- simulateResiduals(fittedModel = mem_pos_v2, n = 1000)
+
+pdf(file.path(DirectoryPlots, "diag_pos_res_qq_dharma_v2.pdf"),
+    width = 10, height = 5)
+plot(simulationOutput)
+dev.off()
+
 # Variance partitioning
 
 icc(mem_pos_v2) # -> random effects explain <1% of variance
@@ -221,3 +263,32 @@ frst_vc <- 100*(frst_var / total_var)
 
 print(paste0("Species pool variance component: ", round(sp_vc, 4)))
 print(paste0("Forest ID variance component: ", round(frst_vc, 4)))
+
+
+r2 <- performance::r2_nakagawa(mem_pos_v2)
+icc <- performance::icc(mem_pos_v2)
+icc_unadj <- icc$ICC_unadjusted * 100
+
+# Get variances
+vc <- VarCorr(mem_pos_v2)
+
+# Get variances
+var_species_intercept <- vc$SpeciesPool["(Intercept)", "(Intercept)"]
+var_forest             <- vc$ForestID["(Intercept)", "(Intercept)"]
+
+# Total random-effect variance
+total_var <- var_species_intercept + var_forest
+
+# Compute proportions
+prop_species_intercept <- (var_species_intercept / total_var) * icc_unadj
+prop_forest            <- (var_forest / total_var) * icc_unadj
+
+cat(
+  paste0(
+    "Conditional R2: ", round(r2$R2_conditional, 3), "\n",
+    "Marginal R2: ", round(r2$R2_marginal, 3), "\n",
+    "ICC unadjusted: ", round(icc_unadj, 3), "%\n",
+    "Sp: ", round(var_species_intercept, 2), "(", round(prop_species_intercept, 2), "%)\n",
+    "Forest: ", round(var_forest, 2), "(", round(prop_forest, 2), "%)"
+  )
+)
