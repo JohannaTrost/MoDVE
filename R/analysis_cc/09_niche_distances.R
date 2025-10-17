@@ -267,8 +267,6 @@ dev.off()
 
 
 
-# Below old
-
 # --- Try MEM
 
 pdf(file.path(DirectoryPlots, "diag_shift_hist.pdf"))
@@ -288,11 +286,12 @@ summary(lm_shift_range)
 
 # stepwise simplification
 lm_shift_range_simpl <- lm(
-   diff ~ MeanDist_OptimumHum + MaxOverlapTemp + GrowthRate,
+   diff ~ MeanDist_OptimumHum * MaxOverlapTemp * GrowthRate,
   data = pca_data)
 
 summary(lm_shift_range_simpl)
 
+cor.test(pca_data$MaxOverlapTemp, pca_data$diff)
 
 # - Try Binary response
 pca_data$diff_bin <- as.numeric(shift_niches_dist$diff > 0)
@@ -308,5 +307,10 @@ summary(glm_shift_bin)
 # Species with higher growth rates are significantly less likely to shift upwards
 # compared to those with lower growth rates (odds ratio = 0.30, p = 0.015).
 
-# Relate to the number of recrutits - potential TODO
 
+glm_shift_bin <- glm(
+  diff_bin ~ MaxOverlapHum + MaxOverlapTemp * GrowthRate,
+  data = pca_data,
+  family = binomial(link = "logit")
+)
+summary(glm_shift_bin)

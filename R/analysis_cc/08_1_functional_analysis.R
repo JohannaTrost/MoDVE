@@ -12,7 +12,7 @@ niches <- NULL
 for (sp in 1:10) {
   sp_niches <- read_csv(file.path(base_dir, "a2_1", paste0("SpeciesPool", sp, ".csv")),
                         show_col_types = FALSE) %>%
-    select(-LightResponseA, -LightResponseB, -LightResponseC, -MinWind, -MaxWind, -OptimumWind,
+    dplyr:: select(-LightResponseA, -LightResponseB, -LightResponseC, -MinWind, -MaxWind, -OptimumWind,
            -DispersalKernelWindEffect) %>%
     mutate(SpeciesPool = sp)
 
@@ -25,9 +25,9 @@ for (sp in 1:10) {
 
 # Scale without SpeciesID and SpeciesPool and add back
 niches_scaled <- niches %>%
-  select(-SpeciesID, -SpeciesPool) %>%
+  dplyr:: select(-SpeciesID, -SpeciesPool) %>%
   mutate(across(everything(), ~ scale(.)[,1])) %>%
-  bind_cols(niches %>% select(SpeciesID, SpeciesPool), .)
+  bind_cols(niches %>% dplyr:: select(SpeciesID, SpeciesPool), .)
 
 # compute sds (NA if column is all NA)
 sds <- sapply(niches_scaled, sd, na.rm = TRUE)
@@ -36,17 +36,16 @@ problem_cols <- names(sds)[is.na(sds) | sds == 0]
 
 # PCA
 pca_data <- niches_scaled %>%
-  select(-all_of(problem_cols)) %>%
-  select(-RecruitmentInvestmentRel, -MaxRecruitsAtMaxMass, -AgeAtMaturity, - MassAtMaturity) %>%  # Remove cols with similar contribution
+  dplyr::dplyr:: select(-all_of(problem_cols)) %>%
+  dplyr::dplyr:: select(-RecruitmentInvestmentRel, -MaxRecruitsAtMaxMass, -AgeAtMaturity, - MassAtMaturity) %>%  # Remove cols with similar contribution
   mutate(
     RangeTemp = MaxTemp - MinTemp,
     RangeHum = MaxHum - MinHum,
     RangeLight = MaxLight - MinLight
-  ) %>%
-  select(-MaxTemp, -MinTemp, -MaxHum, -MinHum, -MaxLight, -MinLight)
+  )
 
 res.pca <- pca_data %>%
-  select(-SpeciesID, -SpeciesPool) %>%
+  dplyr::dplyr:: select(-SpeciesID, -SpeciesPool) %>%
   dudi.pca(., scannf = FALSE, nf = 10)
 
 # PCA results
@@ -66,7 +65,7 @@ fviz_pca_var(res.pca,
              )
 dev.off()
 
-pdf(file.path(DirectoryPlots, "trait_pca_biplot_vars.pdf"))
+pdf(file.path(DirectoryPlots, "trait_pca_biplot_vars_v2.pdf"))
 fviz_pca_biplot(res.pca, repel = TRUE,
                 col.var = "#2E9FDF", # Variables color
                 col.ind = "#696969"  # Individuals color
@@ -87,7 +86,7 @@ species_distr_stats <- species_distr %>%
             .groups = "drop") %>%
   mutate(Scenario = factor(Scenario, levels = c("No CC", "CC"))) %>%
   arrange(Scenario) %>%
-  dplyr::select(Scenario, SpeciesPool, SpeciesID, ForestID, TimeStep, Year, Position) %>%
+  dplyr::dplyr:: select(Scenario, SpeciesPool, SpeciesID, ForestID, TimeStep, Year, Position) %>%
   pivot_wider(
     names_from = Scenario,
     values_from = Position
@@ -107,13 +106,13 @@ species_survival_cat <- species_distr_stats %>%
   ) %>%
   mutate(
     survival = case_when(
-      has_CC & !has_NoCC ~ "only CC",
-      !has_CC & has_NoCC ~ "only No CC",
-      has_CC & has_NoCC  ~ "both",
+      has_CC & !has_NoCC ~ "Survived CC",
+      !has_CC & has_NoCC ~ "Survived CC",
+      has_CC & has_NoCC  ~ "Died with CC",
       TRUE ~ "none"  # optional: if both are NA
     )
   ) %>%
-  select(SpeciesPool, SpeciesID, survival)
+  dplyr:: select(SpeciesPool, SpeciesID, survival)
 
 # Merge with niches
 pca_data_surv <- pca_data %>%
@@ -127,7 +126,7 @@ survived_idx <- which(pca_data_surv$survival != "none")
 pca_data_surv$survival_filtered <- pca_data_surv$survival
 pca_data_surv$survival_filtered[-survived_idx] <- NA
 
-pdf(file.path(DirectoryPlots, "trait_pca_biplot_survival.pdf"))
+pdf(file.path(DirectoryPlots, "trait_pca_biplot_survival_v2.pdf"))
 fviz_pca_biplot(res.pca,
                 label = "var",
                 labelsize = 3,
@@ -140,20 +139,109 @@ fviz_pca_biplot(res.pca,
              repel = TRUE)
 dev.off()
 
-# Check if groups differ significantly in PCA space
-pca_data_surv <- pca_data_surv %>%
-  mutate(
-    PC1 = res.pca$li$Axis1,
-    PC2 = res.pca$li$Axis2,
-    PC3 = res.pca$li$Axis3,
-    PC4 = res.pca$li$Axis4,
-    PC5 = res.pca$li$Axis5
+# --- Boxplots of traits by survival category
+
+vars <- c("GrowthRate", "OptimumHum", "RangeTemp")
+
+plt_data <- left_join(species_survival_cat, niches, by = c("SpeciesPool", "SpeciesID"))
+plt_data$RangeTemp <- plt_data$MaxTemp - plt_data$MinTemp
+
+for (var in vars) {
+  pdf(file.path(DirectoryPlots, paste0("trait_boxplot_", var, "_survival.pdf")), width = 6, height = 4)
+  print(
+    ggplot(plt_data, aes_string(x = "survival", y = var, fill = "survival")) +
+      geom_boxplot(notch = TRUE) +
+      scale_fill_manual(values = c("#00AFBB", "#FC4E07", "#EFD2CB", "#241623")) +
+      labs(x = "Survival Category", y = var) +
+      theme_minimal(base_size = 13) +
+      theme(legend.position = "none")
+  )
+  dev.off()
+}
+
+# --- 1. RF model data ---------------------------------
+
+rf_data <- plt_data
+rf_data$survival <- as.factor(rf_data$survival)
+trait_cols <- names(plt_data)[!(names(plt_data) %in%
+  c("SpeciesID", "survival", "RecruitmentInc", "MaximmumMass"))]
+rf_data$Survival <- ifelse(rf_data$survival %in% c("only CC", "both"), "Survived CC", "Died with CC")
+
+# --- 2. RF model to predict survival --------------------------------
+rf_model_balanced <- randomForest(
+  survival ~ ., data = rf_data[, c("survival", trait_cols)],
+  importance = TRUE, ntree = 1000,
+  sampsize = rep(min(table(rf_data$survival)), 3)
+)
+
+# --- 3. Model performance ----------------------------------------------
+
+print(rf_model_balanced)
+# Look at out-of-bag error rate and confusion matrix
+
+# --- 4. Variable importance --------------------------------------------
+
+importance_df <- as.data.frame(importance(rf_model_balanced))
+importance_df <- importance_df %>%
+  rownames_to_column("Trait") %>%
+  arrange(desc(MeanDecreaseGini))
+
+# Print ranked trait importance
+print(importance_df)
+
+# --- 5. Visualize variable importance ----------------------------------
+
+pdf(file.path(DirectoryPlots, "randomForestΤraitImportanceSurvival.pdf"), width = 7, height = 5)
+ggplot(importance_df, aes(x = reorder(Trait, MeanDecreaseGini),
+                          y = MeanDecreaseGini)) +
+  geom_col(fill = "#56B4E9") +
+  coord_flip() +
+  labs(x = "Trait",
+       y = "Mean Decrease in Gini (importance)") +
+  theme_minimal(base_size = 13)
+dev.off()
+
+# --- 6. Optional: partial dependence (to interpret top traits) ----------
+
+# For the most important traits:
+library(pdp)
+
+top_traits <- importance_df$Trait[1:5]
+pred_df <- as.data.frame(rf_data)
+
+for (trait in top_traits) {
+  outfile <- file.path(DirectoryPlots,
+                       paste0("randomForest_", trait, "_PartialDepSurvivalnoCC.pdf"))
+  pdf(outfile, width = 7, height = 5)
+    # Get partial dependence data
+  pd <- partial(
+    object = rf_model_balanced,
+    pred.var = trait,
+    which.class = "only No CC",
+    prob = TRUE,
+    train = pred_df
   )
 
-manova_test <- manova(cbind(PC1, PC2, PC3, PC4, PC5) ~ survival, data = pca_data_surv)
-summary(manova_test)          # Pillai's trace test
-summary.aov(manova_test)      # Separate univariate ANOVAs
+  # Create the plot
+  print(autoplot(pd))
+  dev.off()
+}
 
+# -- Max temp important
+for (trait in top_traits) {
+  pdf(file.path(DirectoryPlots, paste0("boxplot_", trait, "_by_survival_CC_v2.pdf")),
+      width = 6, height = 4)
+  p <- ggplot(rf_data, aes(x = Survival, y = .data[[trait]], fill = Survival)) +
+    geom_boxplot(notch = TRUE) +
+    labs(
+      x = "Survival",
+      y = trait
+    ) +
+    theme_minimal(base_size = 13) +
+    theme(legend.position = "none")
+  print(p)
+  dev.off()
+}
 
 # ----------- Mortality
 
@@ -181,7 +269,7 @@ species_mortality_cat <- species_distr_stats %>%
       TRUE ~ "none"  # survived in both or never alive
     )
   ) %>%
-  select(SpeciesPool, SpeciesID, mortality)
+  dplyr:: select(SpeciesPool, SpeciesID, mortality)
 
 # Merge with niches
 pca_data_mort <- pca_data %>%
@@ -284,7 +372,7 @@ pca_data_mort <- pca_data_mort %>%
 
 # --------- Position shift
 
-year <- 2030
+year <- 2080
 species_shift <- species_distr_stats %>%
   filter(Year >= year) %>%
   group_by(SpeciesPool, SpeciesID) %>%
@@ -305,7 +393,7 @@ pdf(file.path(DirectoryPlots, paste0("trait_pca_biplot_shift_", year, "-2100.pdf
 fviz_pca_biplot(res.pca,
                 label = "var",
                 labelsize = 3,
-             select.ind = list(ind = na_idx),
+             dplyr:: select.ind = list(ind = na_idx),
              habillage = pca_data_shift$Shift,
              palette = c("#00AFBB", "#FC4E07"),
              addEllipses = TRUE,
@@ -365,3 +453,70 @@ ggplot(pca_coords, aes(x = PC1, y = PC2, color = Shift, fill = Shift)) +
   theme(legend.position = "right")
 
 dev.off()
+
+
+# Boxplot position by survival category
+species_survival_cat <- species_survival_cat %>%
+  mutate(survival = ifelse(survival == "both" | survival == "only CC", "Survived CC", "Survived without CC"))
+species_survival_cat <- species_survival_cat %>%rename(Scenario = survival) %>%
+  mutate(Scenario = ifelse(Scenario == "Survived CC", "CC", "No CC"))
+
+species_pos <- species_distr %>%
+  group_by(Scenario, SpeciesPool, SpeciesID, ForestID, TimeStep, Year) %>%
+  summarize(Position = mean(Height, na.rm = TRUE),
+            Mass = mean(Mass, na.rm = TRUE),
+            IQR = IQR(Height, na.rm = TRUE),
+            Range = max(Height, na.rm = TRUE) - min(Height, na.rm = TRUE),
+            .groups = "drop") %>%
+  mutate(Scenario = factor(Scenario, levels = c("No CC", "CC"))) %>%
+  arrange(Scenario) %>%
+  filter(year >= 2080) %>%
+  group_by(SpeciesID, Scenario, SpeciesPool) %>%
+  summarise(AvgPosition = mean(Position, na.rm = TRUE),
+            .groups = "drop")
+
+species_pos_surv <- inner_join(species_pos, species_survival_cat,
+                               by = c("SpeciesPool", "SpeciesID", "Scenario")) %>%
+  left_join(., niches, by = c("SpeciesID", "SpeciesPool")) %>%
+  mutate(Scenario = ifelse(Scenario == "CC", "Survived CC", "Died with CC")) %>%
+  mutate(Scenario = factor(Scenario))
+
+# PLot survival and relationship between growth rate and position
+pdf(file.path(DirectoryPlots, "gr_vs_pos_col_scenario.pdf"), width = 10, height = 8)
+ggplot(species_pos_surv, aes(x = GrowthRate, y = AvgPosition, color = Scenario)) +
+  geom_point() +
+  #scale_color_viridis_d(option = "plasma") +
+  labs(
+    x = "Growth Rate",
+    y = "Position (m)",
+    color = "Survival"
+  ) +
+  theme_minimal()
+dev.off()
+
+# Do boxplot of AvgPosition by Scenario
+pdf(file.path(DirectoryPlots, "boxplot_position_by_survival_CC.pdf"), width = 6, height = 4)
+ggplot(species_pos_surv, aes(x = Scenario, y = AvgPosition, fill = Scenario)) +
+  geom_boxplot(notch = TRUE) +
+  labs(
+    x = "Survival",
+    y = "Average Position (m)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "none")
+dev.off()
+
+wilcox.test(species_pos_surv[species_pos_surv$Scenario == "Survived CC", ]$GrowthRate,
+            species_pos_surv[species_pos_surv$Scenario == "Died with CC", ]$GrowthRate)
+
+pdf(file.path(DirectoryPlots, "boxplot_gr_by_survival_CC.pdf"), width = 6, height = 4)
+ggplot(species_pos_surv, aes(x = Scenario, y = GrowthRate, fill = Scenario)) +
+  geom_boxplot(notch = TRUE) +
+  labs(
+    x = "Survival",
+    y = "GrowthRate"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "none")
+dev.off()
+

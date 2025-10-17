@@ -839,6 +839,11 @@ mem_abundance_pos$fit$convergence  # Should be 0
 
 round(exp(fixef(mem_abundance_pos)$cond), 2)
 
+# Get 95% confidence intervals on the link (log) scale
+ci_link <- confint(mem_abundance_pos, parm = "beta_", level = 0.95)
+ci_resp <- exp(ci_link)
+ci_resp
+
 # --- DIAGONSTICS
 
 DirectoryPlots <- file.path("../../figs/a5_plots_test/cc_vs_no_cc/VerticalDiversity/Diagnostics")
