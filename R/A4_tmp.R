@@ -240,7 +240,10 @@ dispersal <- function(NumberOfSpecies,
                     vec_recruits <- seq(from=nrow(E) + 1, to=nrow(E) + length(xInd), by=1)
 
                     # Copy species information to Epiphyte matrix
-                    E[vec_recruits, names(SpeciesPool)] <- SpeciesPool[unique_species[i], ] # TODO check if speciesID works here as index
+                    print(paste0("Index ", i))
+                    print(paste0("Species ", unique_species[i]))
+                    print(SpeciesPool)
+                    E[vec_recruits, names(SpeciesPool)] <- SpeciesPool[i, ] # TODO check if speciesID works here as index
                     E$X[vec_recruits] <- xInd
                     E$Y[vec_recruits] <- yInd
                     E$Z[vec_recruits] <- zInd
