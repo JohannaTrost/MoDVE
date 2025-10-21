@@ -160,6 +160,9 @@ dispersal <- function(NumberOfSpecies,
 
         # loop over all species
         for (i in seq_len(length(unique_species))) {
+
+            print(i)
+
             # Generate initially empty matrix to store the probabilities for recruitment
             ProbabilityMatrixPerSpecies <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3]), dim=c(dimPlot[1], dimPlot[2], dimPlot[3]))
 
@@ -249,9 +252,6 @@ dispersal <- function(NumberOfSpecies,
                     E$Mass[vec_recruits] <- 0  # Initial size
                     E$Status[vec_recruits] <- 1  # status 1:alive
                     E$IndividualID[vec_recruits] <- seq(from=MaxIndividualID + 1, to=MaxIndividualID + length(xInd), by=1)  # individual ID
-
-                    print(vec_recruits)
-                    print(length(xInd))
 
                     E[is.na(E)] <- 0  # convert all NA to 0 so that the R script matches the Matlab
 
@@ -638,6 +638,8 @@ main <- function() {
                     SummaryMatrixSpecies[((kk-1) * timeSteps) + t, ColSNumberRecruitsPotential] <- PotentialRecruitment$potential_recruit[ii]
                 }
             }
+
+            print(642)
 
             NumberRecruits <- length(which(E$Status == 1)) - IntialNumberIndividualsTotal
 
