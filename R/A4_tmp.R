@@ -169,7 +169,7 @@ dispersal <- function(NumberOfSpecies,
             # Matrix containing all mature individuals of one species
             MatureIndividulsPerSpecies <- E[E$SpeciesID == unique_species[i] & E$Mass >= E$MassAtMaturity, ]
 
-            print(paste0(nrow(MatureIndividulsPerSpecies)), " N mature")
+            print(paste0(nrow(MatureIndividulsPerSpecies), " N mature")
 
             # ~isempty(MatureIndividulsPerSpecies) in matlab
             if (nrow(MatureIndividulsPerSpecies) > 0) {
