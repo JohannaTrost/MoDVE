@@ -169,6 +169,8 @@ dispersal <- function(NumberOfSpecies,
             # Matrix containing all mature individuals of one species
             MatureIndividulsPerSpecies <- E[E$SpeciesID == unique_species[i] & E$Mass >= E$MassAtMaturity, ]
 
+            print(paste0(nrow(MatureIndividulsPerSpecies)), " N mature")
+
             # ~isempty(MatureIndividulsPerSpecies) in matlab
             if (nrow(MatureIndividulsPerSpecies) > 0) {
 
@@ -177,6 +179,9 @@ dispersal <- function(NumberOfSpecies,
                 # The second part of the equation accounts for the actual size of the individual
                 # in relation to the maximum size for which the recruitment per individual is defined
                 for (j in seq_len(nrow(MatureIndividulsPerSpecies))) {
+
+                    print(paste0(j, " j"))
+
                     idx1 <- seq(from=centralPoint[1] - MatureIndividulsPerSpecies$X[j] + 1, to=centralPoint[1] - MatureIndividulsPerSpecies$X[j] + dimPlot[1], by=1)
                     idx2 <- seq(from=centralPoint[2] - MatureIndividulsPerSpecies$Y[j] + 1, to=centralPoint[2] - MatureIndividulsPerSpecies$Y[j] + dimPlot[2], by=1)
                     idx3 <- seq(from=centralPoint[3] - MatureIndividulsPerSpecies$Z[j] + 1, to=centralPoint[3] - MatureIndividulsPerSpecies$Z[j] + dimPlot[3], by=1)
@@ -617,6 +622,8 @@ main <- function() {
                 Inds,
                 EnvVarFlags
             )
+
+            print(621)
 
             # Out only.
             # Created in dispersal() and used later in the script.
