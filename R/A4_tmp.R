@@ -137,7 +137,7 @@ dispersal <- function(NumberOfSpecies,
     IntialNumberIndividuals <- array(rep(0, NumberOfSpecies))
     for (g in seq_len(NumberOfSpecies)) {
         # Count indices where SpeciesID is g and Status is 1
-        IntialNumberIndividuals[g] <- length(which(E$SpeciesID == g & E$Status == 1))
+        IntialNumberIndividuals[g] <- length(which(E$SpeciesID == E$SpeciesID[[g]] & E$Status == 1))
     }
     IntialNumberIndividualsTotal <- length(which(E$Status == 1))
     InitialNumberSpecies <- length(unique(E$SpeciesID[E$Status == 1]))
@@ -230,7 +230,7 @@ dispersal <- function(NumberOfSpecies,
 
                     while (num_recruits > length(xInd)) {
                         tmp_ids <- arrayInd(which(Recruits > 0), dim(Recruits))
-                        Recruits[tmp_ids] = Recruits[tmp_ids] - 1
+                        Recruits[tmp_ids] <- Recruits[tmp_ids] - 1
 
                         tmp_ids <- arrayInd(which(Recruits > 0), dim(Recruits))
                         xInd <- append(xInd, tmp_ids[, 1])
@@ -240,7 +240,7 @@ dispersal <- function(NumberOfSpecies,
                     vec_recruits <- seq(from=nrow(E) + 1, to=nrow(E) + length(xInd), by=1)
 
                     # Copy species information to Epiphyte matrix
-                    E[vec_recruits, names(SpeciesPool)] <- SpeciesPool[unique_species[i], ]
+                    E[vec_recruits, names(SpeciesPool)] <- SpeciesPool[unique_species[i], ] # TODO check if speciesID works here as index
                     E$X[vec_recruits] <- xInd
                     E$Y[vec_recruits] <- yInd
                     E$Z[vec_recruits] <- zInd
@@ -762,48 +762,50 @@ main <- function() {
             # Store information in SummaryMatrixSpecies (summary over time for each species
             for (numSpecies in seq_len(NumberOfSpecies)) {
 
+                currSpeciesID <- E$SpeciesID[[numSpecies]]
+
                 # Define the row index once
                 rowIndex <- ((numSpecies - 1) * timeSteps) + t
 
                 SummaryMatrixSpecies[rowIndex, ColSSpeciesID] <- numSpecies
                 SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsBeginning] <- IntialNumberIndividuals[numSpecies]
-                SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsEnd] <- sum(E$Status == 1 & E$SpeciesID == numSpecies, na.rm = TRUE)
+                SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsEnd] <- sum(E$Status == 1 & E$SpeciesID == currSpeciesID, na.rm = TRUE)
                 SummaryMatrixSpecies[rowIndex, ColSNumberMatureIndividuals] <- sum(E$Status == 1 &
-                                                                                     E$SpeciesID == numSpecies &
+                                                                                     E$SpeciesID == currSpeciesID &
                                                                                      E$Mass >= E$MassAtMaturity, na.rm = TRUE)
                 SummaryMatrixSpecies[rowIndex, ColSNumberRecruits] <- NumberRecruitsPerSpecies[numSpecies]
-                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityBranchFall] <- sum(E$Status == 3 & E$SpeciesID == numSpecies, na.rm = TRUE)
-                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityLight] <- sum(E$Status == 4 & E$SpeciesID == numSpecies, na.rm = TRUE)
-                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityCompetition] <- sum(E$Status == 2 & E$SpeciesID == numSpecies, na.rm = TRUE)
-                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityNatural] <- sum(E$Status == 5 & E$SpeciesID == numSpecies, na.rm = TRUE)
+                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityBranchFall] <- sum(E$Status == 3 & E$SpeciesID == currSpeciesID, na.rm = TRUE)
+                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityLight] <- sum(E$Status == 4 & E$SpeciesID == currSpeciesID, na.rm = TRUE)
+                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityCompetition] <- sum(E$Status == 2 & E$SpeciesID == currSpeciesID, na.rm = TRUE)
+                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityNatural] <- sum(E$Status == 5 & E$SpeciesID == currSpeciesID, na.rm = TRUE)
                 # Climate mortality
-                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityHum] <- sum(E$Status == 6 & E$SpeciesID == numSpecies, na.rm = TRUE)
-                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityTemp] <- sum(E$Status == 7 & E$SpeciesID == numSpecies, na.rm = TRUE)
-                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityWind] <- sum(E$Status == 8 & E$SpeciesID == numSpecies, na.rm = TRUE)
+                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityHum] <- sum(E$Status == 6 & E$SpeciesID == currSpeciesID, na.rm = TRUE)
+                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityTemp] <- sum(E$Status == 7 & E$SpeciesID == currSpeciesID, na.rm = TRUE)
+                SummaryMatrixSpecies[rowIndex, ColSNumberMortalityWind] <- sum(E$Status == 8 & E$SpeciesID == currSpeciesID, na.rm = TRUE)
 
-                if (sum(E$Status == 1 & E$SpeciesID == numSpecies, na.rm = TRUE) > 0 && IntialNumberIndividuals[numSpecies] > 0) {
+                if (sum(E$Status == 1 & E$SpeciesID == currSpeciesID, na.rm = TRUE) > 0 && IntialNumberIndividuals[numSpecies] > 0) {
                     SummaryMatrixSpecies[rowIndex, ColSNumberPopulationGrowthRate] <- SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsEnd] / SummaryMatrixSpecies[rowIndex, ColSNumberIndividualsBeginning]
                     SummaryMatrixSpecies[rowIndex, ColSNumberPopulationGrowthRateLog] <- log(SummaryMatrixSpecies[rowIndex, ColSNumberPopulationGrowthRate])
                     SummaryMatrixSpecies[rowIndex, ColSNumberBirthRate] <- NumberRecruitsPerSpecies[numSpecies] / IntialNumberIndividuals[numSpecies]
                     death_statuses <- c(2, 3, 4, 5, 6, 7, 8) # 2: competition, 3: branch fall, 4: light, 5: natural mortality, 6: humidity, 7: temperature, 8: wind
-                    SummaryMatrixSpecies[rowIndex, ColSNumberDeathRate] <- sum(E$Status %in% death_statuses & E$SpeciesID == numSpecies, na.rm = TRUE) / IntialNumberIndividuals[numSpecies]
-                    SummaryMatrixSpecies[rowIndex, ColSAverageSize] <- mean(E$Mass[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSAverageAge] <- mean(E$Age[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMinLight] <- min(E$LightInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMaxLight] <- max(E$LightInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMeanLight] <- mean(E$LightInVoxel[E$SpeciesID == numSpecies])
-                    # SummaryMatrixSpecies[rowIndex, ColSMinHeight] <- min(E$Z[E$SpeciesID == numSpecies])
-                    # SummaryMatrixSpecies[rowIndex, ColSMaxHeight] <- max(E$Z[E$SpeciesID == numSpecies])
-                    # SummaryMatrixSpecies[rowIndex, ColSMeanHeight] <- mean(E$Z[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMinHum] <- min(E$HumInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMaxHum] <- max(E$HumInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMeanHum] <- mean(E$HumInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMinTemp] <- min(E$TempInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMaxTemp] <- max(E$TempInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMeanTemp] <- mean(E$TempInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMinWind] <- min(E$WindInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMaxWind] <- max(E$WindInVoxel[E$SpeciesID == numSpecies])
-                    SummaryMatrixSpecies[rowIndex, ColSMeanWind] <- mean(E$WindInVoxel[E$SpeciesID == numSpecies])
+                    SummaryMatrixSpecies[rowIndex, ColSNumberDeathRate] <- sum(E$Status %in% death_statuses & E$SpeciesID == currSpeciesID, na.rm = TRUE) / IntialNumberIndividuals[numSpecies]
+                    SummaryMatrixSpecies[rowIndex, ColSAverageSize] <- mean(E$Mass[E$SpeciesID == currSpeciesID])
+                    SummaryMatrixSpecies[rowIndex, ColSAverageAge] <- mean(E$Age[E$SpeciesID == currSpeciesID])
+                    SummaryMatrixSpecies[rowIndex, ColSMinLight] <- min(E$LightInVoxel[E$SpeciesID == currSpeciesID])
+                    SummaryMatrixSpecies[rowIndex, ColSMaxLight] <- max(E$LightInVoxel[E$SpeciesID == currSpeciesID])
+                    SummaryMatrixSpecies[rowIndex, ColSMeanLight] <- mean(E$LightInVoxel[E$SpeciesID == currSpeciesID])
+                    # SummaryMatrixSpecies[rowIndex, ColSMinHeight] <- min(E$Z[E$SpeciesID == currSpeciesID])
+                    # SummaryMatrixSpecies[rowIndex, ColSMaxHeight] <- max(E$Z[E$SpeciesID == currSpeciesID])
+                    # SummaryMatrixSpecies[rowIndex, ColSMeanHeight] <- mean(E$Z[E$SpeciesID == currSpeciesID])
+                    SummaryMatrixSpecies[rowIndex, ColSMinHum] <- min(E$HumInVoxel[E$SpeciesID == currSpeciesID])
+                    SummaryMatrixSpecies[rowIndex, ColSMaxHum] <- max(E$HumInVoxel[E$SpeciesID == currSpeciesID])
+                    SummaryMatrixSpecies[rowIndex, ColSMeanHum] <- mean(E$HumInVoxel[E$SpeciesID == currSpeciesID])
+                    SummaryMatrixSpecies[rowIndex, ColSMinTemp] <- min(E$TempInVoxel[E$SpeciesID == currSpeciesID])
+                    SummaryMatrixSpecies[rowIndex, ColSMaxTemp] <- max(E$TempInVoxel[E$SpeciesID == currSpeciesID])
+                    SummaryMatrixSpecies[rowIndex, ColSMeanTemp] <- mean(E$TempInVoxel[E$SpeciesID == currSpeciesID])
+                    SummaryMatrixSpecies[rowIndex, ColSMinWind] <- min(E$WindInVoxel[E$SpeciesID == currSpeciesID])
+                    SummaryMatrixSpecies[rowIndex, ColSMaxWind] <- max(E$WindInVoxel[E$SpeciesID == currSpeciesID])
+                    SummaryMatrixSpecies[rowIndex, ColSMeanWind] <- mean(E$WindInVoxel[E$SpeciesID == currSpeciesID])
                 } else {
                     # List of columns to be set to NaN
                     cols4summary <- c(
