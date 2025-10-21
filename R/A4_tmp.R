@@ -242,7 +242,6 @@ dispersal <- function(NumberOfSpecies,
                     # Copy species information to Epiphyte matrix
                     print(paste0("Index ", i))
                     print(paste0("Species ", unique_species[i]))
-                    print(SpeciesPool)
                     E[vec_recruits, names(SpeciesPool)] <- SpeciesPool[i, ] # TODO check if speciesID works here as index
                     E$X[vec_recruits] <- xInd
                     E$Y[vec_recruits] <- yInd
@@ -250,6 +249,9 @@ dispersal <- function(NumberOfSpecies,
                     E$Mass[vec_recruits] <- 0  # Initial size
                     E$Status[vec_recruits] <- 1  # status 1:alive
                     E$IndividualID[vec_recruits] <- seq(from=MaxIndividualID + 1, to=MaxIndividualID + length(xInd), by=1)  # individual ID
+
+                    print(vec_recruits)
+                    print(length(xInd))
 
                     E[is.na(E)] <- 0  # convert all NA to 0 so that the R script matches the Matlab
 
