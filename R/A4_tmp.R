@@ -161,15 +161,11 @@ dispersal <- function(NumberOfSpecies,
         # loop over all species
         for (i in seq_len(length(unique_species))) {
 
-            print(i)
-
             # Generate initially empty matrix to store the probabilities for recruitment
             ProbabilityMatrixPerSpecies <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3]), dim=c(dimPlot[1], dimPlot[2], dimPlot[3]))
 
             # Matrix containing all mature individuals of one species
             MatureIndividulsPerSpecies <- E[E$SpeciesID == unique_species[i] & E$Mass >= E$MassAtMaturity, ]
-
-            print(paste0(nrow(MatureIndividulsPerSpecies), " N mature"))
 
             # ~isempty(MatureIndividulsPerSpecies) in matlab
             if (nrow(MatureIndividulsPerSpecies) > 0) {
@@ -180,12 +176,11 @@ dispersal <- function(NumberOfSpecies,
                 # in relation to the maximum size for which the recruitment per individual is defined
                 for (j in seq_len(nrow(MatureIndividulsPerSpecies))) {
 
-                    print(paste0(j, " j"))
-
                     idx1 <- seq(from=centralPoint[1] - MatureIndividulsPerSpecies$X[j] + 1, to=centralPoint[1] - MatureIndividulsPerSpecies$X[j] + dimPlot[1], by=1)
                     idx2 <- seq(from=centralPoint[2] - MatureIndividulsPerSpecies$Y[j] + 1, to=centralPoint[2] - MatureIndividulsPerSpecies$Y[j] + dimPlot[2], by=1)
                     idx3 <- seq(from=centralPoint[3] - MatureIndividulsPerSpecies$Z[j] + 1, to=centralPoint[3] - MatureIndividulsPerSpecies$Z[j] + dimPlot[3], by=1)
-                    idx4 <- MatureIndividulsPerSpecies$SpeciesID[j]
+                    Speciesid <- MatureIndividulsPerSpecies$SpeciesID[j]
+                    idx4 <- which(SpeciesPool$SpeciesID == Speciesid)
 
                     factor1 <- (InterceptRecruitment + (SlopeRecruitment * MatureIndividulsPerSpecies$Mass[j])) * MatureIndividulsPerSpecies$RecruitmentInvestmentRel[j]
                     factor2 <- (MatureIndividulsPerSpecies$Mass[j] - MatureIndividulsPerSpecies$MassAtMaturity[j]) / (MatureIndividulsPerSpecies$MaximumMass[j] - MatureIndividulsPerSpecies$MassAtMaturity[j])
@@ -250,7 +245,8 @@ dispersal <- function(NumberOfSpecies,
                     # Copy species information to Epiphyte matrix
                     print(paste0("Index ", i))
                     print(paste0("Species ", unique_species[i]))
-                    E[vec_recruits, names(SpeciesPool)] <- SpeciesPool[i, ] # TODO check if speciesID works here as index
+                    print(SpeciesPool[i, ])
+                    E[vec_recruits, names(SpeciesPool)] <- SpeciesPool[i, ]
                     E$X[vec_recruits] <- xInd
                     E$Y[vec_recruits] <- yInd
                     E$Z[vec_recruits] <- zInd
@@ -623,8 +619,6 @@ main <- function() {
                 EnvVarFlags
             )
 
-            print(621)
-
             # Out only.
             # Created in dispersal() and used later in the script.
             IntialNumberIndividuals <- disp_items$IntialNumberIndividuals
@@ -645,8 +639,6 @@ main <- function() {
                     SummaryMatrixSpecies[((kk-1) * timeSteps) + t, ColSNumberRecruitsPotential] <- PotentialRecruitment$potential_recruit[ii]
                 }
             }
-
-            print(642)
 
             NumberRecruits <- length(which(E$Status == 1)) - IntialNumberIndividualsTotal
 
