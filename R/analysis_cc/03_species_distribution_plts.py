@@ -15,14 +15,13 @@ DirectoryPlots = Path("../../figs/a5_plots_test/cc_vs_no_cc")
 DirectoryPlots.mkdir(exist_ok=True)
 
 # --- Load data --- #
-
 forests = np.arange(3)
 species_pools = np.arange(1, 11)
 rep = 1
 ts_start = 80
 ts_end = 199
 
-vars = ["SpeciesID", "IndividualID", 'Status', 'Mass', 'Z']
+vars = ["SpeciesID", "IndividualID", 'Status', 'Mass', 'Z', 'X', 'Y']
 
 species_distr = None
 for scenario in scenarios:

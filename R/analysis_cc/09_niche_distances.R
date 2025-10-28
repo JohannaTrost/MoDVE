@@ -3,6 +3,8 @@ library(dplyr)
 library(tidyr)
 library(ade4)
 library(factoextra)
+library(randomForest)
+library(tibble)
 
 # #################################################################################################
 #                               Why do some species shift upward?                                 #
@@ -56,7 +58,9 @@ for (sp in 1:10) {
   sp_niches <- read_csv(file.path(base_dir, "a2_1", paste0("SpeciesPool", sp, ".csv")),
                         show_col_types = FALSE) %>%
     dplyr::select("SpeciesID", "OptimumLight", "OptimumTemp", "OptimumHum",
-           "MinLight", "MaxLight", "MinTemp", "MaxTemp", "MinHum", "MaxHum", "MaximumMass", "GrowthRate") %>%
+                  "MinLight", "MaxLight", "MinTemp", "MaxTemp", "MinHum", "MaxHum", "MaximumMass",
+                  "GrowthRate", "DispersalKernel"
+    ) %>%
     mutate(SpeciesPool = sp)
 
   if (is.null(niches)) {
@@ -157,13 +161,18 @@ niche_overlap <- shift_niches %>%
 shift_niches_dist <- shift_niches_dist %>%
   left_join(., niche_overlap, by = c("SpeciesID", "SpeciesPool"))
 
+shift_species_q75 <- shift_niches_dist %>%
+  filter(diff >= quantile(diff, 0.75))
+write_csv(shift_species_q75,
+          file.path(base_dir, "a5_species_shift_upwards_cc_vs_no_cc.csv"))
+
 # --- PCA
 
 pca_data <- shift_niches_dist %>%
   select(MeanDist_OptimumHum, MaxOverlapHum,
          MeanDist_OptimumTemp, MaxOverlapTemp,
          MeanDist_OptimumLight, MaxOverlapLight,
-         MaximumMass, GrowthRate
+         MaximumMass, GrowthRate, MaxHum, MaxTemp, MinTemp
   ) %>%
   scale(.) %>%
   data.frame(.) %>%
@@ -276,41 +285,227 @@ dev.off()
 shapiro.test(shift_niches_dist$diff)
 
 # Scale predictors
-pca_data$diff <- shift_niches_dist$diff
+lm_data <- pca_data
+lm_data$diff <- shift_niches_dist$diff
+lm_data$OptimumTemp <- shift_niches_dist$OptimumTemp
+lm_data$MinTemp <- shift_niches_dist$MinTemp
+lm_data$MaxTemp <- shift_niches_dist$MaxTemp
+lm_data$MaxHum <- shift_niches_dist$MaxHum
+lm_data$DispersalKernel <- shift_niches_dist$DispersalKernel
+lm_data$RangeTemp <- shift_niches_dist$RangeTemp
 lm_shift_range <- lm(
    diff ~ MeanDist_OptimumHum + MaxOverlapHum + MeanDist_OptimumTemp + MaxOverlapTemp +
-    MeanDist_OptimumLight + MaxOverlapLight + MaximumMass + GrowthRate,
-  data = pca_data)
+    MeanDist_OptimumLight + MaxOverlapLight + MaximumMass + GrowthRate + MaxTemp +
+    MinTemp + MaxHum + DispersalKernel + OptimumTemp,
+  data = lm_data)
 
 summary(lm_shift_range)
+
+
 
 # stepwise simplification
 lm_shift_range_simpl <- lm(
    diff ~ MeanDist_OptimumHum * MaxOverlapTemp * GrowthRate,
-  data = pca_data)
+  data = lm_data)
 
 summary(lm_shift_range_simpl)
 
-cor.test(pca_data$MaxOverlapTemp, pca_data$diff)
+cor.test(lm_data$MaxOverlapTemp, lm_data$diff)
+cor.test(lm_data$MaxTemp, lm_data$diff)
+cor.test(lm_data$MaxTemp, lm_data$MaxOverlapTemp)
 
 # - Try Binary response
-pca_data$diff_bin <- as.numeric(shift_niches_dist$diff > 0)
+lm_data$diff_bin <- as.factor(as.numeric(shift_niches_dist$diff > 0))
+levels(lm_data$diff_bin)
+
 glm_shift_bin <- glm(
   diff_bin ~ MeanDist_OptimumHum + MaxOverlapHum + MeanDist_OptimumTemp + MaxOverlapTemp +
-    MeanDist_OptimumLight + MaxOverlapLight + MaximumMass + GrowthRate,
-  data = pca_data,
+    MeanDist_OptimumLight + MaxOverlapLight + MaximumMass + GrowthRate + MaxTemp,
+  data = lm_data,
   family = binomial(link = "logit")
 )
 summary(glm_shift_bin)
 
 # -> Conclusion
 # Species with higher growth rates are significantly less likely to shift upwards
-# compared to those with lower growth rates (odds ratio = 0.30, p = 0.015).
-
+# compared to those with lower growth rates (odds ratio = 0.30, p = 0.0234).
 
 glm_shift_bin <- glm(
-  diff_bin ~ MaxOverlapHum + MaxOverlapTemp * GrowthRate,
-  data = pca_data,
+  diff_bin ~ MaxOverlapHum + MaxOverlapTemp + GrowthRate + MaxTemp,
+  data = lm_data,
   family = binomial(link = "logit")
 )
 summary(glm_shift_bin)
+
+cor.test(lm_data$RangeTemp, lm_data$diff)
+
+# - Make some plots
+
+plt_data <- shift_niches_dist
+plt_data$Shift <- ifelse(shift_niches_dist$diff > 0, "Upward", "Downward")
+
+DirectoryPlots <- "../../figs/a5_plots_test/cc_vs_no_cc/position_shift"
+
+# GROwth rate
+pdf(file.path(DirectoryPlots, "Gr_boxplot_by_shift_final_species.pdf"), width = 10, height = 8)
+ggplot(plt_data, aes(x = Shift, y = GrowthRate, fill = Shift)) +
+  geom_boxplot(notch = TRUE) +
+  labs(
+    x = "Shift Category",
+    y = "Growth rate",
+    fill = "Species position shift"
+  ) +
+  theme_minimal()
+dev.off()
+
+# Max Temp
+pdf(file.path(DirectoryPlots, "MaxTemp_boxplot_by_shift_final_species.pdf"), width = 10, height = 8)
+ggplot(plt_data, aes(x = Shift, y = MaxTemp, fill = Shift)) +
+  geom_boxplot(notch = TRUE) +
+  labs(
+    x = "Shift Category",
+    y = "Maximum Temperature (°C)",
+    fill = "Species position shift"
+  ) +
+  theme_minimal()
+dev.off()
+
+# Max temp overlap
+pdf(file.path(DirectoryPlots, "MaxOverlapTemp_boxplot_by_shift_final_species.pdf"), width = 10, height = 8)
+ggplot(plt_data, aes(x = Shift, y = MaxOverlapTemp, fill = Shift)) +
+  geom_boxplot(notch = TRUE) +
+  labs(
+    x = "Shift Category",
+    y = "Maximum temperature niche overlap (proportion)",
+    fill = "Species position shift"
+  ) +
+  theme_minimal()
+dev.off()
+
+# Temperature range
+pdf(file.path(DirectoryPlots, "RangeTemp_boxplot_by_shift_final_species.pdf"), width = 10, height = 8)
+ggplot(plt_data, aes(x = Shift, y = RangeTemp, fill = Shift)) +
+  geom_boxplot(notch = TRUE) +
+  labs(
+    x = "Shift Category",
+    y = "Temperature range (°C)",
+    fill = "Species position shift"
+  ) +
+  theme_minimal()
+dev.off()
+
+# ---- RF analysis
+
+## set the seed to make your partition reproducible
+set.seed(123)
+
+down <- plt_data %>% filter(Shift == "Downward") %>% select(-diff, -last_year_alive, -SpeciesID, -GrowthRate)
+up <- plt_data %>% filter(Shift == "Upward") %>% select(-diff, -last_year_alive, -SpeciesID, -GrowthRate)
+
+n_down <- nrow(down)
+n_up <- nrow(up)
+
+train_ind_down <- sample(seq_len(n_down), size = floor(0.75 * n_down))
+train_ind_up <- sample(seq_len(n_up), size = floor(0.75 * n_up))
+
+train <- rbind(down[train_ind_down,], up[train_ind_up,])
+test <- rbind(down[-train_ind_down,], up[-train_ind_up,])
+
+sample_size <- min(table(train$Shift))
+
+rf_model <- randomForest(
+  factor(Shift) ~ ., data = train,
+  importance = TRUE, ntree = 1000,
+  sampsize = c('Downward'= sample_size,'Upward'= sample_size)
+)
+
+# --- 3. Model performance ----------------------------------------------
+
+print(rf_model)
+# Look at out-of-bag error rate and confusion matrix
+
+prediction <- data.frame(predict(rf_model, test, type='prob'))
+preds <- ifelse(prediction$Downward > prediction$Upward, "Downward", "Upward")
+# ensure test$Shift has the same levels in the same order
+test$Shift <- factor(test$Shift, levels = c("Downward", "Upward"))
+# make preds an ordered factor with the same levels
+preds_ord <- factor(preds, levels = c("Downward", "Upward"), ordered = TRUE)
+
+# compute ROC
+roc1 <- roc(test$Shift, preds_ord)
+print(roc1)
+
+# --- 4. Variable importance --------------------------------------------
+
+importance_df <- as.data.frame(importance(rf_model))
+importance_df <- importance_df %>%
+  rownames_to_column("Trait") %>%
+  arrange(desc(MeanDecreaseGini))
+
+# Print ranked trait importance
+print(importance_df)
+
+# --- 5. Visualize variable importance ----------------------------------
+
+pdf(file.path(DirectoryPlots, "randomForestΤraitImportanceShift.pdf"), width = 7, height = 7)
+ggplot(importance_df, aes(x = reorder(Trait, MeanDecreaseGini),
+                          y = MeanDecreaseGini)) +
+  geom_col(fill = "#56B4E9") +
+  coord_flip() +
+  labs(x = "Trait",
+       y = "Mean Decrease in Gini (importance)") +
+  theme_minimal(base_size = 13)
+dev.off()
+
+# --- Partial dependence (to interpret top traits) ----------
+
+# For the most important traits:
+library(pdp)
+
+top_traits <- importance_df$Trait[1:3]
+pred_df <- as.data.frame(test)
+
+for (trait in top_traits) {
+  outfile <- file.path(DirectoryPlots,
+                       paste0("randomForest_", trait, "_PartialDepShiftUpTrain.pdf"))
+  pdf(outfile, width = 7, height = 5)
+    # Get partial dependence data
+  pd <- partial(
+    object = rf_model,
+    pred.var = trait,
+    which.class = "Upward",
+    prob = TRUE,
+    train = pred_df
+  )
+
+  # Create the plot
+  print(autoplot(pd))
+  dev.off()
+}
+
+
+# ---- REDUCED model removing correlated predictors
+
+# Load required package
+library(caret)
+
+# --- Step 1: Define response and predictors ---
+response <- "Shift"
+predictors <- setdiff(names(plt_data), response)
+
+# --- Step 2: Subset predictors only ---
+predictor_data <- plt_data[, predictors]
+
+# --- Step 3: Calculate correlation matrix ---
+cor_matrix <- cor(predictor_data, use = "pairwise.complete.obs")
+
+# --- Step 4: Identify highly correlated predictors ---
+# Adjust cutoff (e.g., 0.7, 0.8, or 0.9 depending on strictness)
+high_cor <- findCorrelation(cor_matrix, cutoff = 0.7, names = TRUE)
+
+# --- Step 5: Remove correlated predictors ---
+plt_data_reduced <- plt_data[, !(names( ) %in% high_cor)]
+
+# --- Step 6: Check remaining predictors ---
+cat("Removed predictors due to high correlation:\n")
+print(high_cor)
