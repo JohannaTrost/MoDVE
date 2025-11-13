@@ -1,17 +1,15 @@
-library("optparse")
-library("configr")
 
+parse_config <- function(path_to_config) {
 
-parse_config <- function() {
     # Parse command line arguments
-    parser <- OptionParser()
-    parser <- add_option(parser,
+    parser <- optparse::OptionParser()
+    parser <- optparse::add_option(parser,
         c("-i", "--input"),
         type="character",
-        default=NA,
+        default=path_to_config,
         metavar="PATH_TO_TOML",
         help="Path to TOML formatted input file")
-    opt <- parse_args(parser)
+    opt <- optparse::parse_args(parser)
 
     # Check that input file is provided
     if (is.na(opt$input)) {
@@ -23,10 +21,10 @@ parse_config <- function() {
     # Check whether provided input file exists and is in TOML format
     if (!(file.exists(filepath) && !dir.exists(filepath))) {
         stop("Input file doesn't exist")
-    } else if (!is.toml.file(file=opt$input)) {
+    } else if (!configr::is.toml.file(file=opt$input)) {
         stop("Input file isn't in TOML format")
     } else {
-        config <- read.config(file=filepath)
+        config <- configr::read.config(file=filepath)
     }
 
     return(config)
