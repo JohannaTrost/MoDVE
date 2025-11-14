@@ -79,7 +79,7 @@ vegparams <- extract_params(vegp_reg, coords_veg[[1]], coords_veg[[2]])
 grndparams <- extract_params(soilc_reg, lon, lat)
 
 # Get PAI
-microhab_file <- "/Users/johanna/Uni/masterarbeit/code/output/modev_zach_25_01_07/MicrohabitatMatrix98.rds"
+microhab_file <- "/Users/johanna/Uni/masterarbeit/data/modve_output/pirineus/scenarios/climdata_era5_cmip6_1906-2024_ssp245_119ts/a1_2/MicrohabitatMatrix198.rds"
 pai <- readRDS(microhab_file)[,,,5]
 paii <- apply(pai[,,1:max(vegparams$h, 0.5)], c(3), mean, na.rm = TRUE)
 #paii <- pai[25, 25, 1:max(vegparams$h, 0.5)]
@@ -158,15 +158,15 @@ process_comparison <- function(dir_name) {
     logger = dir_name,
 
     # Model vs Empirical
-    mae_tair_model = mean(abs(joined$tair_emp - joined$tair), na.rm = TRUE),
+    rmse_tair_model = sqrt(mean((joined$tair_emp - joined$tair)^2, na.rm = TRUE)),
     cor_tair_model = cor(joined$tair_emp, joined$tair, use = "complete.obs"),
-    mae_relhum_model = mean(abs(joined$relhum_emp - joined$relhum), na.rm = TRUE),
+    rmse_relhum_model = sqrt(mean((joined$relhum_emp - joined$relhum)^2, na.rm = TRUE)),
     cor_relhum_model = cor(joined$relhum_emp, joined$relhum, use = "complete.obs"),
 
     # Macroclimate vs Empirical (skip if same as macro reference)
-    mae_tair_macro = if (dir_name != macro_dir) mean(abs(joined$tair_emp - joined$tair_macro), na.rm = TRUE) else NA_real_,
+    rmse_tair_macro = if (dir_name != macro_dir) sqrt(mean((joined$tair_emp - joined$tair_macro)^2, na.rm = TRUE)) else NA_real_,
     cor_tair_macro = if (dir_name != macro_dir) cor(joined$tair_emp, joined$tair_macro, use = "complete.obs") else NA_real_,
-    mae_relhum_macro = if (dir_name != macro_dir) mean(abs(joined$relhum_emp - joined$relhum_macro), na.rm = TRUE) else NA_real_,
+    rmse_relhum_macro = if (dir_name != macro_dir) sqrt(mean((joined$relhum_emp - joined$relhum_macro)^2, na.rm = TRUE)) else NA_real_,
     cor_relhum_macro = if (dir_name != macro_dir) cor(joined$relhum_emp, joined$relhum_macro, use = "complete.obs") else NA_real_
   )
 }
@@ -175,7 +175,7 @@ process_comparison <- function(dir_name) {
 results <- map_dfr(emp_dirs, process_comparison)
 
 # View sorted by model RH MAE
-results_sorted <- results %>% arrange(mae_relhum_model)
+results_sorted <- results %>% arrange(rmse_relhum_model)
 print(results_sorted)
 
 # --- Show results of the comparison (MAE and correlation)
