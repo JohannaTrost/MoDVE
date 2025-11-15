@@ -13,6 +13,7 @@ library(ggplot2)
 library(purrr)
 library(readxl)
 library(tidyverse)
+library(patchwork)
 
 
 extract_params <- function(raster_list, lon, lat, crs = "EPSG:4326") {
@@ -62,11 +63,11 @@ x <- 25
 y <- 25
 
 # Load data for one year
-in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/pirineus"
+in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
 in_dir_regua <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
-vegp_reg <- readRDS(paste(in_dir_regua, "vegp_mof3d_ptm_v2.RDS", sep = "/"))  # For now we only have the lowland MoF3D simulation
+vegp_reg <- readRDS(paste(in_dir_regua, "vegp_mof3d_ptm_v2.RDS", sep = "/"))  # PAI and canopy height will be replaced by MoF3D output below
 soilc_reg <- readRDS(paste(in_dir, "soilc_v2.RDS", sep = "/"))
-climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2024.csv", sep = "/"))
+climdata_reg <- read_csv(paste(in_dir, "climdata_era5_cmip6_2024_v3.csv", sep = "/"))
 
 # Get coordiantes
 coords_veg <- indices2coords(x, y, terra::unwrap(vegp_reg$pai))[c("x", "y")]
@@ -79,7 +80,7 @@ vegparams <- extract_params(vegp_reg, coords_veg[[1]], coords_veg[[2]])
 grndparams <- extract_params(soilc_reg, lon, lat)
 
 # Get PAI
-microhab_file <- "/Users/johanna/Uni/masterarbeit/data/modve_output/pirineus/scenarios/climdata_era5_cmip6_1906-2024_ssp245_119ts/a1_2/MicrohabitatMatrix198.rds"
+microhab_file <- "/Users/johanna/Uni/masterarbeit/data/modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/a1_2/forest0/MicrohabitatMatrix123.rds"
 pai <- readRDS(microhab_file)[,,,5]
 paii <- apply(pai[,,1:max(vegparams$h, 0.5)], c(3), mean, na.rm = TRUE)
 #paii <- pai[25, 25, 1:max(vegparams$h, 0.5)]
@@ -108,12 +109,21 @@ mc_sim <- data.frame(
 
 # --- Load empirical data
 
+# # -- Regua
+# # Define paths
+# emp_path <- "/Users/johanna/Uni/masterarbeit/data/empirical/Datalogger 770m elevation low Pirineus understorey transect"
+#
+# # Define logger directories
+# emp_dirs <- c("10m", "30m", "50m", "70m", "90m")
+# macro_dir <- "Reference or at 30m in rockfall sort of gap on pole"  # This is the macroclimate reference
+
+# -- Pirineus
 # Define paths
-emp_path <- "/Users/johanna/Uni/masterarbeit/data/empirical/Datalogger 770m elevation low Pirineus understorey transect"
+emp_path <- "/Users/johanna/Uni/masterarbeit/data/empirical/Datalogger 400m elevation REGUA understory Trilha Verde"
 
 # Define logger directories
-emp_dirs <- c("10m", "30m", "50m", "70m", "90m")
-macro_dir <- "Reference or at 30m in rockfall sort of gap on pole"  # This is the macroclimate reference
+emp_dirs <- c("3600m, 446mASL", "3650m, 438mASL", "3700m, 433mASL", "3750m, 398mASL", "3800m, 387mASL")
+macro_dir <- "3850m, 387mASL waterfall reference"  # This is the macroclimate reference
 
 # Function to load and process a logger file
 load_logger_data <- function(dir_name) {
@@ -127,7 +137,7 @@ load_logger_data <- function(dir_name) {
     mutate(
       obs_time = force_tz(as.POSIXct(obs_time), tzone = "America/Sao_Paulo"),
       obs_time_utc = with_tz(obs_time, tzone = "UTC"),
-      obs_hour_utc = ceiling_date(obs_time_utc, unit = "hour")
+      obs_hour_utc = floor_date(obs_time_utc, unit = "hour")
     ) %>%
     group_by(obs_hour_utc) %>%
     summarise(
@@ -204,9 +214,14 @@ emp_data_combined <- emp_data_list %>%
             str_replace, "(\\.\\w)+$", paste0("_", unlist(emp_dirs))) %>%
   rename_at(vars(starts_with("relhum")),
             str_replace, "(\\.\\w)+$", paste0("_", unlist(emp_dirs))) %>%
-  rename(!!repl_names := "tair", !!repl_relhum := "relhum")
+  rename(!!repl_tair := "tair", !!repl_relhum := "relhum")
 
 names(emp_data_combined)
+
+# Get era5 / cmip6 macroclimate data
+model_macro <- climdata_reg %>%
+    select(obs_time, temp, relhum) %>%
+    rename(tair_macro_sim = temp, relhum_macro_sim = relhum)
 
 # Compute mean and standard deviation across loggers for each time point
 emp_summary <- emp_data_combined %>%
@@ -220,7 +235,8 @@ emp_summary <- emp_data_combined %>%
   ungroup() %>%
   select(obs_time, tair_mean, tair_sd, relhum_mean, relhum_sd) %>%
   inner_join(., macro_data, by = "obs_time") %>%
-  inner_join(., mc_sim, by = "obs_time")
+  inner_join(., mc_sim, by = "obs_time") %>%
+  inner_join(., model_macro, by = "obs_time")
 
 # First plot: Air temperature (empirical vs. simulated)
 plot_airt <- ggplot(emp_summary) +
@@ -228,22 +244,35 @@ plot_airt <- ggplot(emp_summary) +
                   ymin = tair_mean - 1.96 * tair_sd,
                   ymax = tair_mean + 1.96 * tair_sd),
               fill = "#2E86AB", alpha = 0.3) +
-  geom_line(aes(x = obs_time, y = tair_mean, color = "Mean Emp. MC"),
+  geom_line(aes(x = obs_time, y = tair_mean, color = "Measured microclimate", linetype = "Measured microclimate"),
             size = 1.2) +
-  geom_line(aes(x = obs_time, y = tair_macro, color = "Macroclimate"),
+  geom_line(aes(x = obs_time, y = tair_macro,
+                color = "Measured macroclimate",
+                linetype = "Measured macroclimate"),
+            size = 0.6) +
+  geom_line(aes(x = obs_time, y = tair, color = "Simulated microclimate", linetype = "Simulated microclimate"),
             size = 1) +
-  geom_line(aes(x = obs_time, y = tair, color = "Simulated"),
-            size = 1) +
+  geom_line(aes(x = obs_time, y = tair_macro_sim,
+                color = "CMIP6 macroclimate",
+                linetype = "CMIP6 macroclimate"),
+            size = 0.6) +
   scale_color_manual(name = "",
-                     values = c("Mean Emp. MC" = "#2E86AB",     # Blue
-                                "Macroclimate" = "#A23B72",     # Purple/magenta
-                                "Simulated" = "#F18F01"),       # Orange
-                     breaks = c("Mean Emp. MC", "Macroclimate", "Simulated")) +
-  labs(title = "Air Temperature: Empirical vs. Simulated",
-       x = "Observation Time",
-       y = "Air Temperature (°C)") +
+                     values = c("Measured microclimate" = "#3F826D",
+                                "Measured macroclimate" = "#3F826D",
+                                "Simulated microclimate" = "#FAC05E",
+                                "CMIP6 macroclimate" = "#FAC05E")) +
+
+  scale_linetype_manual(name = "",
+                        values = c("Measured microclimate" = "solid",
+                                   "Measured macroclimate" = "dashed",
+                                   "Simulated microclimate" = "solid",
+                                   "CMIP6 macroclimate" = "dashed")) +
+  labs(
+       x = "",
+       y = "Temperature (°C)") +
   theme_minimal() +
   theme(legend.position = "bottom",
+        text = element_text(size = 15),
         legend.title = element_text(face = "bold"))
 
 # Second plot: Relative Humidity (empirical vs. simulated)
@@ -252,33 +281,41 @@ plot_relhum <- ggplot(emp_summary) +
                   ymin = relhum_mean - 1.96 * relhum_sd,
                   ymax = relhum_mean + 1.96 * relhum_sd),
               fill = "#2E86AB", alpha = 0.3) +
-  geom_line(aes(x = obs_time, y = relhum_mean, color = "Mean Emp. MC"),
-            size = 1.2) +
-  geom_line(aes(x = obs_time, y = relhum_macro, color = "Macroclimate"),
+  geom_line(aes(x = obs_time, y = relhum_mean, color = "Measured microclimate", linetype = "Measured microclimate"),
             size = 1) +
-  geom_line(aes(x = obs_time, y = relhum, color = "Simulated"),
+  geom_line(aes(x = obs_time, y = relhum_macro,
+                color = "Measured macroclimate",
+                linetype = "Measured macroclimate"),
+            size = 0.6) +
+  geom_line(aes(x = obs_time, y = relhum, color = "Simulated microclimate", linetype = "Simulated microclimate"),
             size = 1) +
+  geom_line(aes(x = obs_time, y = relhum_macro_sim,
+                color = "CMIP6 macroclimate",
+                linetype = "CMIP6 macroclimate"),
+            size = 0.6) +
   scale_color_manual(name = "",
-                     values = c("Mean Emp. MC" = "#2E86AB",     # Blue
-                                "Macroclimate" = "#A23B72",     # Purple/magenta
-                                "Simulated" = "#F18F01"),       # Orange
-                     breaks = c("Mean Emp. MC", "Macroclimate", "Simulated")) +
-  labs(title = "Relative Humidity: Empirical vs. Simulated",
-       x = "Observation Time",
-       y = "Relative Humidity (%)") +
+                     values = c("Measured microclimate" = "#3F826D",
+                                "Measured macroclimate" = "#3F826D",
+                                "Simulated microclimate" = "#FAC05E",
+                                "CMIP6 macroclimate" = "#FAC05E")) +
+  scale_linetype_manual(name = "",
+                        values = c("Measured microclimate" = "solid",
+                                   "Simulated microclimate" = "solid",
+                                   "Measured macroclimate" = "dashed",
+                                   "CMIP6 macroclimate" = "dashed")) +
+
+  labs(x = "", y = "Relative Humidity (%)") +
   theme_minimal() +
-  theme(legend.position = "bottom",
-        legend.title = element_text(face = "bold"))
+  theme(
+    legend.position = "bottom",
+    text = element_text(size = 15),
+    legend.title = element_text(face = "bold")
+  )
 
 # Print plots to a pdf file
-pdf("../../figs/mc_output/airt_emp_vs_sim_mc_pirineus.pdf")
-print(plot_airt)
-dev.off()
-
-pdf("../../figs/mc_output/relhum_emp_vs_sim_mc_pirineus.pdf")
-print(plot_relhum)
-dev.off()
-
-pdf("../../figs/mc_output/relhum_emp_vs_sim_mc_pirineus_ccf.pdf")
-ccf(emp_sim_data$tair, emp_sim_data$tair_emp)
+pdf("../../figs/mc_output/mc_emp_vs_sim_mc_regua_v2.pdf", height = 5, width = 10)
+print((plot_airt + plot_relhum) +
+  plot_layout(guides = "collect") &
+  guides(color = guide_legend(ncol = 2)) &
+  theme(legend.position = "bottom"))
 dev.off()
