@@ -4,6 +4,7 @@ source("utils.R")
 library(data.table)
 
 config <- parse_config("tests/config_a1.toml")
+list2env(config, envir = globalenv())
 
 # Unpack config
 {
@@ -55,12 +56,9 @@ config <- parse_config("tests/config_a1.toml")
 
 # Additional parameters
 # Names of essential GroIMP files
-shootFile <- paste("shoots_replicate_", ReplicateForest, "_time_step_", sep =
-                     "")
-trunkFile <- paste("trees_replicate_", ReplicateForest, "_time_step_", sep =
-                     "")
-voxelFile <- paste("voxel_replicate_", ReplicateForest, "_time_step_", sep =
-                     "")
+shootFile <- paste("shoots_replicate_", ReplicateForest, "_time_step_", sep = "")
+trunkFile <- paste("trees_replicate_", ReplicateForest, "_time_step_", sep = "")
+voxelFile <- paste("voxel_replicate_", ReplicateForest, "_time_step_", sep = "")
 
 C <- c(0, 0, 1)  # Vector orthogonal to plane of X and Y
 TotalVoxels <- (DistVoxToConsider * 2 + 1)^2  # Total number of adjacent voxels considered
@@ -203,10 +201,12 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
                    ceiling(ShootsBegin$zend[j]))
 
       numX <- sum((UniqueX[2] - UniqueX[1]) > 0, na.rm = TRUE) + 1
+      # if xbegin < xend = 2, otherwise 1 (if same x or if xend smaller)
+      # ???
       numY <- sum((UniqueY[2] - UniqueY[1]) > 0, na.rm = TRUE) + 1
       numZ <- sum((UniqueZ[2] - UniqueZ[1]) > 0, na.rm = TRUE) + 1
 
-      for (x in seq_len(numX)) {
+      for (x in seq_len(numX)) { # divide S.A. equally among all intersecting cells
         xid <- UniqueX[x]
 
         for (y in seq_len(numY)) {
@@ -269,7 +269,6 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
       }
     }
 
-
     # Loop through all trunks and calculate total surface area, surface loss and weighted angles
     # Get all trees that die during time step
     DeadSegments <- TrunksBegin$treeID[!is.element(TrunksBegin$treeID, TrunksEnd$treeID)]
@@ -313,7 +312,8 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 
         # Update weighted angle for the voxel
         if (AverageWeightedAngles == 1) {
-          tmp1 <- (Mat_surface_per_cell[X, Y, Z] - SurfaceAreaInVoxel) / Mat_surface_per_cell[X, Y, Z] * Mat_weighted_angle_per_cell[X, Y, Z]
+          tmp1 <- (Mat_surface_per_cell[X, Y, Z] - SurfaceAreaInVoxel) /
+            Mat_surface_per_cell[X, Y, Z] * Mat_weighted_angle_per_cell[X, Y, Z]
           tmp2 <- SurfaceAreaInVoxel / Mat_surface_per_cell[X, Y, Z] * 90  # upright 90 degrees angle assumed
           Mat_weighted_angle_per_cell[X, Y, Z] <- tmp1 + tmp2
         }
@@ -364,26 +364,14 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 
       # Calculate final light conditions by accounting for the light
       # conditions in adjacent voxels
-      for (x in int_seq(from = corridor,
-                        to = dimX - corridor,
-                        by = 1)) {
-        for (y in int_seq(from = corridor,
-                          to = dimY - corridor,
-                          by = 1)) {
+      for (x in int_seq(from = corridor, to = dimX - corridor, by = 1)) {
+        for (y in int_seq(from = corridor, to = dimY - corridor, by = 1)) {
           for (z in seq_len(dimZ)) {
             TotalContribution <- 0
 
             # loop over ring surrounding the focal voxel
-            for (xx in int_seq(
-              from = x - DistVoxToConsider,
-              to = x + DistVoxToConsider,
-              by = 1
-            )) {
-              for (yy in int_seq(
-                from = y - DistVoxToConsider,
-                to = y + DistVoxToConsider,
-                by = 1
-              )) {
+            for (xx in int_seq(from = x - DistVoxToConsider, to = x + DistVoxToConsider, by = 1)) {
+              for (yy in int_seq(from = y - DistVoxToConsider, to = y + DistVoxToConsider, by = 1)) {
                 Ring <- max(abs(xx - x), abs(yy - y))
                 Contribution <- (1 / (DistVoxToConsider + 1)) * (1 / max(1, (Ring * 8))) * Mat_light_per_cell_Copy[xx, yy, z]
                 TotalContribution <- TotalContribution + Contribution
@@ -396,7 +384,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
         }
       }
 
-    }
+    } # lightConditionOpt
 
 
     # Store information in Microhabitat matrix and save matrix for this
@@ -407,12 +395,8 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
       dim = c(dimPlot[1], dimPlot[2], dimPlot[3], MatrixDimension)
     )
 
-    idx1 <- int_seq(from = corridor + 1,
-                    to = dimX - corridor,
-                    by = 1)
-    idx2 <- int_seq(from = corridor + 1,
-                    to = dimY - corridor,
-                    by = 1)
+    idx1 <- int_seq(from = corridor + 1, to = dimX - corridor, by = 1)
+    idx2 <- int_seq(from = corridor + 1, to = dimY - corridor, by = 1)
     idx3 <- seq_len(dimZ)
 
     if (TotalSurfaceAreaOpt == 1) {
@@ -421,7 +405,8 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 
     if (SurfaceAreaLossOpt == 1) {
       if (MicrohabitatType == 1) {
-        Microhabitat[, , , 2] <- Mat_surfaceloss_per_cell[idx1, idx2, idx3] / Mat_surface_per_cell[idx1, idx2, idx3]
+        Microhabitat[, , , 2] <- Mat_surfaceloss_per_cell[idx1, idx2, idx3] /
+          Mat_surface_per_cell[idx1, idx2, idx3]
       }
 
       if (MicrohabitatType == 2) {
@@ -437,10 +422,8 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
       Microhabitat[, , , 4] <- Mat_weighted_angle_per_cell[idx1, idx2, idx3]
     }
 
-    MicrohabitatMatSave <- paste("MicrohabitatMatrix", i, ".rds", sep =
-                                   "")
-    saveRDS(Microhabitat,
-            file.path(DirectoryMatrices, MicrohabitatMatSave))
+    MicrohabitatMatSave <- paste("MicrohabitatMatrix", i, ".rds", sep = "")
+    saveRDS(Microhabitat, file.path(DirectoryMatrices, MicrohabitatMatSave))
 
     end_time <- Sys.time()
     print(end_time - start_time)
@@ -452,3 +435,5 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
   # Save dimensions of plot in seperate file
   saveRDS(dimPlot, file.path(DirectoryMatrices, "dimPlot.rds"))
 }
+
+mhb <- readRDS("tests/data/output_a1/MicrohabitatMatrix2.rds")

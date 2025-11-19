@@ -8,6 +8,7 @@
 #' @returns a list of length 3 integer vectors, the 3D coordinates of all voxels
 #' intersected by the segment
 #'
+#' @export
 get_intersecting_voxels <- function(coords_begin, coords_end) {
 
   intersecting_voxels <- list()

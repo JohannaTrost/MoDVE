@@ -1,5 +1,5 @@
 # Create species matrices
-source("utils.R")
+source("R/utils.R")
 
 
 AgeMaturityMetabolic <- function(InterceptAgeMaturity, ScalingAgeMaturity, Mass) {
@@ -7,66 +7,59 @@ AgeMaturityMetabolic <- function(InterceptAgeMaturity, ScalingAgeMaturity, Mass)
 }
 
 # Parse input configuration file
-config <- parse_config()
+config <- parse_config("tests/config_a2.toml")
+list2env(config, envir = globalenv())
 
 # ============================================================================
-# RNG seed
-seed <- config$seed
-set.seed(seed, kind="Mersenne-Twister")  # integer for fixed seed or NULL for random
+{
 
-# Parameters that need to be specified/checked before running this script
-MainOutputDirectory <- config$MainOutputDirectory
+  # Define number of species in species pool and total number of species pools to be created
+  numSpeciesPools <- config$numSpeciesPools
+  NumberOfSpecies <- config$NumberOfSpecies
 
-# Folder to save species trait matrices
-# NameSpeciesPool <- "IntAgeMat_2_IntRec_70"  # Give meaningful name (the species type is automatically added to the name)
+  # The following option defines if correlations between traits are consider or not
+  # CorrelationMassAgeOfMaturity <- 1  # Correlation between the mass and the age of maturity (this also influences the growth rate)
+  CorrelationMassRecruitment <- config$CorrelationMassRecruitment  # Correlation between the mass and the recruitment
 
-# Define number of species in species pool and total number of species pools to be created
-numSpeciesPools <- config$numSpeciesPools
-NumberOfSpecies <- config$NumberOfSpecies
+  InterceptAgeMaturity <- config$InterceptAgeMaturity
+  ScalingAgeMaturity <- config$ScalingAgeMaturity  # Scaling factor according to metabolic theory
 
-# The following option defines if correlations between traits are consider or not
-# CorrelationMassAgeOfMaturity <- 1  # Correlation between the mass and the age of maturity (this also influences the growth rate)
-CorrelationMassRecruitment <- config$CorrelationMassRecruitment  # Correlation between the mass and the recruitment
+  # If correlations are choosen, the following parameters define the shape of the correlations
+  # 1. Correlations if CorrelationMassAgeOfMaturity=1
+  MaxMassRangeCorr <- config$MaxMassRangeCorr  # maximum mass of species/functional types (g)
+  # AgeAtMaturityRangeCorr=[1 15]  # age at which maturity is reaches (years) #Comment2019 => should not ne needed, delete
+  AgeAtMaturityDevCorr <- config$AgeAtMaturityDevCorr  # relative deviation from mean age of maturity
 
-InterceptAgeMaturity <- config$InterceptAgeMaturity
-ScalingAgeMaturity <- config$ScalingAgeMaturity  # Scaling factor according to metabolic theory
+  # 2. Correlations if CorrelationMassRecruitment=1
+  RecruitmentNormalizeAtSize1Corr <- config$RecruitmentNormalizeAtSize1Corr  # Factor converting the reproductive biomass to potential recruits
+  SlopeRecruitmentCorr <- 0 * RecruitmentNormalizeAtSize1Corr  # Slope of the correlation between mass and recruitment
+  RecruitmentInvestmentRelMeanCorr <- config$RecruitmentInvestmentRelMeanCorr  # Anual investment in reproduction in relation to vegetative biomass (decrease due to correlation with mass)
+  RecruitmentInvestmentRelDevCorr <- config$RecruitmentInvestmentRelDevCorr  # The relative deviation from the mean recruitment
+  RecruitmentIncMaxCorr <- config$RecruitmentIncMaxCorr
 
-# If correlations are choosen, the following parameters define the shape of the correlations
-# 1. Correlations if CorrelationMassAgeOfMaturity=1
-MaxMassRangeCorr <- config$MaxMassRangeCorr  # maximum mass of species/functional types (g)
-# AgeAtMaturityRangeCorr=[1 15]  # age at which maturity is reaches (years) #Comment2019 => should not ne needed, delete
-AgeAtMaturityDevCorr <- config$AgeAtMaturityDevCorr  # relative deviation from mean age of maturity
+  # Parameters of light model (needed to convert the height nicht and the light niche, these values do not have to
+  # be the same as used in the microhabitat matrices)
+  kL <- config$kL  # light extinction coefficient
+  Imax <- config$Imax  # maximum light intensity
+  LAI <- config$LAI  # leaf area index
 
-# 2. Correlations if CorrelationMassRecruitment=1
-RecruitmentNormalizeAtSize1Corr <- config$RecruitmentNormalizeAtSize1Corr  # Factor converting the reproductive biomass to potential recruits
-SlopeRecruitmentCorr <- 0 * RecruitmentNormalizeAtSize1Corr  # Slope of the correlation between mass and recruitment
-RecruitmentInvestmentRelMeanCorr <- config$RecruitmentInvestmentRelMeanCorr  # Anual investment in reproduction in relation to vegetative biomass (decrease due to correlation with mass)
-RecruitmentInvestmentRelDevCorr <- config$RecruitmentInvestmentRelDevCorr  # The relative deviation from the mean recruitment
-RecruitmentIncMaxCorr <- config$RecruitmentIncMaxCorr
+  # Define a species pool type
+  # SpeciesPoolType <- 0
 
-# Parameters of light model (needed to convert the height nicht and the light niche, these values do not have to
-# be the same as used in the microhabitat matrices)
-kL <- config$kL  # light extinction coefficient
-Imax <- config$Imax  # maximum light intensity
-LAI <- config$LAI  # leaf area index
-
-# Define a species pool type
-# SpeciesPoolType <- 0
-
-# ============================================================================
-# Define trait (ranges) if random species pool(SpeciesPoolType=0) is choose
-# If no correlations between traits are choosen (CorrelationMassAgeOfMaturity=0 || CorrelationMassRecruitment=0), traits are randomly choosen from the following ranges
-MaxMassRandom <- config$MaxMassRandom  # maximum mass of species/functional types (g)
-MaxMassLogScaleRandom <- config$MaxMassLogScaleRandom  # define if the mass is choosen based on the log scale (MaxMassLogScale=1) or on the normal scale (MaxMassLogScale=0)
-AgeAtMaturityRandom <- config$AgeAtMaturityRandom  # age at which maturity is reaches (years)
-RecruitmentNormalizeAtSize1Random <- config$RecruitmentNormalizeAtSize1Random  # This parameter regulates the range of recruitment in thise cases
-RecruitmentInvestmentRelMeanRandom <- config$RecruitmentInvestmentRelMeanRandom  # Not that the effective recruitment is RecruitmentNormalizeAtSize1Random*RecruitmentInvestmentRelMeanRandom
-RecruitmentIncRandom <- config$RecruitmentIncRandom
-MassAtMaturityRelativeRandom <- config$MassAtMaturityRelativeRandom  # Relative mass in relation to maximum Size
-HeightBreadthRandom <- config$HeightBreadthRandom  # Relative height
-DispersalKernelRandom <- config$DispersalKernelRandom  # The higher this values, the more local is the dispersal
-DispersalKernelAsymmetryRandom <- config$DispersalKernelAsymmetryRandom  # The trait describes the relative proportion of seed dispersed below the mother (i.e. 0.5=> symmetric dispersal kernel)
-
+  # ============================================================================
+  # Define trait (ranges) if random species pool(SpeciesPoolType=0) is choose
+  # If no correlations between traits are choosen (CorrelationMassAgeOfMaturity=0 || CorrelationMassRecruitment=0), traits are randomly choosen from the following ranges
+  MaxMassRandom <- config$MaxMassRandom  # maximum mass of species/functional types (g)
+  MaxMassLogScaleRandom <- config$MaxMassLogScaleRandom  # define if the mass is choosen based on the log scale (MaxMassLogScale=1) or on the normal scale (MaxMassLogScale=0)
+  AgeAtMaturityRandom <- config$AgeAtMaturityRandom  # age at which maturity is reaches (years)
+  RecruitmentNormalizeAtSize1Random <- config$RecruitmentNormalizeAtSize1Random  # This parameter regulates the range of recruitment in thise cases
+  RecruitmentInvestmentRelMeanRandom <- config$RecruitmentInvestmentRelMeanRandom  # Not that the effective recruitment is RecruitmentNormalizeAtSize1Random*RecruitmentInvestmentRelMeanRandom
+  RecruitmentIncRandom <- config$RecruitmentIncRandom
+  MassAtMaturityRelativeRandom <- config$MassAtMaturityRelativeRandom  # Relative mass in relation to maximum Size
+  HeightBreadthRandom <- config$HeightBreadthRandom  # Relative height
+  DispersalKernelRandom <- config$DispersalKernelRandom  # The higher this values, the more local is the dispersal
+  DispersalKernelAsymmetryRandom <- config$DispersalKernelAsymmetryRandom  # The trait describes the relative proportion of seed dispersed below the mother (i.e. 0.5=> symmetric dispersal kernel)
+}
 # ============================================================================
 # Define which trait is varied if a sequential species pool(SpeciesPoolType=1) is choose.
 # For proper results, only one of the following traits should be defined as sequence, while for the other traits, invariable trait values should to be specified.
@@ -119,6 +112,9 @@ DispersalKernelAsymmetryRandom <- config$DispersalKernelAsymmetryRandom  # The t
 #         FullNameSpeciesPool <- paste("SP_Neutral_", NameSpeciesPool, "_TraitCorrOff", sep="")
 #     }
 # }
+
+# RNG seed
+set.seed(seed, kind="Mersenne-Twister")  # integer for fixed seed or NULL for random
 
 # where to save
 SaveDirectory <- file.path(MainOutputDirectory)
