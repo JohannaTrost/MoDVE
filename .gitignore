@@ -1,1 +1,3 @@
 .Rproj.user
+.Rhistory
+tests/data/output_*
