@@ -9,7 +9,6 @@
 #' @returns a vector containing the shoot IDs of dead branches
 #' @export
 #'
-#' @examples
 find_dead_segments <- function(shoot_dt, shoot_dt_next) {
 
   check_shoot_dt(shoot_dt)
@@ -44,7 +43,6 @@ find_dead_segments <- function(shoot_dt, shoot_dt_next) {
 #' @returns a vector containing the trunk IDs of dead trees
 #' @export
 #'
-#' @examples
 find_dead_trees <- function(trunk_dt, trunk_dt_next) {
 
   check_trunk_dt(trunk_dt)
