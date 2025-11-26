@@ -1,3 +1,18 @@
+save_rng <- function(savefile) {
+  if (exists(".Random.seed")) {
+    oldseed <- get(".Random.seed", .GlobalEnv)
+  } else {
+    stop("You need to call set.seed() first.")
+  }
+  oldRNGkind <- RNGkind()
+  save("oldseed", "oldRNGkind", file=savefile)
+}
+
+restore_rng <- function(savefile) {
+  load(savefile)
+  do.call("RNGkind", as.list(oldRNGkind))
+  assign(".Random.seed", oldseed, .GlobalEnv)
+}
 
 parse_config <- function(path_to_config) {
 

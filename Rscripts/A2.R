@@ -120,12 +120,14 @@ set.seed(seed, kind="Mersenne-Twister")  # integer for fixed seed or NULL for ra
 SaveDirectory <- file.path(MainOutputDirectory)
 dir.create(SaveDirectory, recursive=TRUE)
 
-ColumnHeaders <- c("SpeciesID", "MaximumMass", "MassAtMaturity", "GrowthRate",
-                   "DispersalKernel", "DispersalKernelAsymmetry", "RecruitmentInvestmentRel",
-                   "RecruitmentInc", "MinLight", "MaxLight", "OptimumLight", "LightBreadth",
-                   "LightResponseA", "LightResponseB", "LightResponseC", "MinHeightRel",
-                   "MaxHeightRel", "MeanHeightRel", "HeightBreadth", "MaxRecruitsAtMaxMass",
-                   "MaxRecruitsAtMassAtMaturity", "AgeAtMaturity")
+ColumnHeaders <- c(
+  "SpeciesID", "MaximumMass", "MassAtMaturity", "GrowthRate",
+  "DispersalKernel", "DispersalKernelAsymmetry", "RecruitmentInvestmentRel",
+  "RecruitmentInc", "MinLight", "MaxLight", "OptimumLight", "LightBreadth",
+  "LightResponseA", "LightResponseB", "LightResponseC", "MinHeightRel",
+  "MaxHeightRel", "MeanHeightRel", "HeightBreadth", "MaxRecruitsAtMaxMass",
+  "MaxRecruitsAtMassAtMaturity", "AgeAtMaturity"
+)
 
 # Main loop (for random generation of species pool)
 for (Num in seq_len(numSpeciesPools)) {
