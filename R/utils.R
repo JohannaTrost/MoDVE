@@ -45,17 +45,9 @@ parse_config <- function(path_to_config) {
     return(config)
 }
 
-species_trait_names <- function() {
-  return(c("MaximumMass", "MassAtMaturity", "GrowthRate",
-    "DispersalKernel", "DispersalKernelAsymmetry",
-    "RecruitmentInvestmentRel", "RecruitmentInc",
-    "MinLight", "MaxLight", "OptimumLight", "LightBreadth",
-    "LightResponseA", "LightResponseB", "LightResponseC",
-    "MinHeightRel",  "MaxHeightRel", "MeanHeightRel",
-    "HeightBreadth", "MaxRecruitsAtMaxMass",
-    "MaxRecruitsAtMassAtMaturity", "AgeAtMaturity"))
+paste_wrap <- function(msg, val) {
+  return(paste(msg, paste("Species Pool: ", numPool, sep=""), sep="\n"))
 }
-
 
 int_seq <- function(from, to, by=1L) {
     #' Custom sequence function for integers and floats with zero fractional part
