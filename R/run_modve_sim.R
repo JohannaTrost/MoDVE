@@ -8,22 +8,26 @@ run_modve_sim <- function(sim_params,
                           path_to_comm_output) {
 
   # Check parameters and read input if necessary
-  if (!all(is.element(c(
+  exptd_params <- c(
     "InitialTimeStep", "timeSteps", "StopCriterionHa","MicrohabitatType",
     "Imax", "CompetitionMethod", "MortalityMethod", "MortRateMass",
     "MortRateMassScaling", "MortRateRandom", "SurfaceBiomassScaling",
     "SlopeRecruitment", "InterceptRecruitment"
-  ), sim_params))) {
-    # error
+  )
+  if (!all(is.element(exptd_params, sim_params))) {
+    stop(cat("sim_params must contain at least the following elements: ",
+             exptd_params, "\n"))
   }
   timeSteps <- sim_params$timeSteps
 
   if (!is.data.frame(SpeciesPool)) {
     # Then it must be a path to the input
     if (!grepl("*.csv$", SpeciesPool)) {
-      # error
+      stop("SpeciesPool should be a data frame or a valid path to a .csv file.")
     }
-    if (!file.exists(SpeciesPool)) {} # error
+    if (!file.exists(SpeciesPool)) {
+      stop(paste0(SpeciesPool, " doesn't exist.\n"))
+    } # error
     else SpeciesPool <- read.csv(SpeciesPool, sep = ",", header = TRUE)
   }
   NumberOfSpecies <- nrow(SpeciesPool)  # number of species per 25X25m plot
@@ -31,9 +35,11 @@ run_modve_sim <- function(sim_params,
   if (!is.data.frame(InitDist)) {
     # Then it must be a path to the input
     if (!grepl("*.csv$", InitDist)) {
-      # error
+      stop("InitDist should be a data frame or a valid path to a .csv file.")
     }
-    if (!file.exists(InitDist)) {} # error
+    if (!file.exists(InitDist)) {
+      stop(paste0(InitDist, " doesn't exist.\n"))
+    }
     else InitDist <- read.csv(InitDist, sep = ",", header = TRUE)
   }
   E <- InitDist
@@ -46,16 +52,16 @@ run_modve_sim <- function(sim_params,
     # Then it must be a path or vector of paths
     for (i in seq_along(Microhabitat[i])) {
       if (!grepl("*.csv$", Microhabitat[i])) {
-        # error
+        stop("Microhabitat should be a data frame or a valid path to a .csv file.")
       }
       if (!file.exists(Microhabitat[i])) {
-
-      } # error
+        stop(paste0(Microhabitat[i], " doesn't exist.\n"))
+      }
     }
 
     if (isHabitatDynamic) {
       if (!length(Microhabitat) == timeSteps) {
-        # error
+        stop("For dynamic habitats, Microhabitat should have one element for each time step.\n")
       } else {
         # Stash paths for later time steps
         microhab_files <- Microhabitat

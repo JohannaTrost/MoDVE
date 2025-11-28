@@ -1,22 +1,6 @@
 options(warn=-1)  # Suppress warnings
 options(digits.secs=3)  # 3 decimal digits for seconds
 
-create_pairs <- function(nb_spPools, replicatePerSpeciesPool){
-  N <- (nb_spPools[2] - nb_spPools[1] + 1) * replicatePerSpeciesPool
-  pairs <- data.frame(matrix(0, nrow=N, ncol=2))
-  colnames(pairs) <- c("numPool", "r")
-
-  i <- 1
-  for (numPool in int_seq(nb_spPools[1], nb_spPools[2])) {
-    for (r in seq_len(replicatePerSpeciesPool)) {
-      pairs$numPool[i] <- numPool
-      pairs$r[i] <- r
-      i <- i + 1
-    }
-  }
-  return(pairs)
-}
-
 # Parse input configuration file
 config <- parse_config("tests/config_a4.toml")
 
@@ -59,7 +43,8 @@ save_rng(file.path(dir_output, "random_state_seed.RData"))
 # Internally, the foreach package employs the L'Ecuyer-CMRG RNG algorithm for reliable random
 # number generation, ensuring reproducible results even in parallel computing environments.
 # Choose species pools to use and number of replicates per species pool
-pairs <- create_pairs(config$numSpeciesPools, config$replicatePerSpeciesPool)
+pairs <- expand.grid(config$numSpeciesPools, config$replicatePerSpeciesPool)
+colnames(pairs) <- c("numPool", "r")
 output <- foreach::foreach(pair_idx = seq_len(nrow(pairs))) %dorng% {
 
   numPool <- pairs$numPool[pair_idx]
@@ -86,7 +71,7 @@ output <- foreach::foreach(pair_idx = seq_len(nrow(pairs))) %dorng% {
   # Run the IBM
   run_modve_sim(
     config,
-    SpeciesPool,
+    SpeciesPoolFilename,
     Microhabitat,
     path_to_init_file,
     path_to_ind_output,
