@@ -2,6 +2,26 @@ config <- parse_config("tests/config_a1.toml")
 
 # only for MicrohabitatType 1 or 2
 
+read_vox_dt <- function(voxelsFileName) {
+
+  colnames <- voxelsFileName |>
+    utils::read.table(sep = "\t", skip = 1, nrows = 1) |>
+    as.character()
+
+  Voxels <- voxelsFileName |>
+    read.table(sep = "\t", header = FALSE, skip = 2,
+               col.names = append(colnames, "empty_column"))
+  Voxels <- Voxels[colnames]
+
+  # Voxel file start with x=y=z=0 => synchronize with matrices used here
+  # TODO: this is quite bad, MoF3D outputs need to be made consistent
+  Voxels$x <- Voxels$x + 1
+  Voxels$y <- Voxels$y + 1
+  Voxels$z <- Voxels$z + 1
+
+  return(Voxels)
+}
+
 {
   # ------------------- Parameters ----------------------- #
   # Parameters that need to be specified/checked before running this script
@@ -27,7 +47,7 @@ config <- parse_config("tests/config_a1.toml")
 
 # Other parameters created during porting to R
 # Those are needed because of GroIMPs output dir structure
-mof3d_results_dir <- file.path(mof3d_dir, "Results")
+mof3d_res_dir <- file.path(mof3d_dir, "Results")
 mof3d_model_dir <- file.path(mof3d_dir, "Model")
 forest_global_file <- "Forest_param_global.txt"
 forest_pass_file <- paste("Forest_param_pass", rep_forest, ".txt", sep = "")
@@ -51,21 +71,13 @@ config$corridor <- GlobalForest["WidthCorridor", 1]
 
 shootFile <- paste("shoots_replicate_", rep_forest, "_time_step_", sep = "")
 trunkFile <- paste("trees_replicate_", rep_forest, "_time_step_", sep = "")
-voxelFile <- paste("voxel_replicate_", rep_forest, "_time_step_", sep = "")
+voxFile <- paste("voxel_replicate_", rep_forest, "_time_step_", sep = "")
 
 # Load data for first time step
-ShootsBegin <- read.table(
-  file.path(mof3d_results_dir, paste(shootFile, timeStepStart, ".txt", sep = "")),
-  sep = "\t",
-  header = TRUE,
-  skip = 1
-)
-TrunksBegin <- read.table(
-  file.path(mof3d_results_dir, paste(trunkFile, timeStepStart, ".txt", sep = "")),
-  sep = "\t",
-  header = TRUE,
-  skip = 8
-)
+ShootsBegin <- file.path(mof3d_res_dir, paste(shootFile, timeStepStart, ".txt", sep = "")) |>
+  read.table(sep = "\t", header = TRUE, skip = 1)
+TrunksBegin <-   file.path(mof3d_res_dir, paste(trunkFile, timeStepStart, ".txt", sep = "")) |>
+  read.table(sep = "\t", header = TRUE, skip = 8)
 
 if (MicrohabitatType == 2) timeStepEnd <- timeStepStart
 
@@ -81,42 +93,19 @@ for (i in timeStepStart:timeStepEnd) {
     ShootsBegin <- ShootsEnd
     TrunksBegin <- TrunksEnd
   }
-
-  path_to_shoot_curr <- paste(shootFile, i + 1, ".txt", sep = "")
-  ShootsEnd <- read.table(
-    file.path(mof3d_results_dir, path_to_shoot_curr),
-    sep = "\t",
-    header = TRUE,
-    skip = 1
-  )
-  path_to_trunk_curr <- paste(trunkFile, i + 1, ".txt", sep = "")
-  TrunksEnd <- read.table(
-    file.path(mof3d_results_dir, path_to_trunk_curr),
-    sep = "\t",
-    header = TRUE,
-    skip = 8
-  )
+  ShootsEnd <- paste(shootFile, i + 1, ".txt", sep = "") |>
+    read.table(sep = "\t", header = TRUE, skip = 1)
+  TrunksEnd <- paste(trunkFile, i + 1, ".txt", sep = "") |>
+    read.table(sep = "\t", header = TRUE, skip = 8)
 
   # Find which branch segments and trunks die this time step
   dead_branches_id <- find_dead_segments(ShootsBegin, ShootsEnd)
   dead_trees_id <- find_dead_trees(TrunksBegin, TrunksEnd)
 
+  # Load file containing information about leaf area per voxel
   if (config$LightConditionsOpt) {
-    # Load file containing information about leaf area per voxel
-    voxelsFileName <- file.path(mof3d_results_dir, paste(voxelFile, i, ".txt", sep = ""))
-    colnames <- voxelsFileName |>
-      read.table(sep = "\t", skip = 1, nrows = 1) |>
-      as.character()
-    Voxels <- voxelsFileName |>
-      read.table(sep = "\t", header = FALSE, skip = 2,
-                 col.names = append(colnames, "empty_column"))
-    Voxels <- Voxels[colnames]
-
-    # Voxel file start with x=y=z=0 => synchronize with matrices used here
-    # TODO: this is quite bad, MoF3D outputs need to be made consistent
-    Voxels$x <- Voxels$x + 1
-    Voxels$y <- Voxels$y + 1
-    Voxels$z <- Voxels$z + 1
+    vox_dt <- file.path(mof3d_res_dir, paste(voxFile, i, ".txt", sep = "")) |>
+      read_vox_dt()
   }
 
   path_to_output <- file.path(
@@ -127,7 +116,7 @@ for (i in timeStepStart:timeStepEnd) {
     config = config,
     shoot_dt = ShootsBegin,
     trunk_dt = TrunksBegin,
-    vox_dt = ifelse(config$LightConditionsOpt, Voxels, NULL),
+    vox_dt = ifelse(config$LightConditionsOpt, vox_dt, NULL),
     path_to_output = path_to_output,
     dead_branches_id = dead_branches_id,
     dead_trees_id = dead_trees_id

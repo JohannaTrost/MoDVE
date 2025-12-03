@@ -67,8 +67,8 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
 
     seg_len <- shoot_dt$length[s]
     seg_diam <- shoot_dt$length[s]
-    seg_start <- c(shoot_dt$xbegin, shoot_dt$ybegin, shoot_dt$zbegin)
-    seg_end <- c(shoot_dt$xend, shoot_dt$yend, shoot_dt$zend)
+    seg_start <- c(shoot_dt$xbegin[s], shoot_dt$ybegin[s], shoot_dt$zbegin[s])
+    seg_end <- c(shoot_dt$xend[s], shoot_dt$yend[s], shoot_dt$zend[s])
     intersectd_voxels <- find_intersecting_voxels(seg_start, seg_end)
 
     # Calculate total surface area
