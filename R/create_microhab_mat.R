@@ -1,5 +1,27 @@
 
-create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt,
+#' Title
+#'
+#' @param config
+#' \itemize{
+#' \item MicrohabitatType  # 1: real GroIMP forest with dynamics
+# 2: static GroIMP forest (only forest at timeStepStart is used)
+#' \item kL light extinction coefficient
+#' \item DistVoxToConsider How many ring around focal voxel to consider in light model (5 voxels in x and y direction)
+#' \item TotalSurfaceAreaOpt which of these parameters should be used and added to microhab variables
+#' \item SurfaceAreaLossOpt
+#' \item LightConditionsOpt
+#' \item AverageWeightedAngles
+#' }
+#' @param shoot_dt
+#' @param trunk_dt
+#' @param vox_dt only required if LightConditionsOpt is TRUE
+#' @param path_to_output
+#' @param dead_branches_id
+#' @param dead_trees_id
+#'
+#' @export
+#'
+create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
                                     path_to_output, dead_branches_id,
                                     dead_trees_id) {
   # Inputs are correct
@@ -13,30 +35,28 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt,
     read.table(trunk_dt, sep = "\t",  header = TRUE, skip = 8)
   check_trunk_dt(trunk_dt)
 
-  if (is.character(vox_dt))
-    read.table(vox_dt, sep = "\t",  header = TRUE, skip = 1)
-  check_vox_dt(vox_dt)
+  if (config$LightConditionsOpt) {
+    if (is.character(vox_dt))
+      read.table(vox_dt, sep = "\t",  header = TRUE, skip = 1)
+    check_vox_dt(vox_dt)
+  }
 
-  # Unpack parameters
-  list2env(config, envir = environment())
-
-  Totalvox_dt <- (DistVoxToConsider * 2 + 1)^2  # Total number of adjacent voxels considered
-
-  # TODO: add these to config
-  #MaxX <- GlobalForest["MaxX", 1]
-  #MaxY <- GlobalForest["MaxY", 1]
-  #MaxZ <- GlobalForest["MaxZ", 1]
-  #corridor <- GlobalForest["WidthCorridor", 1]
+  # Set dimensions
+  MaxX <- config$MaxX
+  MaxY <- config$MaxY
+  MaxZ <- config$MaxZ
+  corridor <- config$corridor
   dimPlot <- c(MaxX, MaxY, MaxZ)
-  dimX <- MaxX + 2 * corridor  # MaxX+2*Corridor
-  dimY <- MaxY + 2 * corridor  # MaxY+2*Corridor
-  dimZ <- MaxZ  # MaxZ
+  dimX <- MaxX + 2 * corridor
+  dimY <- MaxY + 2 * corridor
+  dimZ <- MaxZ
   C <- c(0, 0, 1)  # Vector orthogonal to plane of X and Y
 
   microhab_mat <- array(
     rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * 4),
     dim = c(dimPlot[1], dimPlot[2], dimPlot[3], 4)
   )
+
   # Element indices of the matrix
   sa_elt <- 1
   sa_loss_elt <- 2
@@ -44,20 +64,21 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt,
   angle_elt <- 4
 
   for (s in 1:nrow(shoot_dt)) {
+
     seg_len <- shoot_dt$length[s]
     seg_diam <- shoot_dt$length[s]
-
     seg_start <- c(shoot_dt$xbegin, shoot_dt$ybegin, shoot_dt$zbegin)
     seg_end <- c(shoot_dt$xend, shoot_dt$yend, shoot_dt$zend)
-    intersectd_voxels <- get_intersecting_voxels(seg_start, seg_end)
+    intersectd_voxels <- find_intersecting_voxels(seg_start, seg_end)
 
     # Calculate total surface area
     seg_surface_area <- seg_len / length(intersectd_voxels) * seg_diam * pi / 2
 
-    if (AverageWeightedAngles) {
+    if (config$AverageWeightedAngles) {
       V <- seg_end - seg_start
       alpha <- sum(C * V) /
-        (sqrt(V[1]^2 + V[2]^2 + V[3]^2) * sqrt(C[1]^2 + C[2]^2 + C[3]^2))  # sqrt(C) is always 1, remove?
+        (sqrt(V[1]^2 + V[2]^2 + V[3]^2) * sqrt(C[1]^2 + C[2]^2 + C[3]^2))
+      # ^ sqrt(C) is always 1, remove?
       shoot_angle <- abs(90 - (acos(alpha) / pi * 180))
     }
 
@@ -66,7 +87,7 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt,
       y <- v[2]
       z <- v[3]
 
-      if (TotalSurfaceAreaOpt)
+      if (config$TotalSurfaceAreaOpt)
         microhab_mat[x, y, z, sa_elt] <- microhab_mat[x, y, z, sa_elt] +
         seg_surface_area
 
@@ -74,7 +95,7 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt,
         microhab_mat[x, y, z, sa_loss_elt] <- microhab_mat[x, y, z, sa_loss_elt] +
         seg_surface_area
 
-      if (AverageWeightedAngles) {
+      if (config$AverageWeightedAngles) {
         V <- seg_end - seg_start
         alpha <- sum(C * V) /
           (sqrt(V[1]^2 + V[2]^2 + V[3]^2) * sqrt(C[1]^2 + C[2]^2 + C[3]^2))
@@ -116,7 +137,7 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt,
       # Update total surface area of cylinder so far (to use in next step)
       SurfaceAreaTotal <- SurfaceAreaTotal + SurfaceAreaInVoxel
 
-      if (TotalSurfaceAreaOpt) {
+      if (config$TotalSurfaceAreaOpt) {
         microhab_mat[x, y, z, sa_elt] <- microhab_mat[x, y, z, sa_elt] +
           SurfaceAreaInVoxel
       }
@@ -128,7 +149,7 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt,
       }
 
       # Update weighted angle for the voxel
-      if (AverageWeightedAngles) {
+      if (config$AverageWeightedAngles) {
 
         tmp1 <- (microhab_mat[x, y, z, sa_elt] - SurfaceAreaInVoxel) /
           microhab_mat[x, y, z, sa_elt] * microhab_mat[x, y, z, angle_elt]
@@ -143,16 +164,13 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt,
   } # t in trunk set
 
   # Calculate light conditions in voxels (relative light conditions)
-  if (LightConditionsOpt ) {
-
-    # Voxel file start with x=y=z=0 => synchronize with matrices used here
-    # TODO: this inconsistency is really bad, MoF3D outputs needs to be made consistent
-    vox_dt$x <- vox_dt$x + 1
-    vox_dt$y <- vox_dt$y + 1
-    vox_dt$z <- vox_dt$z + 1
+  if (config$LightConditionsOpt ) {
 
     # Total leaf area in each column
-    leaf_area_mat <- array(rep(0, dimX * dimY * dimZ), dim = c(dimX, dimY, dimZ))
+    leaf_area_mat <- array(
+      rep(0, dimX * dimY * dimZ),
+      dim = c(dimX, dimY, dimZ)
+      )
 
     # Store information on leaf area in matrix
     for (vx in 1:nrow(vox_dt)) {
@@ -198,6 +216,6 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt,
       } # y
     } # x
 
-  } # lightConditionOpt
+  }
 
 }
