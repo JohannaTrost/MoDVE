@@ -11,14 +11,14 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // find_intersecting_voxels
-NumericVector find_intersecting_voxels(NumericVector xyz_begin, NumericVector xyz_end);
-RcppExport SEXP _MoDVE_find_intersecting_voxels(SEXP xyz_beginSEXP, SEXP xyz_endSEXP) {
+List find_intersecting_voxels(NumericVector coords_begin, NumericVector coords_end);
+RcppExport SEXP _MoDVE_find_intersecting_voxels(SEXP coords_beginSEXP, SEXP coords_endSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type xyz_begin(xyz_beginSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type xyz_end(xyz_endSEXP);
-    rcpp_result_gen = Rcpp::wrap(find_intersecting_voxels(xyz_begin, xyz_end));
+    Rcpp::traits::input_parameter< NumericVector >::type coords_begin(coords_beginSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type coords_end(coords_endSEXP);
+    rcpp_result_gen = Rcpp::wrap(find_intersecting_voxels(coords_begin, coords_end));
     return rcpp_result_gen;
 END_RCPP
 }
