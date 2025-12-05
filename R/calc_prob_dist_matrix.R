@@ -1,6 +1,7 @@
 #' Title
 #'
-#' @param centralPoint
+#' @param centralPoint a numeric vector of length 3 containing the X, Y and Z
+#' coordinates of the center
 #' @param dimX
 #' @param dimY
 #' @param dimZ
@@ -56,14 +57,17 @@ calc_prob_disp_matrix <- function(centralPoint, dimX, dimY, dimZ, NumberOfSpecie
   return(prob_disp_matrix)
 }
 
-#' Title
+#' Find a the central point in a three dimension coordinate system
 #'
-#' @param dims
+#' Given dimensions X, Y and Z, returns the 3d coordinates of the central point
 #'
-#' @returns
+#' @param dims a length-3 numeric vector containing dimension sizes X, Y and Z
+#' of the coordinate system
+#'
+#' @returns a length-3 numeric vector containing the X, Y and Z coordinates of
+#' the central point
 #' @export
 #'
-#' @examples
 find_central_point <- function(dims) {
   dimX <- dims[1] * 2 + 1
   dimY <- dims[2] * 2 + 1

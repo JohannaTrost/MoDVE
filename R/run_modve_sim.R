@@ -78,13 +78,23 @@ run_modve_sim <- function(sim_params,
   dimZ <- dim(Microhabitat)[3]
 
   # Prepare output
-  if (!dir.exists(dirname(path_to_ind_output))) {
-    # error
+  dir_output <- dirname(path_to_ind_output)
+  if (!dir.exists(dirname(dir_output))) {
+    stop(paste0("Directory ", dir_output, " does not exist."))
+  }
+  if (!grepl("*.csv$", path_to_ind_output)) {
+    stop("path_to_ind_output must be a csv file")
   }
 
-  if (!dir.exists(dirname(path_to_sp_output))) {
-    # error
+  dir_output <- dirname(path_to_sp_output)
+  if (!dir.exists(dirname(dir_output))) {
+    stop(paste0("Directory ", dir_output, " does not exist."))
   }
+  if (!grepl("*.csv$", path_to_sp_output)) {
+    stop("path_to_sp_output must be a csv file")
+  }
+
+
   sp_output_headers <- species_output_names()
   {
     # Column indices
@@ -103,8 +113,12 @@ run_modve_sim <- function(sim_params,
     dim = c(timeSteps * NumberOfSpecies, nb_cols_sp_output)
   )
 
-  if (!dir.exists(dirname(path_to_comm_output))) {
-    # error
+  dir_output <- dirname(path_to_comm_output)
+  if (!dir.exists(dirname(dir_output))) {
+    stop(paste0("Directory ", dir_output, " does not exist."))
+  }
+  if (!grepl("*.csv$", path_to_comm_output)) {
+    stop("path_to_comm_output must be a csv file")
   }
   comm_output_headers <- comm_output_names()
   comm_output <- data.frame(matrix(

@@ -41,6 +41,14 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
     check_vox_dt(vox_dt)
   }
 
+  dir_output <- dirname(path_to_output)
+  if (!dir.exists(dirname(dir_output))) {
+    stop(paste0("Output directory ", dir_output, " does not exist."))
+  }
+  if (!grepl("*.rds$", path_to_output)) {
+    stop("path_to_output must be a rds file")
+  }
+
   # Set dimensions
   MaxX <- config$MaxX
   MaxY <- config$MaxY
@@ -74,14 +82,6 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
     # Calculate total surface area
     seg_surface_area <- seg_len / length(intersectd_voxels) * seg_diam * pi / 2
 
-    if (config$AverageWeightedAngles) {
-      V <- seg_end - seg_start
-      alpha <- sum(C * V) /
-        (sqrt(V[1]^2 + V[2]^2 + V[3]^2) * sqrt(C[1]^2 + C[2]^2 + C[3]^2))
-      # ^ sqrt(C) is always 1, remove?
-      shoot_angle <- abs(90 - (acos(alpha) / pi * 180))
-    }
-
     for (v in exptd_voxels) {
       x <- v[1]
       y <- v[2]
@@ -96,9 +96,11 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
         seg_surface_area
 
       if (config$AverageWeightedAngles) {
+        # shoot_angle <- calc_angle(V, C)
         V <- seg_end - seg_start
         alpha <- sum(C * V) /
           (sqrt(V[1]^2 + V[2]^2 + V[3]^2) * sqrt(C[1]^2 + C[2]^2 + C[3]^2))
+        # ^ sqrt(C) is always 1, remove?
         shoot_angle <- abs(90 - (acos(alpha) / pi * 180))
 
         # Calculate weighted angle for the voxel
@@ -107,7 +109,7 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
           microhab_mat[x, y, z, sa_elt] *
           microhab_mat[x, y, z, angle_elt]
 
-        tmp2 <- seg_surface_area / microhab_mat[x, y, z, sa_elt] * ShootAngle
+        tmp2 <- seg_surface_area / microhab_mat[x, y, z, sa_elt] * shoot_angle
 
         microhab_mat[x, y, z, angle_elt] <- tmp1 + tmp2
       }
@@ -117,10 +119,10 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
 
   for (t in 1:nrow(trunk_dt)) {
 
-    x <- ceiling(trunk_dt$x[j])  # X voxel of tree
-    y <- ceiling(trunk_dt$y[j])  # Y voxel of tree
-    trunk_height <- trunk_dt$height[j]  # trunk_height of tree
-    trunk_diameter <- trunk_dt$diameter[j]  # trunk_diameter of tree
+    x <- ceiling(trunk_dt$x[j])
+    y <- ceiling(trunk_dt$y[j])
+    trunk_height <- trunk_dt$height[j]
+    trunk_diameter <- trunk_dt$diameter[j]
 
     SurfaceAreaTotal <- 0
 
@@ -164,7 +166,7 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
   } # t in trunk set
 
   # Calculate light conditions in voxels (relative light conditions)
-  if (config$LightConditionsOpt ) {
+  if (config$LightConditionsOpt) {
 
     # Total leaf area in each column
     leaf_area_mat <- array(
@@ -204,8 +206,8 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
             for (yy in int_seq(from = y - DistVoxToConsider, to = y + DistVoxToConsider, by = 1)) {
 
               Ring <- max(abs(xx - x), abs(yy - y))
-              Contribution <- 1 / (DistVoxToConsider + 1) *
-                1 / max(1, (Ring * 8)) * light_matrix_copy[xx, yy, z]
+              Contribution <- 1 / (DistVoxToConsider + 1) / max(1, (Ring * 8)) *
+                light_matrix_copy[xx, yy, z]
 
               TotalContribution <- TotalContribution + Contribution
             }
@@ -216,6 +218,7 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
       } # y
     } # x
 
-  }
+  } # lightConditionsOpt
 
+  saveRDS(microhab_mat, path_to_output)
 }
