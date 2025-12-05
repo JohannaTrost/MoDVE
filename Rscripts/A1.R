@@ -3,7 +3,7 @@ source("utils.R")
 
 library(data.table)
 
-config <- parse_config()
+config <- parse_config("tests/config_a1.toml")
 
 # ------------------- Parameters ----------------------- #
 # Parameters that need to be specified/checked before running this script

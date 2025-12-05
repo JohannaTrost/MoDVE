@@ -25,20 +25,20 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
                                     path_to_output, dead_branches_id,
                                     dead_trees_id) {
   # Inputs are correct
-  check_config(config)
+  #check_config(config)
 
   if (is.character(shoot_dt))
     read.table(shoot_dt, sep = "\t",  header = TRUE, skip = 1)
-  check_shoot_dt(shoot_dt)
+  #check_shoot_dt(shoot_dt)
 
   if (is.character(trunk_dt))
     read.table(trunk_dt, sep = "\t",  header = TRUE, skip = 8)
-  check_trunk_dt(trunk_dt)
+  #check_trunk_dt(trunk_dt)
 
   if (config$LightConditionsOpt) {
     if (is.character(vox_dt))
       read.table(vox_dt, sep = "\t",  header = TRUE, skip = 1)
-    check_vox_dt(vox_dt)
+   # check_vox_dt(vox_dt)
   }
 
   dir_output <- dirname(path_to_output)
@@ -71,7 +71,7 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
   light_elt <- 3
   angle_elt <- 4
 
-  for (s in 1:nrow(shoot_dt)) {
+  for (s in seq_len(nrow(shoot_dt))) {
 
     seg_len <- shoot_dt$length[s]
     seg_diam <- shoot_dt$length[s]

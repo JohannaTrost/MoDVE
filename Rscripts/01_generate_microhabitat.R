@@ -93,9 +93,9 @@ for (i in timeStepStart:timeStepEnd) {
     ShootsBegin <- ShootsEnd
     TrunksBegin <- TrunksEnd
   }
-  ShootsEnd <- paste(shootFile, i + 1, ".txt", sep = "") |>
+  ShootsEnd <- file.path(mof3d_res_dir, paste(shootFile, i + 1, ".txt", sep = "")) |>
     read.table(sep = "\t", header = TRUE, skip = 1)
-  TrunksEnd <- paste(trunkFile, i + 1, ".txt", sep = "") |>
+  TrunksEnd <- file.path(mof3d_res_dir, paste(trunkFile, i + 1, ".txt", sep = "")) |>
     read.table(sep = "\t", header = TRUE, skip = 8)
 
   # Find which branch segments and trunks die this time step

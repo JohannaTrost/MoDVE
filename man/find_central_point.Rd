@@ -2,13 +2,18 @@
 % Please edit documentation in R/calc_prob_dist_matrix.R
 \name{find_central_point}
 \alias{find_central_point}
-\title{Title}
+\title{Find a the central point in a three dimension coordinate system}
 \usage{
 find_central_point(dims)
 }
 \arguments{
-\item{dims}{}
+\item{dims}{a length-3 numeric vector containing dimension sizes X, Y and Z
+of the coordinate system}
+}
+\value{
+a length-3 numeric vector containing the X, Y and Z coordinates of
+the central point
 }
 \description{
-Title
+Given dimensions X, Y and Z, returns the 3d coordinates of the central point
 }

@@ -14,6 +14,9 @@ calc_prob_disp_matrix(
 )
 }
 \arguments{
+\item{centralPoint}{a numeric vector of length 3 containing the X, Y and Z
+coordinates of the center}
+
 \item{SpeciesPool}{}
 }
 \description{
