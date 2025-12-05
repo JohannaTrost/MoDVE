@@ -7,7 +7,15 @@
 resolve_competition(E, Microhabitat, CompetitionMethod)
 }
 \arguments{
-\item{CompetitionMethod}{}
+\item{E}{epiphyte data frame}
+
+\item{Microhabitat}{microhabitat matrix}
+
+\item{CompetitionMethod}{integer, 1 = larger individuals get priority in
+voxel attribution, otherwise individuals are distributed randomly.}
+}
+\value{
+the modified epiphyte data frame
 }
 \description{
 Title

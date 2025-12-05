@@ -15,7 +15,7 @@ create_microhabitat_mat(
 )
 }
 \arguments{
-\item{config}{\itemize{
+\item{config}{a list with \itemize{
 \item MicrohabitatType  # 1: real GroIMP forest with dynamics
 \item kL light extinction coefficient
 \item DistVoxToConsider How many ring around focal voxel to consider in light model (5 voxels in x and y direction)
@@ -25,9 +25,17 @@ create_microhabitat_mat(
 \item AverageWeightedAngles
 }}
 
+\item{shoot_dt}{matrix with branch information}
+
+\item{trunk_dt}{matrix with trunk information}
+
 \item{vox_dt}{only required if LightConditionsOpt is TRUE}
 
-\item{dead_trees_id}{}
+\item{path_to_output}{string, where to save output? Must be an rds file}
+
+\item{dead_branches_id}{integer vector containing the IDs of all branches dying this time step}
+
+\item{dead_trees_id}{integer vector containing the IDs of all trees dying this time step}
 }
 \description{
 Title

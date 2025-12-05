@@ -7,7 +7,14 @@
 resolve_growth(E, Microhabitat, SurfaceBiomassScaling)
 }
 \arguments{
-\item{SurfaceBiomassScaling}{}
+\item{E}{epiphyte data frame}
+
+\item{Microhabitat}{microhabitat matrix}
+
+\item{SurfaceBiomassScaling}{numeric parameter}
+}
+\value{
+the modified epiphyte data frame
 }
 \description{
 Title

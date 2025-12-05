@@ -2,16 +2,16 @@
 #'
 #' @param centralPoint a numeric vector of length 3 containing the X, Y and Z
 #' coordinates of the center
-#' @param dimX
-#' @param dimY
-#' @param dimZ
-#' @param NumberOfSpecies
-#' @param SpeciesPool
+#' @param dimX numeric, the X dimension of the coordinate system
+#' @param dimY numeric, the Y dimension of the coordinate system
+#' @param dimZ numeric, the Z dimension of the coordinate system
+#' @param NumberOfSpecies the number of epiphyte species in the simulation
+#' @param SpeciesPool a data frame containing the species traits of all species
 #'
-#' @returns
+#' @returns a matrix with the base probability of dispersing from the central
+#' point to each cell within reach
 #' @export
 #'
-#' @examples
 calc_prob_disp_matrix <- function(centralPoint, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool) {
 
   # Calculate distance to central point

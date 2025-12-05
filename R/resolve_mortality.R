@@ -1,16 +1,16 @@
 #' Title
 #'
-#' @param E
-#' @param Microhabitat
-#' @param MortalityMethod
-#' @param MortRateRandom
-#' @param MortRateMass
-#' @param MortRateMassScaling
+#' @param E epiphyte data frame
+#' @param Microhabitat microhabitat matrix
+#' @param MortalityMethod 0 = individuals die randomly according to `MortRateRandom`,
+#' or 1 = mortality is mass-dependent, using `MortRateMass * (mass^MortRateMassScaling)`
+#' @param MortRateRandom numeric parameter
+#' @param MortRateMass numeric parameter
+#' @param MortRateMassScaling numeric parameter
 #'
-#' @returns
+#' @returns the modified epiphyte data frame
 #' @export
 #'
-#' @examples
 resolve_mortality <- function(E, Microhabitat, MortalityMethod, MortRateRandom,
                   MortRateMass, MortRateMassScaling) {
 

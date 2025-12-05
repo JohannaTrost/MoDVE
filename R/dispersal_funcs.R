@@ -50,15 +50,15 @@ extract_ind_coords <- function(count_matrix) {
 
 #' Resolve the dispersal step of the simulation
 #'
-#' @param E
-#' @param Microhabitat
-#' @param SurfaceBiomassScaling
-#' @param centralPoint
-#' @param InterceptRecruitment
-#' @param SlopeRecruitment
-#' @param prob_disp_matrix
-#' @param SpeciesPool
-#' @param max_id
+#' @param E epiphyte data frame
+#' @param Microhabitat microhabitat matrix
+#' @param SurfaceBiomassScaling numeric
+#' @param centralPoint numeric vector of length 3 with coordinates of the central point
+#' @param InterceptRecruitment numeric parameter
+#' @param SlopeRecruitment numeric parameter
+#' @param prob_disp_matrix matrix, the output of `calc_prob_dist_matrix()`
+#' @param SpeciesPool data frame containing the species parameters
+#' @param max_id integer, the highest ID among all individuals
 #'
 #' @returns a list
 #' @export

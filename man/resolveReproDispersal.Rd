@@ -17,7 +17,23 @@ resolveReproDispersal(
 )
 }
 \arguments{
-\item{max_id}{}
+\item{E}{epiphyte data frame}
+
+\item{Microhabitat}{microhabitat matrix}
+
+\item{SurfaceBiomassScaling}{numeric}
+
+\item{centralPoint}{numeric vector of length 3 with coordinates of the central point}
+
+\item{InterceptRecruitment}{numeric parameter}
+
+\item{SlopeRecruitment}{numeric parameter}
+
+\item{prob_disp_matrix}{matrix, the output of \code{calc_prob_dist_matrix()}}
+
+\item{SpeciesPool}{data frame containing the species parameters}
+
+\item{max_id}{integer, the highest ID among all individuals}
 }
 \value{
 a list

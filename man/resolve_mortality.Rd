@@ -14,7 +14,21 @@ resolve_mortality(
 )
 }
 \arguments{
-\item{MortRateMassScaling}{}
+\item{E}{epiphyte data frame}
+
+\item{Microhabitat}{microhabitat matrix}
+
+\item{MortalityMethod}{0 = individuals die randomly according to \code{MortRateRandom},
+or 1 = mortality is mass-dependent, using \code{MortRateMass * (mass^MortRateMassScaling)}}
+
+\item{MortRateRandom}{numeric parameter}
+
+\item{MortRateMass}{numeric parameter}
+
+\item{MortRateMassScaling}{numeric parameter}
+}
+\value{
+the modified epiphyte data frame
 }
 \description{
 Title

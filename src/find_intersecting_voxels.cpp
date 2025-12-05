@@ -1,4 +1,4 @@
-#include <cmath>
+//#include <cmath>
 #include <Rcpp.h>
 using namespace Rcpp;
 
@@ -14,7 +14,6 @@ using namespace Rcpp;
 //' @returns a list of length 3 integer vectors, the 3D coordinates of all voxels
 //' intersected by the segment
 //'
-// [[Rcpp::plugins(cpp11)]]
 // [[Rcpp::export]]
 List find_intersecting_voxels(NumericVector coords_begin, NumericVector coords_end) {
 

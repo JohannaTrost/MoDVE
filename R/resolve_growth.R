@@ -1,13 +1,12 @@
 #' Title
 #'
-#' @param E
-#' @param Microhabitat
-#' @param SurfaceBiomassScaling
+#' @param E epiphyte data frame
+#' @param Microhabitat microhabitat matrix
+#' @param SurfaceBiomassScaling numeric parameter
 #'
-#' @returns
+#' @returns the modified epiphyte data frame
 #' @export
 #'
-#' @examples
 resolve_growth <- function(E, Microhabitat, SurfaceBiomassScaling) {
 
   for (i in seq_len(nrow(E))) {

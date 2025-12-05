@@ -17,7 +17,19 @@ calc_prob_disp_matrix(
 \item{centralPoint}{a numeric vector of length 3 containing the X, Y and Z
 coordinates of the center}
 
-\item{SpeciesPool}{}
+\item{dimX}{numeric, the X dimension of the coordinate system}
+
+\item{dimY}{numeric, the Y dimension of the coordinate system}
+
+\item{dimZ}{numeric, the Z dimension of the coordinate system}
+
+\item{NumberOfSpecies}{the number of epiphyte species in the simulation}
+
+\item{SpeciesPool}{a data frame containing the species traits of all species}
+}
+\value{
+a matrix with the base probability of dispersing from the central
+point to each cell within reach
 }
 \description{
 Title

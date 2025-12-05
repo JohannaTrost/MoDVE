@@ -1,13 +1,13 @@
 #' Title
 #'
-#' @param E
-#' @param Microhabitat
-#' @param CompetitionMethod
+#' @param E epiphyte data frame
+#' @param Microhabitat microhabitat matrix
+#' @param CompetitionMethod integer, 1 = larger individuals get priority in
+#' voxel attribution, otherwise individuals are distributed randomly.
 #'
-#' @returns
+#' @returns the modified epiphyte data frame
 #' @export
 #'
-#' @examples
 resolve_competition <- function(E, Microhabitat, CompetitionMethod) {
 
   # Calculate total surface area occupied by epiphytes per voxel

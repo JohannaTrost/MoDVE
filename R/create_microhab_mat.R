@@ -1,8 +1,7 @@
 
 #' Title
 #'
-#' @param config
-#' \itemize{
+#' @param config a list with \itemize{
 #' \item MicrohabitatType  # 1: real GroIMP forest with dynamics
 # 2: static GroIMP forest (only forest at timeStepStart is used)
 #' \item kL light extinction coefficient
@@ -12,12 +11,12 @@
 #' \item LightConditionsOpt
 #' \item AverageWeightedAngles
 #' }
-#' @param shoot_dt
-#' @param trunk_dt
+#' @param shoot_dt matrix with branch information
+#' @param trunk_dt matrix with trunk information
 #' @param vox_dt only required if LightConditionsOpt is TRUE
-#' @param path_to_output
-#' @param dead_branches_id
-#' @param dead_trees_id
+#' @param path_to_output string, where to save output? Must be an rds file
+#' @param dead_branches_id integer vector containing the IDs of all branches dying this time step
+#' @param dead_trees_id integer vector containing the IDs of all trees dying this time step
 #'
 #' @export
 #'
