@@ -54,10 +54,10 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
   MaxZ <- config$MaxZ
   corridor <- config$corridor
   dimPlot <- c(MaxX, MaxY, MaxZ)
-  dimX <- MaxX + 2 * corridor
-  dimY <- MaxY + 2 * corridor
-  dimZ <- MaxZ
+  forest_max_x <- MaxX + 2 * corridor
+  forest_max_y <- MaxY + 2 * corridor
   C <- c(0, 0, 1)  # Vector orthogonal to plane of X and Y
+  light_range <- config$DistVoxToConsider
 
   microhab_mat <- array(
     rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * 4),
@@ -74,25 +74,31 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
 
     seg_len <- shoot_dt$length[s]
     seg_diam <- shoot_dt$length[s]
-    seg_start <- c(shoot_dt$xbegin[s], shoot_dt$ybegin[s], shoot_dt$zbegin[s])
-    seg_end <- c(shoot_dt$xend[s], shoot_dt$yend[s], shoot_dt$zend[s])
+    seg_start <- c(shoot_dt$xbegin[s] - corridor,
+                   shoot_dt$ybegin[s] - corridor,
+                   shoot_dt$zbegin[s])
+    seg_end <- c(shoot_dt$xend[s] - corridor,
+                 shoot_dt$yend[s] - corridor,
+                 shoot_dt$zend[s])
     intersectd_voxels <- find_intersecting_voxels(seg_start, seg_end)
 
-    # Calculate total surface area
+    # Calculate total surface area and split it evenly across intersected voxels
     seg_surface_area <- seg_len / length(intersectd_voxels) * seg_diam * pi / 2
 
-    for (v in exptd_voxels) {
+    for (v in intersectd_voxels) {
       x <- v[1]
       y <- v[2]
       z <- v[3]
 
-      if (config$TotalSurfaceAreaOpt)
+      if (config$TotalSurfaceAreaOpt) {
         microhab_mat[x, y, z, sa_elt] <- microhab_mat[x, y, z, sa_elt] +
         seg_surface_area
+      }
 
-      if (shoot_dt$shoot_ID %in% dead_branches_id)
+      if (shoot_dt$shoot_ID %in% dead_branches_id) {
         microhab_mat[x, y, z, sa_loss_elt] <- microhab_mat[x, y, z, sa_loss_elt] +
         seg_surface_area
+      }
 
       if (config$AverageWeightedAngles) {
         # shoot_angle <- calc_angle(V, C)
@@ -118,8 +124,8 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
 
   for (t in 1:nrow(trunk_dt)) {
 
-    x <- ceiling(trunk_dt$x[j])
-    y <- ceiling(trunk_dt$y[j])
+    x <- ceiling(trunk_dt$x[j]) - corridor
+    y <- ceiling(trunk_dt$y[j]) - corridor
     trunk_height <- trunk_dt$height[j]
     trunk_diameter <- trunk_dt$diameter[j]
 
@@ -168,9 +174,10 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
   if (config$LightConditionsOpt) {
 
     # Total leaf area in each column
-    leaf_area_mat <- array(
-      rep(0, dimX * dimY * dimZ),
-      dim = c(dimX, dimY, dimZ)
+    # Must process voxels in the corridor too as they affect neighbouring voxels
+    leaf_area_mat <- light_mat <- array(
+      rep(0, forest_max_x * forest_max_y * MaxZ),
+      dim = c(forest_max_x, forest_max_y, MaxZ)
       )
 
     # Store information on leaf area in matrix
@@ -182,31 +189,30 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
     }
 
     # Calculate single column light conditions based on leaf area distribution
-    for (x in seq_len(dimX)) {
-      for (y in seq_len(dimY)) {
-        for (z in seq_len(dimZ)) {
-          total_leaf_area <- sum(leaf_area_mat[x, y, z:dimZ])
-          microhab_mat[x, y, z, light_elt] <- exp(-kL * total_leaf_area / 10000)
+    for (x in seq_len(forest_max_x)) {
+      for (y in seq_len(forest_max_y)) {
+        for (z in seq_len(MaxZ)) {
+          total_leaf_area <- sum(leaf_area_mat[x, y, z:MaxZ])
+          light_mat[x, y, z] <- exp(-kL * total_leaf_area / 10000)
         }
       }
     }
 
-    light_matrix_copy <- microhab_mat[, , , light_elt]
-
     # Calculate final light conditions by accounting for the light
     # conditions in adjacent voxels
-    for (x in int_seq(from = corridor, to = dimX - corridor, by = 1)) {
-      for (y in int_seq(from = corridor, to = dimY - corridor, by = 1)) {
-        for (z in seq_len(dimZ)) {
+    for (x in int_seq(from = corridor, to = forest_max_x - corridor)) {
+      for (y in int_seq(from = corridor, to = forest_max_y - corridor)) {
+        for (z in seq_len(MaxZ)) {
           TotalContribution <- 0
 
           # loop over ring surrounding the focal voxel
-          for (xx in int_seq(from = x - DistVoxToConsider, to = x + DistVoxToConsider, by = 1)) {
-            for (yy in int_seq(from = y - DistVoxToConsider, to = y + DistVoxToConsider, by = 1)) {
-
+          xx_seq <- int_seq(from = x - light_range, to = x + light_range)
+          yy_seq <- int_seq(from = y - light_range, to = y + light_range)
+          for (xx in xx_seq) {
+            for (yy in yy_seq) {
               Ring <- max(abs(xx - x), abs(yy - y))
-              Contribution <- 1 / (DistVoxToConsider + 1) / max(1, (Ring * 8)) *
-                light_matrix_copy[xx, yy, z]
+              Contribution <- 1 / (light_range + 1) / max(1, (Ring * 8)) *
+                light_mat[xx, yy, z]
 
               TotalContribution <- TotalContribution + Contribution
             }

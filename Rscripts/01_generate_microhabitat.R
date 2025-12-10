@@ -83,6 +83,7 @@ if (MicrohabitatType == 2) timeStepEnd <- timeStepStart
 
 for (i in timeStepStart:timeStepEnd) {
 
+  #i <- timeStepStart
   print(paste("Time step", i))
 
   # Load shoot and trunk files of actual and next timestep: Shoots at begin of year
@@ -111,6 +112,9 @@ for (i in timeStepStart:timeStepEnd) {
   path_to_output <- file.path(
     output_dir, paste("MicrohabitatMatrix", i, ".rds", sep = "")
   )
+
+  #shoot_dt = ShootsBegin
+  #trunk_dt = TrunksBegin
 
   create_microhabitat_mat(
     config = config,
