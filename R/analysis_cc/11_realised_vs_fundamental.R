@@ -46,7 +46,6 @@ summary_shift <- species_distr_stats %>%
 # - 1. Get time and location of individuals od interest
 filtered_species_distr <- summary_shift %>%
   select(SpeciesPool, SpeciesID, last_year_alive, Shift, diff) %>%
-  filter(diff <= quantile(diff, 0.25) | diff >= quantile(diff, 0.75)) %>%
   right_join(species_distr, ., by = c("SpeciesPool", "SpeciesID")) %>%
   filter(Year <= last_year_alive & Year >= last_year_alive - 20) %>%
   drop_na(.) # Drop all species that only survived in the sim. with community
@@ -94,7 +93,26 @@ for (scenario in c("CC", "No CC")) {
   }
 }
 
-# Species env. conditions in simulation without community
+# Now get the theoretical niche specifications
+niches <- NULL
+for (sp in 1:10) {
+  sp_niches <- read_csv(file.path(base_dir, "a2_1", paste0("SpeciesPool", sp, ".csv")),
+                        show_col_types = FALSE) %>%
+    dplyr::select(-LightResponseA, -LightResponseB, -LightResponseC, -MinWind, -MaxWind, -OptimumWind,
+           -DispersalKernelWindEffect) %>%
+    mutate(SpeciesPool = sp)
+
+  if (is.null(niches)) {
+    niches <- sp_niches
+  } else {
+    niches <- rbind(niches, sp_niches)
+  }
+}
+
+indiv_env_niches <- left_join(species_env, niches, by = c("SpeciesID", "SpeciesPool"))
+#write_csv(indiv_env_niches, file.path(DirectoryPlots, "a5_individuals_cc_vs_no_cc_niches_envCond_shift.csv"))
+
+# Species env. conditions in simulation with community
 species_env_agg <- species_env %>%
   group_by(Scenario, SpeciesPool, SpeciesID, Shift) %>%
   summarize(AvgTempCond = mean(Temp, na.rm = TRUE),
@@ -113,23 +131,8 @@ species_env_agg <- species_env %>%
             MinPotLight = mean(MinPotLight, na.rm = TRUE) * 900,
             MinPotHum = mean(MinPotHum, na.rm = TRUE),
             MinPotTemp = mean(MinPotTemp, na.rm = TRUE),
+            AvgDiff = mean(diff, na.rm = TRUE),
             .groups = "drop")
-
-# Now get the theoretical niche specifications
-niches <- NULL
-for (sp in 1:10) {
-  sp_niches <- read_csv(file.path(base_dir, "a2_1", paste0("SpeciesPool", sp, ".csv")),
-                        show_col_types = FALSE) %>%
-    dplyr::select(-LightResponseA, -LightResponseB, -LightResponseC, -MinWind, -MaxWind, -OptimumWind,
-           -DispersalKernelWindEffect) %>%
-    mutate(SpeciesPool = sp)
-
-  if (is.null(niches)) {
-    niches <- sp_niches
-  } else {
-    niches <- rbind(niches, sp_niches)
-  }
-}
 
 # Merge realized and fundamental niches
 species_env_niches <- left_join(species_env_agg, niches, by = c("SpeciesID", "SpeciesPool"))
@@ -137,7 +140,8 @@ species_env_niches <- left_join(species_env_agg, niches, by = c("SpeciesID", "Sp
 # ---- Plot realised vs theoretical niches
 
 # Assuming your tibble is named species_env_niches
-df <- species_env_niches
+df <- species_env_niches %>%
+    filter(AvgDiff <= quantile(AvgDiff, 0.25) | AvgDiff >= quantile(AvgDiff, 0.75))
 
 # --- Prepare data in long format for easier plotting ---
 # We'll gather realised and theoretical values for Temp, Hum, Light
@@ -224,8 +228,8 @@ df_ordered <- df_shift %>%
   left_join(order_labels, by = c("Label")) %>%
   mutate(Label = factor(Label, levels = levels(order_labels$Label)))
 
-pdf(file.path(DirectoryPlots, paste0(shift, "_realised_vs_theoretical_vs_potential_niche_not_species.pdf")),
-    width = 18, height = 8)
+#pdf(file.path(DirectoryPlots, paste0(shift, "_realised_vs_theoretical_vs_potential_niche_not_species.pdf")),
+#    width = 18, height = 8)
 ggplot(df_ordered,
        aes(x = Type, y = Mean, group = Label)) +
   geom_point(position = pd, size = 2) +
@@ -241,5 +245,173 @@ ggplot(df_ordered,
     axis.text.x = element_text(angle = 45, hjust = 1),
     legend.position = "top",
     panel.grid.minor = element_blank()
+  )
+#dev.off()
+
+
+# --- Compute range filling
+
+range_filling <- species_env_niches %>%
+  mutate(TempNicheFill = ((MaxTempCond - MinTempCond) / (MaxTemp - MinTemp)) * 100,
+         HumNicheFill = ((MaxHumCond - MinHumCond) / (MaxHum - MinHum)) * 100,
+         LightNicheFill = ((MaxLightCond - MinLightCond) / (MaxLight - MinLight)) * 100,
+         TempRangeFill = ((MaxTempCond - MinTempCond) / (MaxPotTemp - MinPotTemp)) * 100,
+         HumRangeFill = ((MaxHumCond - MinHumCond) / (MaxPotHum - MinPotHum)) * 100,
+         LightRangeFill = ((MaxLightCond - MinLightCond) / (MaxPotLight - MinPotLight)) * 100)
+
+# - Plot niche filling
+
+# Reshape data to long format for ggplot
+range_filling_long <- range_filling %>%
+  select(Scenario, TempNicheFill, HumNicheFill, LightNicheFill) %>%
+  pivot_longer(
+    cols = c(TempNicheFill, HumNicheFill, LightNicheFill),
+    names_to = "Variable",
+    values_to = "NicheFill"
+  ) %>%
+  mutate(
+    Variable = recode(Variable,
+                      TempNicheFill = "Temperature",
+                      HumNicheFill = "Relative humidity",
+                      LightNicheFill = "Light")
+  )
+
+# Define colors for scenarios
+colors <- c('CC' = '#f7766e', 'No CC' = '#004aad')
+
+# Create the boxplot
+output_file2 <- file.path(DirectoryPlots, "boxplot_niche_filling.pdf")
+pdf(output_file2, width = 7, height = 6)
+ggplot(range_filling_long, aes(x = Variable, y = NicheFill, fill = Scenario)) +
+  geom_boxplot(outlier.shape = 21, outlier.alpha = 0.5, notch = TRUE) +
+  scale_fill_manual(values = colors) +
+  labs(
+    x = "",
+    y = "Niche filling (%)",
+    fill = "Scenario"
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 15),
+    legend.position = "none"
+  )
+dev.off()
+
+# - Plot range filling
+
+# Reshape data to long format for ggplot
+range_filling_long <- range_filling %>%
+  select(Scenario, TempRangeFill, HumRangeFill, LightRangeFill) %>%
+  pivot_longer(
+    cols = c(TempRangeFill, HumRangeFill, LightRangeFill),
+    names_to = "Variable",
+    values_to = "RangeFill"
+  ) %>%
+  mutate(
+    Variable = recode(Variable,
+                      TempRangeFill = "Temperature",
+                      HumRangeFill = "Relative humidity",
+                      LightRangeFill = "Light")
+  )
+
+# Define colors for scenarios
+colors <- c('CC' = '#f7766e', 'No CC' = '#004aad')
+
+# Create the boxplot
+output_file2 <- file.path(DirectoryPlots, "boxplot_range_filling.pdf")
+pdf(output_file2, width = 7, height = 6)
+ggplot(range_filling_long, aes(x = Variable, y = RangeFill, fill = Scenario)) +
+  geom_boxplot(outlier.shape = 21, outlier.alpha = 0.5, notch = TRUE) +
+  scale_fill_manual(values = colors) +
+  labs(
+    x = "",
+    y = "Range filling (%)",
+    fill = "Scenario"
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 15),
+    legend.position = "none"
+  )
+dev.off()
+
+# ---- Relating shift and niche filling differences ---- #
+
+# - Niche filling difference vs. shift
+
+range_diff <- range_filling %>%
+  select(SpeciesID, SpeciesPool, Scenario, AvgDiff, TempNicheFill, TempRangeFill,
+         HumNicheFill, HumRangeFill, LightNicheFill, LightRangeFill) %>%
+  pivot_wider(
+    names_from = Scenario,
+    values_from = c(TempNicheFill, TempRangeFill, HumNicheFill, HumRangeFill, LightNicheFill,
+                    LightRangeFill),
+    names_sep = "_"
+  ) %>%
+  mutate(
+    # Compute differences (CC - NoCC)
+    Diff_TempNicheFill = TempNicheFill_CC - `TempNicheFill_No CC`,
+    Diff_TempRangeFill = TempRangeFill_CC - `TempRangeFill_No CC`,
+    Diff_HumNicheFill = HumNicheFill_CC - `HumNicheFill_No CC`,
+    Diff_HumRangeFill = HumRangeFill_CC - `HumRangeFill_No CC`,
+    Diff_LightNicheFill = LightNicheFill_CC - `LightNicheFill_No CC`,
+    Diff_LightRangeFill = LightRangeFill_CC - `LightRangeFill_No CC`,
+  )
+
+# Step 3: Scatter plot of shift vs niche filling difference
+output_file2 <- file.path(DirectoryPlots, "scatter_shift_vs_niche_fill_diff_temp.pdf")
+
+pdf(output_file2, width = 7, height = 6)
+ggplot(range_diff, aes(x = Diff_TempNicheFill, y = AvgDiff)) +
+  geom_point(size = 2, alpha = 0.7, color = "#004aad") +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  geom_smooth(method = "lm", se = TRUE, color = "#f7766e") +
+  labs(
+    x = expression(Delta~"Temperature niche filling (%)"~(CC - No~CC)),
+    y = expression(Delta~"Position shift (m)"~(CC - No~CC))
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 15),
+    legend.position = "none"
+  )
+dev.off()
+# Hum
+output_file2 <- file.path(DirectoryPlots, "scatter_shift_vs_niche_fill_diff_hum.pdf")
+
+pdf(output_file2, width = 7, height = 6)
+ggplot(range_diff, aes(x = Diff_HumNicheFill, y = AvgDiff)) +
+  geom_point(size = 2, alpha = 0.7, color = "#004aad") +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  geom_smooth(method = "lm", se = TRUE, color = "#f7766e") +
+  labs(
+    x = expression(Delta~"Relatve humidity niche filling (%)"~(CC - No~CC)),
+    y = expression(Delta~"Position shift (m)"~(CC - No~CC))
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 15),
+    legend.position = "none"
+  )
+dev.off()
+# Light
+output_file2 <- file.path(DirectoryPlots, "scatter_shift_vs_niche_fill_diff_light.pdf")
+
+pdf(output_file2, width = 7, height = 6)
+ggplot(range_diff, aes(x = Diff_LightNicheFill, y = AvgDiff)) +
+  geom_point(size = 2, alpha = 0.7, color = "#004aad") +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  geom_smooth(method = "lm", se = TRUE, color = "#f7766e") +
+  labs(
+    x = expression(Delta~"Light niche filling (%)"~(CC - No~CC)),
+    y = expression(Delta~"Position shift (m)"~(CC - No~CC))
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 15),
+    legend.position = "none"
   )
 dev.off()
