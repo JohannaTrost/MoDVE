@@ -83,7 +83,6 @@ if (MicrohabitatType == 2) timeStepEnd <- timeStepStart
 
 for (i in timeStepStart:timeStepEnd) {
 
-  #i <- timeStepStart
   print(paste("Time step", i))
 
   # Load shoot and trunk files of actual and next timestep: Shoots at begin of year
@@ -107,23 +106,23 @@ for (i in timeStepStart:timeStepEnd) {
   if (config$LightConditionsOpt) {
     vox_dt <- file.path(mof3d_res_dir, paste(voxFile, i, ".txt", sep = "")) |>
       read_vox_dt()
-  }
+  } else vox_dt <- NULL
 
   path_to_output <- file.path(
-    output_dir, paste("MicrohabitatMatrix", i, ".rds", sep = "")
+    output_dir, paste("MicrohabitatMatrix_new", i, ".rds", sep = "")
   )
 
-  #shoot_dt = ShootsBegin
-  #trunk_dt = TrunksBegin
-
+  start_time <- Sys.time()
   create_microhabitat_mat(
     config = config,
     shoot_dt = ShootsBegin,
     trunk_dt = TrunksBegin,
-    vox_dt = ifelse(config$LightConditionsOpt, vox_dt, NULL),
+    vox_dt = vox_dt,
     path_to_output = path_to_output,
     dead_branches_id = dead_branches_id,
     dead_trees_id = dead_trees_id
     )
-
+  end_time <- Sys.time()
+  print(end_time - start_time)
 }
+

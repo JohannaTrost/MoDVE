@@ -73,17 +73,25 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
   for (s in seq_len(nrow(shoot_dt))) {
 
     seg_len <- shoot_dt$length[s]
-    seg_diam <- shoot_dt$length[s]
+    seg_diam <- shoot_dt$diameter[s]
     seg_start <- c(shoot_dt$xbegin[s] - corridor,
                    shoot_dt$ybegin[s] - corridor,
                    shoot_dt$zbegin[s])
     seg_end <- c(shoot_dt$xend[s] - corridor,
                  shoot_dt$yend[s] - corridor,
                  shoot_dt$zend[s])
-    intersectd_voxels <- find_intersecting_voxels(seg_start, seg_end)
+    intersectd_voxels <- find_incorrect_voxels(seg_start, seg_end)
 
     # Calculate total surface area and split it evenly across intersected voxels
     seg_surface_area <- seg_len / length(intersectd_voxels) * seg_diam * pi / 2
+
+    # Drop voxels in the corridor
+    is_in_microhab_area <- sapply(
+      intersectd_voxels,
+      function(v) v[1] <= MaxX && v[2] <= MaxY &&
+        v[1] > 0 && v[2] > 0
+      )
+    intersectd_voxels <- intersectd_voxels[is_in_microhab_area]
 
     for (v in intersectd_voxels) {
       x <- v[1]
@@ -95,13 +103,12 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
         seg_surface_area
       }
 
-      if (shoot_dt$shoot_ID %in% dead_branches_id) {
+      if (config$SurfaceAreaLossOpt && shoot_dt$shootID[s] %in% dead_branches_id) {
         microhab_mat[x, y, z, sa_loss_elt] <- microhab_mat[x, y, z, sa_loss_elt] +
         seg_surface_area
       }
 
       if (config$AverageWeightedAngles) {
-        # shoot_angle <- calc_angle(V, C)
         V <- seg_end - seg_start
         alpha <- sum(C * V) /
           (sqrt(V[1]^2 + V[2]^2 + V[3]^2) * sqrt(C[1]^2 + C[2]^2 + C[3]^2))
@@ -122,12 +129,12 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
     }
   }
 
-  for (t in 1:nrow(trunk_dt)) {
+  for (t in seq_len(nrow(trunk_dt))) {
 
-    x <- ceiling(trunk_dt$x[j]) - corridor
-    y <- ceiling(trunk_dt$y[j]) - corridor
-    trunk_height <- trunk_dt$height[j]
-    trunk_diameter <- trunk_dt$diameter[j]
+    x <- ceiling(trunk_dt$x[t]) - corridor
+    y <- ceiling(trunk_dt$y[t]) - corridor
+    trunk_height <- trunk_dt$height[t]
+    trunk_diameter <- trunk_dt$diameter[t]
 
     SurfaceAreaTotal <- 0
 
@@ -150,7 +157,7 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
       }
 
       # If trunk is lost during this time step, add it to lost surface
-      if (trunk_dt$tree_id %in% dead_trees_id) {
+      if (trunk_dt$treeID[s] %in% dead_trees_id) {
         microhab_mat[x, y, z, sa_loss_elt] <- microhab_mat[x, y, z, sa_loss_elt] +
           SurfaceAreaInVoxel
       }
@@ -181,7 +188,7 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
       )
 
     # Store information on leaf area in matrix
-    for (vx in 1:nrow(vox_dt)) {
+    for (vx in seq_len(nrow(vox_dt))) {
       x <- vox_dt$x[vx]
       y <- vox_dt$y[vx]
       z <- vox_dt$z[vx]
@@ -193,21 +200,22 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
       for (y in seq_len(forest_max_y)) {
         for (z in seq_len(MaxZ)) {
           total_leaf_area <- sum(leaf_area_mat[x, y, z:MaxZ])
-          light_mat[x, y, z] <- exp(-kL * total_leaf_area / 10000)
+          light_mat[x, y, z] <- exp(-config$kL * total_leaf_area / 10000)
         }
       }
     }
 
     # Calculate final light conditions by accounting for the light
     # conditions in adjacent voxels
-    for (x in int_seq(from = corridor, to = forest_max_x - corridor)) {
-      for (y in int_seq(from = corridor, to = forest_max_y - corridor)) {
+    # x and y are indices in the full matrix including corridors
+    for (x in seq(from = corridor + 1, to = forest_max_x - corridor)) {
+      for (y in seq(from = corridor + 1, to = forest_max_y - corridor)) {
         for (z in seq_len(MaxZ)) {
           TotalContribution <- 0
 
           # loop over ring surrounding the focal voxel
-          xx_seq <- int_seq(from = x - light_range, to = x + light_range)
-          yy_seq <- int_seq(from = y - light_range, to = y + light_range)
+          xx_seq <- seq(from = x - light_range, to = x + light_range)
+          yy_seq <- seq(from = y - light_range, to = y + light_range)
           for (xx in xx_seq) {
             for (yy in yy_seq) {
               Ring <- max(abs(xx - x), abs(yy - y))
@@ -217,8 +225,7 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
               TotalContribution <- TotalContribution + Contribution
             }
           }
-
-          microhab_mat[x, y, z, light_elt] <- TotalContribution
+          microhab_mat[x - corridor, y - corridor, z, light_elt] <- TotalContribution
         } # z
       } # y
     } # x
