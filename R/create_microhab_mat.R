@@ -1,4 +1,3 @@
-
 #' Title
 #'
 #' @param config a list with \itemize{
@@ -14,15 +13,16 @@
 #' @param shoot_dt matrix with branch information
 #' @param trunk_dt matrix with trunk information
 #' @param vox_dt only required if LightConditionsOpt is TRUE
-#' @param path_to_output string, where to save output? Must be an rds file
+#' @param path_to_output string, where to save output? Must be an rds file or `NULL`,
+#' in which case the result matrix is returned.
 #' @param dead_branches_id integer vector containing the IDs of all branches dying this time step
 #' @param dead_trees_id integer vector containing the IDs of all trees dying this time step
 #'
 #' @export
 #'
 create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
-                                    path_to_output, dead_branches_id,
-                                    dead_trees_id) {
+                                    path_to_output = NULL, dead_branches_id = NULL,
+                                    dead_trees_id = NULL) {
   # Inputs are correct
   #check_config(config)
 
@@ -40,12 +40,14 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
    # check_vox_dt(vox_dt)
   }
 
-  dir_output <- dirname(path_to_output)
-  if (!dir.exists(dirname(dir_output))) {
-    stop(paste0("Output directory ", dir_output, " does not exist."))
-  }
-  if (!grepl("*.rds$", path_to_output)) {
-    stop("path_to_output must be a rds file")
+  if (!is.null(path_to_output)) {
+    dir_output <- dirname(path_to_output)
+    if (!dir.exists(dirname(dir_output))) {
+      stop(paste0("Output directory ", dir_output, " does not exist."))
+    }
+    if (!grepl("*.rds$", path_to_output)) {
+      stop("path_to_output must be a rds file")
+    }
   }
 
   # Set dimensions
@@ -56,8 +58,6 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
   dimPlot <- c(MaxX, MaxY, MaxZ)
   forest_max_x <- MaxX + 2 * corridor
   forest_max_y <- MaxY + 2 * corridor
-  C <- c(0, 0, 1)  # Vector orthogonal to plane of X and Y
-  light_range <- config$DistVoxToConsider
 
   microhab_mat <- array(
     rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * 4),
@@ -80,10 +80,10 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
     seg_end <- c(shoot_dt$xend[s] - corridor,
                  shoot_dt$yend[s] - corridor,
                  shoot_dt$zend[s])
-    intersectd_voxels <- find_incorrect_voxels(seg_start, seg_end)
+    intersectd_voxels <- find_intersecting_voxels(seg_start, seg_end)
 
     # Calculate total surface area and split it evenly across intersected voxels
-    seg_surface_area <- seg_len / length(intersectd_voxels) * seg_diam * pi / 2
+    seg_surface_area <- seg_len * seg_diam * pi / 2 / length(intersectd_voxels)
 
     # Drop voxels in the corridor
     is_in_microhab_area <- sapply(
@@ -97,31 +97,29 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
       x <- v[1]
       y <- v[2]
       z <- v[3]
+      voxel <- microhab_mat[x, y, z, ]
 
       if (config$TotalSurfaceAreaOpt) {
-        microhab_mat[x, y, z, sa_elt] <- microhab_mat[x, y, z, sa_elt] +
-        seg_surface_area
+        microhab_mat[x, y, z, sa_elt] <- voxel[sa_elt] + seg_surface_area
       }
 
       if (config$SurfaceAreaLossOpt && shoot_dt$shootID[s] %in% dead_branches_id) {
-        microhab_mat[x, y, z, sa_loss_elt] <- microhab_mat[x, y, z, sa_loss_elt] +
+        microhab_mat[x, y, z, sa_loss_elt] <- voxel[sa_loss_elt] +
         seg_surface_area
       }
 
       if (config$AverageWeightedAngles) {
         V <- seg_end - seg_start
-        alpha <- sum(C * V) /
-          (sqrt(V[1]^2 + V[2]^2 + V[3]^2) * sqrt(C[1]^2 + C[2]^2 + C[3]^2))
-        # ^ sqrt(C) is always 1, remove?
+        alpha <- V[1] / sqrt(V[1]^2 + V[2]^2 + V[3]^2)
         shoot_angle <- abs(90 - (acos(alpha) / pi * 180))
 
         # Calculate weighted angle for the voxel
         # ??? source for this?
-        tmp1 <- (microhab_mat[x, y, z, sa_elt] - seg_surface_area) /
-          microhab_mat[x, y, z, sa_elt] *
-          microhab_mat[x, y, z, angle_elt]
+        curr_surface_area <- microhab_mat[x, y, z, sa_elt]
+        tmp1 <- (curr_surface_area - seg_surface_area) /
+          curr_surface_area * voxel[angle_elt]
 
-        tmp2 <- seg_surface_area / microhab_mat[x, y, z, sa_elt] * shoot_angle
+        tmp2 <- seg_surface_area / curr_surface_area * shoot_angle
 
         microhab_mat[x, y, z, angle_elt] <- tmp1 + tmp2
       }
@@ -180,6 +178,8 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
   # Calculate light conditions in voxels (relative light conditions)
   if (config$LightConditionsOpt) {
 
+    light_range <- config$DistVoxToConsider
+
     # Total leaf area in each column
     # Must process voxels in the corridor too as they affect neighbouring voxels
     leaf_area_mat <- light_mat <- array(
@@ -232,5 +232,9 @@ create_microhabitat_mat <- function(config, shoot_dt, trunk_dt, vox_dt = NULL,
 
   } # lightConditionsOpt
 
-  saveRDS(microhab_mat, path_to_output)
+  if (!is.null(path_to_output)) {
+    saveRDS(microhab_mat, path_to_output)
+  } else {
+    return(microhab_mat)
+  }
 }
