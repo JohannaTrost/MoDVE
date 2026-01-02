@@ -113,7 +113,7 @@ climdata_detrended2$temp_detrended <- temp_detrended
 
 # Summary statistics to verify the detrending
 print("\nSummary of original vs detrended temperature:")
-summary_stats <- climdata_detrended %>%
+summary_stats <- climdata_detrended2 %>%
   summarise(
     original_temp_mean = mean(temp, na.rm = TRUE),
     original_temp_sd = sd(temp, na.rm = TRUE),
@@ -138,6 +138,8 @@ print(paste("Detrended data trend:", round(trend_check$detrended_trend_slope, 4)
 
 # -- Plot data
 
+climdata_detrended2 <- read_csv(file.path(out_dir, "climdata_era5_cmip6_1981-2100_ssp245_no_cc.csv"))
+
 # ---- Annual statistics for temperature ----
 annual_mc <- climdata_detrended2 %>%
   mutate(year = lubridate::year(obs_time)) %>%
@@ -155,45 +157,99 @@ annual_mc <- climdata_detrended2 %>%
 
 # ---- Plot for temperature ----
 p_temp <- ggplot(annual_mc, aes(x = year)) +
-  # Original data (steelblue)
-  geom_ribbon(aes(ymin = mean_temp - sd_temp,
-                  ymax = mean_temp + sd_temp),
-              fill = "steelblue", alpha = 0.2) +
-  geom_line(aes(y = mean_temp), color = "steelblue", size = 1) +
-  geom_point(aes(y = mean_temp), color = "steelblue", size = 1) +
 
-  # Detrended data (coral)
-  geom_ribbon(aes(ymin = mean_temp_detrended - sd_temp_detrended,
-                  ymax = mean_temp_detrended + sd_temp_detrended),
-              fill = "coral", alpha = 0.2) +
-  geom_line(aes(y = mean_temp_detrended), color = "coral", size = 1) +
-  geom_point(aes(y = mean_temp_detrended), color = "coral", size = 1) +
+  # Climate change
+  geom_ribbon(
+    aes(ymin = mean_temp - sd_temp,
+        ymax = mean_temp + sd_temp,
+        fill = "Climate change"),
+    alpha = 0.2
+  ) +
+  geom_line(aes(y = mean_temp, color = "Climate change"), size = 1) +
+  geom_point(aes(y = mean_temp, color = "Climate change"), size = 1) +
 
-  labs(x = "Year",
-       y = "Temperature (°C)") +
-  theme_minimal(base_size = 14)
+  # Baseline (detrended)
+  geom_ribbon(
+    aes(ymin = mean_temp_detrended - sd_temp_detrended,
+        ymax = mean_temp_detrended + sd_temp_detrended,
+        fill = "Baseline"),
+    alpha = 0.2
+  ) +
+  geom_line(aes(y = mean_temp_detrended, color = "Baseline"), size = 1) +
+  geom_point(aes(y = mean_temp_detrended, color = "Baseline"), size = 1) +
+
+  scale_color_manual(
+    values = c("Climate change" = "#F7766E",
+               "Baseline" = "#004AAD")
+  ) +
+  scale_fill_manual(
+    values = c("Climate change" = "#F7766E",
+               "Baseline" = "#004AAD")
+  ) +
+
+  labs(
+    x = "Year",
+    y = "Temperature (°C)",
+    color = NULL,
+    fill = NULL
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 20),
+    axis.text = element_text(size = 15)
+  )
 
 # ---- Plot for relative humidity ----
 p_hum <- ggplot(annual_mc, aes(x = year)) +
-  geom_ribbon(aes(ymin = mean_relhum - sd_relhum,
-                  ymax = mean_relhum + sd_relhum),
-              fill = "darkgreen", alpha = 0.2) +
-  geom_line(aes(y = mean_relhum), color = "darkgreen", size = 1) +
-  geom_point(aes(y = mean_relhum), color = "darkgreen", size = 1) +
-  # Detrended data
-  geom_ribbon(aes(ymin = mean_relhum_detrended - sd_relhum_detrended,
-                  ymax = mean_relhum_detrended + sd_relhum_detrended),
-              fill = "coral", alpha = 0.2) +
-  geom_line(aes(y = mean_relhum_detrended), color = "coral", size = 1) +
-  geom_point(aes(y = mean_relhum_detrended), color = "coral", size = 1) +
-  labs(x = "Year",
-       y = "Relative Humidity (%)") +
-  theme_minimal(base_size = 14)
+
+  geom_ribbon(
+    aes(ymin = mean_relhum - sd_relhum,
+        ymax = mean_relhum + sd_relhum,
+        fill = "Climate change"),
+    alpha = 0.2
+  ) +
+  geom_line(aes(y = mean_relhum, color = "Climate change"), size = 1) +
+  geom_point(aes(y = mean_relhum, color = "Climate change"), size = 1) +
+
+  geom_ribbon(
+    aes(ymin = mean_relhum_detrended - sd_relhum_detrended,
+        ymax = mean_relhum_detrended + sd_relhum_detrended,
+        fill = "Baseline"),
+    alpha = 0.2
+  ) +
+  geom_line(aes(y = mean_relhum_detrended, color = "Baseline"), size = 1) +
+  geom_point(aes(y = mean_relhum_detrended, color = "Baseline"), size = 1) +
+
+  scale_color_manual(
+    values = c("Climate change" = "#F7766E",
+               "Baseline" = "#004AAD")
+  ) +
+  scale_fill_manual(
+    values = c("Climate change" = "#F7766E",
+               "Baseline" = "#004AAD")
+  ) +
+
+  labs(
+    x = "Year",
+    y = "Relative Humidity (%)",
+    color = NULL,
+    fill = NULL
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 20),
+    axis.text = element_text(size = 15)
+  )
+
 
 # ---- Save to PDF ----
-pdf("../../figs/mc_input/compare_temp_relhum_cmip6_annual_cc_vs_no_cc_1981-2100_119ts_regua_v1.pdf",
-    width = 6, height = 8)
-print(p_temp / p_hum)
+pdf("../../figs/mc_input/compare_temp_relhum_cmip6_annual_cc_vs_no_cc_1981-2100_119ts_regua_v2.pdf",
+    width = 10, height = 5)
+
+(p_temp | p_hum) +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "bottom")
+
 dev.off()
 
 p_hum_ncc <- ggplot(annual_mc, aes(x = year, y = mean_relhum_detrended)) +
