@@ -85,9 +85,9 @@ ComputeDivTurnover <- function(data) {
               speciesHeightMatrix = speciesHeightMatrix))
 }
 
-DirectoryModelResults <- "/Users/johanna/Uni/masterarbeit/data/a5_output/v8_real_niches_original_model_light_hum_temp/"
-DirectoryPlots <- "../../../figs/a5_plots_test/v8_real_niches_original_model_light_hum_temp/"
-numSpeciesPools <- c(1, 2)
+DirectoryModelResults <- "/Users/johanna/Uni/masterarbeit/data/modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/a5_upward_shifted/forest0/"
+DirectoryPlots <- "../../../figs/a5_plots_test/climdata_era5_cmip6_1981-2100_ssp245/forest0/a5_upward_shifted/"
+numSpeciesPools <- seq(1, 10)
 replicatePerSpeciesPool <- 1
 timeStepStart <- 100
 timeStepEnd <- 199
@@ -95,7 +95,7 @@ stepSize <- 5
 
 # mkdir if not exists
 if (!dir.exists(DirectoryPlots)) {
-  dir.create(DirectoryPlots)
+  dir.create(DirectoryPlots, recursive = TRUE)
 }
 
 divMetricsDf <- tibble(
@@ -426,6 +426,44 @@ dev.off()
 # Final richness plot -> Showing last time step
 ts <- 199
 
+
+# --- 4. Richness and abundance over time (overall and per height bins)
+
+overallStats <- speciesHeight %>%
+  group_by(TimeStep, Replicate, SpeciesPool) %>%
+  summarize(
+    Richness = length(unique(SpeciesID)),
+    Abundance = n()
+  )
+
+# Assuming your tibble is named `df`
+# Example: df <- tibble::tibble(TimeStep = ..., Richness = ..., Abundance = ...)
+
+# Plot for Richness over Time
+p1 <- ggplot(overallStats, aes(x = TimeStep, y = Richness,
+                               group = interaction(SpeciesPool, Replicate),
+                               color = as.factor(SpeciesPool))) +
+  geom_line(size = 1) +
+  labs(x = "Time Step", y = "Richness", color = "Species Pool") +
+  theme_minimal()
+
+# Plot for Abundance over Time
+p2 <- ggplot(overallStats, aes(x = TimeStep, y = Abundance,
+                               group = interaction(SpeciesPool, Replicate),
+                               color = as.factor(SpeciesPool))) +
+  geom_line(size = 1) +
+  labs(x = "Time Step", y = "Abundance", color = "Species Pool") +
+  theme_minimal()
+
+# Combine plots with shared legend
+combined_plot <- (p1 + p2) +
+  plot_layout(ncol = 2, guides = "collect") &
+  theme(legend.position = "bottom")
+
+# Save to PDF
+filename <- paste0(DirectoryPlots, "OverallRichnessAbundance.pdf")
+ggsave(filename, plot = combined_plot, width = 8, height = 4)
+
 # --- Mid domain randomization to compare to actual richness
 
 # --- Step 1. Extract realized vertical ranges ---
@@ -436,7 +474,7 @@ vertical_ranges <- speciesHeight %>%
 
 # Maximum observed height
 max_height <- speciesHeight %>%
-  filter(TimeStep == 199, SpeciesPool == 1, Replicate == 1) %>%
+  filter(TimeStep == 199, SpeciesPool == 4, Replicate == 1) %>%
   summarise(max_height = max(height)) %>%
   pull(max_height)
 
@@ -464,7 +502,7 @@ run_mdr <- function() {
 
 # --- Step 3. Run many randomizations (Monte Carlo) ---
 set.seed(42)
-n_iter <- 10000
+n_iter <- 1000
 
 null_results <- map_dfr(1:n_iter, ~run_mdr() %>% mutate(iter = .x))
 
@@ -572,40 +610,3 @@ filename <- paste0(DirectoryPlots,"Replicate_", rep, "_SmoothVerticalSpeciesRich
 pdf(filename)
 print(speciesRichnessPlot_final)
 dev.off()
-
-# --- 4. Richness and abundance over time (overall and per height bins)
-
-overallStats <- speciesHeight %>%
-  group_by(TimeStep, Replicate, SpeciesPool) %>%
-  summarize(
-    Richness = length(unique(SpeciesID)),
-    Abundance = n()
-  )
-
-# Assuming your tibble is named `df`
-# Example: df <- tibble::tibble(TimeStep = ..., Richness = ..., Abundance = ...)
-
-# Plot for Richness over Time
-p1 <- ggplot(overallStats, aes(x = TimeStep, y = Richness,
-                               group = interaction(SpeciesPool, Replicate),
-                               color = as.factor(SpeciesPool))) +
-  geom_line(size = 1) +
-  labs(x = "Time Step", y = "Richness", color = "Species Pool") +
-  theme_minimal()
-
-# Plot for Abundance over Time
-p2 <- ggplot(overallStats, aes(x = TimeStep, y = Abundance,
-                               group = interaction(SpeciesPool, Replicate),
-                               color = as.factor(SpeciesPool))) +
-  geom_line(size = 1) +
-  labs(x = "Time Step", y = "Abundance", color = "Species Pool") +
-  theme_minimal()
-
-# Combine plots with shared legend
-combined_plot <- (p1 + p2) +
-  plot_layout(ncol = 2, guides = "collect") &
-  theme(legend.position = "bottom")
-
-# Save to PDF
-filename <- paste0(DirectoryPlots, "OverallRichnessAbundance.pdf")
-ggsave(filename, plot = combined_plot, width = 8, height = 4)
