@@ -4,6 +4,7 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib.ticker as mticker
 from scipy.stats import alpha
 
 matplotlib.use("MacOSX")
@@ -154,6 +155,11 @@ sns.violinplot(
 )
 plt.tight_layout()
 plt.savefig(DirectoryPlots / f"cc_vs_no_cc_species_position_violin.png")
+
+# - Species position for specific year
+df_plot = species_distr[species_distr["Year"] == 2030]
+
+
 
 # 1.4 Species-wise IQR
 df_plot_sp_iqr = df_plot.groupby(
@@ -602,6 +608,8 @@ for sp in species_pools:
     plt.savefig(
         DirectoryPlots / f"Species_HeightShift_ts_SP{sp}.pdf")
 
+
+
 # - 2. Range (IQR)
 for forest in forests:
     for sp in species_pools:
@@ -704,7 +712,6 @@ plt.savefig(DirectoryPlots / f"Species_Position_vs_Range_scatter_facet.pdf")
 
 # ---------------- PLot Preds Pos ---------------- #
 
-
 preds = pd.read_csv(base_dir / "a5_pred_pos_cc_vs_no_cc.csv")
 
 g = sns.FacetGrid(
@@ -736,3 +743,298 @@ g.map_dataframe(add_ci)
 g.add_legend()
 plt.show()
 plt.savefig(DirectoryPlots / "pred_position_facet.pdf")
+
+# --- Plot position shift on species level:
+
+DirectoryPlots = Path("../../figs/a5_plots_test/cc_vs_no_cc/position_shift")
+species_distr = pd.read_csv(base_dir / "a5_species_distribution_cc_vs_no_cc.csv")
+
+# Assuming species_distr is a pandas DataFrame
+species_distr_stats = (
+    species_distr
+    .groupby(["Scenario", "SpeciesPool", "SpeciesID", "ForestID", "TimeStep", "Year"], dropna=False)
+    .agg(
+        Position=("Height", lambda x: np.nanmean(x)),
+        Mass=("Mass", lambda x: np.nanmean(x)),
+        IQR=("Height", lambda x: np.nanpercentile(x.dropna(), 75) - np.nanpercentile(x.dropna(), 25) if x.notna().any() else np.nan),
+        Range=("Height", lambda x: np.nanmax(x) - np.nanmin(x) if x.notna().any() else np.nan)
+    )
+    .reset_index()
+)
+
+# Ensure Scenario has categorical order like factor(levels = c("No CC", "CC"))
+species_distr_stats["Scenario"] = pd.Categorical(
+    species_distr_stats["Scenario"], categories=["No CC", "CC"], ordered=True
+)
+
+# Arrange (sort) by Scenario
+species_distr_stats = species_distr_stats.sort_values("Scenario")
+
+# Select specific columns (like dplyr::select)
+species_distr_stats = species_distr_stats[
+    ["Scenario", "SpeciesPool", "SpeciesID", "ForestID", "TimeStep", "Year", "Position"]
+]
+
+# Pivot wider (similar to tidyr::pivot_wider)
+species_distr_stats = species_distr_stats.pivot(
+    index=["SpeciesPool", "SpeciesID", "ForestID", "TimeStep", "Year"],
+    columns="Scenario",
+    values="Position"
+).reset_index()
+
+# Calculate diff = `CC` - `No CC`
+species_distr_stats["diff"] = species_distr_stats["CC"] - species_distr_stats["No CC"]
+species_distr_stats.dropna(subset = ["diff"], inplace = True)
+
+species_shift = species_distr_stats[species_distr_stats["Year"] >= 2080]
+species_shift = species_shift.groupby(["SpeciesPool", "SpeciesID"], dropna=False).agg(
+        AvgDiff=("diff", lambda x: np.nanmean(x)),
+        SdDiff=("diff", lambda x: np.nanstd(x) / np.sqrt(len(x)) if len(x) > 0 else np.nan)
+).reset_index()
+
+# -- Plot the shift per species
+
+# Sort by AvgDiff
+df_sorted = species_shift.sort_values("AvgDiff")
+
+# Compute error margins
+error = 1.96 * df_sorted["SdDiff"]
+
+# Plot
+plt.figure(figsize=(8, 5))
+
+plt.errorbar(
+    x=range(len(df_sorted)),
+    y=df_sorted["AvgDiff"],
+    yerr=error,
+    fmt='o',
+    color='#886d7a',         # point color
+    ecolor='#886d7a',        # error bar color
+    elinewidth=1,            # thinner error bars
+    capsize=4,
+    markersize=4
+)
+
+# Labels
+plt.xlabel("Species", fontsize=14)
+plt.ylabel("Species shift with CC (m)", fontsize=14)
+
+# Increase tick font sizes
+plt.xticks([], fontsize=12)
+plt.yticks(fontsize=12)
+
+# Add horizontal line at y=0
+plt.axhline(0, color='gray', linestyle='--', linewidth=1)
+
+# Remove frame (spines)
+for spine in plt.gca().spines.values():
+    spine.set_visible(False)
+
+# Grid and layout
+plt.grid(True, linestyle='-', alpha=0.5)
+plt.tight_layout()
+plt.show()
+plt.savefig(DirectoryPlots / "species_shift.png", dpi=700)
+
+# --- Overall trend of species shift -- #
+
+plt.rcParams.update({'font.size': 20})
+colors = {'CC': '#f7766e', 'No CC': '#004aad'}  # keep same colors as your example
+
+# --- 1) Aggregate per SpeciesID / SpeciesPool / ForestID / Year / Scenario ---
+# This computes for each species (within each pool/forest/year/scenario) the mean height and the within-species range
+per_species = (
+    species_distr
+    .groupby(['SpeciesID', 'SpeciesPool', 'ForestID', 'Year', 'Scenario'], observed=True)
+    .agg(
+        mean_height = ('Height', 'mean'),
+        range_height = ('Height', lambda x: x.max() - x.min()),
+        n_individuals = ('Height', 'count')
+    )
+    .reset_index()
+)
+
+# --- 2) Aggregate across Species to get time series (mean ± 95% CI) for position and range ---
+# For each Year and Scenario we compute the mean of mean_height across species, sem, and 95% CI
+def summarize_across_species(df, value_col, prefix):
+    summary = (
+        df
+        .groupby(['Scenario', 'Year'], observed=True)[value_col]
+        .agg(['mean', 'std', 'count'])
+        .rename(columns={'mean': f'mean_{prefix}', 'std': f'std_{prefix}', 'count': f'n_{prefix}'})
+        .reset_index()
+    )
+    # SEM and 95% CI (approx normal, z=1.96)
+    summary[f'sem_{prefix}'] = summary[f'std_{prefix}'] / np.sqrt(summary[f'n_{prefix}'])
+    summary[f'ci_lower_{prefix}'] = summary[f'mean_{prefix}'] - 1.96 * summary[f'sem_{prefix}']
+    summary[f'ci_upper_{prefix}'] = summary[f'mean_{prefix}'] + 1.96 * summary[f'sem_{prefix}']
+    return summary
+
+summary_pos = summarize_across_species(per_species, 'mean_height', 'position')
+summary_range = summarize_across_species(per_species, 'range_height', 'range')
+
+# For plotting convenience, merge the two summaries on Scenario+Year so we can pick xticks from range of years
+# But plotting will iterate over each independently (like your example)
+years_min = min(summary_pos['Year'].min(), summary_range['Year'].min())
+years_max = max(summary_pos['Year'].max(), summary_range['Year'].max())
+
+# --- 3) Plotting - make two side-by-side subplots ---
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6), sharex=True)
+
+# ---- Position subplot (left) ----
+for scenario, group in summary_pos.groupby('Scenario'):
+    ax1.plot(group['Year'], group['mean_position'],
+             color=colors.get(scenario, None), label=scenario, linewidth=2)
+    ax1.fill_between(group['Year'],
+                     group['ci_lower_position'],
+                     group['ci_upper_position'],
+                     color=colors.get(scenario, None), alpha=0.2)
+
+ax1.set_xlabel('')
+ax1.set_ylabel('Species position (m)', fontsize=30)
+xticks = range(years_min - 1, years_max + 1, 10)
+ax1.set_xticks(xticks)
+ax1.set_xticklabels(xticks, rotation=25)
+ax1.set_xlim(years_min, years_max)
+ax1.grid(alpha=0.3)
+for spine in ax1.spines.values():
+    spine.set_visible(False)
+
+# ---- Range subplot (right) ----
+for scenario, group in summary_range.groupby('Scenario'):
+    ax2.plot(group['Year'], group['mean_range'],
+             color=colors.get(scenario, None), label=scenario, linewidth=2)
+    ax2.fill_between(group['Year'],
+                     group['ci_lower_range'],
+                     group['ci_upper_range'],
+                     color=colors.get(scenario, None), alpha=0.2)
+
+ax2.set_xlabel('')
+ax2.set_ylabel('Species range (m)', fontsize=30)
+ax2.set_xticks(xticks)
+ax2.set_xticklabels(xticks, rotation=25)
+ax2.set_xlim(years_min, years_max)
+ax2.grid(alpha=0.3)
+for spine in ax2.spines.values():
+    spine.set_visible(False)
+
+# Force integers
+ax1.yaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+ax2.yaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+
+# Legend (one legend centered below)
+handles, labels = ax1.get_legend_handles_labels()
+# If you want friendly labels instead of 'CC'/'No CC' adapt here:
+label_map = {'CC': 'Climate change', 'No CC': 'Baseline'}
+friendly_labels = [label_map.get(l, l) for l in labels]
+fig.legend(handles, friendly_labels, title=None,
+           loc="lower center", ncol=2, bbox_to_anchor=(0.5, 0))
+
+plt.tight_layout(rect=[0, 0.12, 1, 1])
+
+outpath = DirectoryPlots / "position_range_ts.pdf"
+plt.savefig(outpath)
+
+# --- Compute position/ range shifts --- #
+
+# ===========================================================
+# 1. POSITION SHIFT  (already done before, but included for completeness)
+# ===========================================================
+
+# Pivot for position
+pos_pivot = (
+    per_species.pivot_table(
+        index=["SpeciesID", "SpeciesPool", "ForestID", "Year"],
+        columns="Scenario",
+        values="mean_height",
+        observed=True
+    )
+    .reset_index()
+)
+
+# Keep only species present in both scenarios
+pos_pivot = pos_pivot.dropna(subset=["CC", "No CC"])
+
+# Compute position shift
+pos_pivot["position_shift"] = pos_pivot["CC"] - pos_pivot["No CC"]
+
+position_shift = pos_pivot[
+    ["SpeciesID", "SpeciesPool", "ForestID", "Year",
+     "No CC", "CC", "position_shift"]
+].rename(columns={"No CC": "position_NoCC", "CC": "position_CC"})
+
+# ----- Relative change in position ---- #
+pos_pivot["rel_position_shift"] = (
+    (pos_pivot["CC"] - pos_pivot["No CC"]) / pos_pivot["No CC"]
+) * 100
+# Average relatie shiftin 2030
+rel_shift_2030 = pos_pivot[pos_pivot["Year"] >= 2030
+]["rel_position_shift"].mean()
+
+# ===========================================================
+# 2. RANGE SHIFT
+# ===========================================================
+
+# Pivot for range
+range_pivot = (
+    per_species.pivot_table(
+        index=["SpeciesID", "SpeciesPool", "ForestID", "Year"],
+        columns="Scenario",
+        values="range_height",
+        observed=True
+    )
+    .reset_index()
+)
+
+# Keep only species present in both scenarios
+range_pivot = range_pivot.dropna(subset=["CC", "No CC"])
+
+# Compute range shift
+range_pivot["range_shift"] = range_pivot["CC"] - range_pivot["No CC"]
+
+range_shift = range_pivot[
+    ["SpeciesID", "SpeciesPool", "ForestID", "Year",
+     "No CC", "CC", "range_shift"]
+].rename(columns={"No CC": "range_NoCC", "CC": "range_CC"})
+
+
+# ===========================================================
+# 3. AVERAGE SHIFT PER YEAR (mean, sem, CI)
+# ===========================================================
+
+def summarize_shift(df, value_col, prefix):
+    out = (
+        df.groupby("Year")[value_col]
+        .agg(["mean", "std", "count"])
+        .rename(columns={"mean": f"mean_{prefix}", "std": f"std_{prefix}", "count": f"n_{prefix}"})
+        .reset_index()
+    )
+
+    out[f"sem_{prefix}"] = out[f"std_{prefix}"] / np.sqrt(out[f"n_{prefix}"])
+    out[f"ci_lower_{prefix}"] = out[f"mean_{prefix}"] - 1.96 * out[f"sem_{prefix}"]
+    out[f"ci_upper_{prefix}"] = out[f"mean_{prefix}"] + 1.96 * out[f"sem_{prefix}"]
+
+    return out
+
+summary_pos_shift = summarize_shift(position_shift, "position_shift", "pos_shift")
+summary_range_shift = summarize_shift(range_shift, "range_shift", "range_shift")
+
+# How many species are moving up between 2080 and 2100?
+shift_subset = position_shift[
+    (position_shift["Year"] >= 2080) & (position_shift["Year"] <= 2100)
+]
+
+# Count the number of species moving up each year
+shift_counts = (
+    shift_subset
+    .groupby("Year")
+    .agg(
+        n_species_up=("position_shift", lambda x: (x > 0).sum()),
+        n_species_down=("position_shift", lambda x: (x < 0).sum())
+    )
+    .reset_index()
+)
+
+perc_up = shift_counts["n_species_up"] / (shift_counts["n_species_up"] + shift_counts["n_species_down"]) * 100
+print(round(perc_up.mean(), 1))
+print(round(perc_up.sem() * 1.96, 1))  # 95% CI
