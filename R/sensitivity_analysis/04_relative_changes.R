@@ -7,12 +7,7 @@ library(tidyverse)
 ###############################################################################################
 
 DirectoryModelResults <- file.path("/Users/johanna/Uni/masterarbeit/data/modve_output/pirineus/scenarios")
-
-divFile1 <- "a5_Rep_1_climdata_era5_cmip6_1906-2024_ssp245_119ts_maxRichness_mcGradients.csv"
-divFile2 <- "a5_Rep_1_climdata_era5_cmip6_1906-2024_ssp245_119ts_maxShannonDiv_mcGradients.csv"
-
-maxRichness <- read_csv(file.path(DirectoryModelResults, divFile1), show_col_types = FALSE)
-maxShannon <- read_csv(file.path(DirectoryModelResults, divFile2), show_col_types = FALSE)
+maxRichness <- read_csv(file.path(DirectoryModelResults, "a5_vertical_richness_steepness.csv"))
 
 # - Compute relative changes compared to gradient scenarios
 
@@ -20,24 +15,23 @@ maxShannon <- read_csv(file.path(DirectoryModelResults, divFile2), show_col_type
 
 relative_change_richness <- maxRichness %>%
   # Reshape so each scenario has its own column for maxZ
-  select(X, Y, speciesPool, timeStep, scenario, maxZ) %>%
+  select(SpeciesPool, Year, Scenario, maxHeight) %>%
   tidyr::pivot_wider(
-    names_from = scenario,
-    values_from = maxZ,
+    names_from = Scenario,
+    values_from = maxHeight,
     names_prefix = "scenario_"
   ) %>%
   # Compute relative change compared to baseline scenario==1
   mutate(
-    relChange_0   = (scenario_0   - scenario_1) / scenario_1,
-    relChange_0.5 = (scenario_0.5 - scenario_1) / scenario_1,
-    relChange_1.5 = (scenario_1.5 - scenario_1) / scenario_1
+    relChange_0   = 100*((scenario_0   - scenario_1) / scenario_1),
+    relChange_0.5 = 100*((scenario_0.5 - scenario_1) / scenario_1),
+    relChange_1.5 = 100*((scenario_1.5 - scenario_1) / scenario_1)
   )
 
 # - Summarize relative changes across space and time
 
 relative_change_richness_summary <- relative_change_richness %>%
-  filter(timeStep >= 187 & timeStep <= 197) %>%
-  group_by(speciesPool) %>%
+  group_by(SpeciesPool) %>%
     summarise(
         meanRelChange_0   = mean(relChange_0, na.rm = TRUE),
         meanRelChange_0.5 = mean(relChange_0.5, na.rm = TRUE),
@@ -59,18 +53,24 @@ relative_change_richness_summary %>%
     ),
     across(
       starts_with("meanRelChange_"),
-      ~sd(.x, na.rm = TRUE),
-      .names = "overallSd_{.col}"
+      ~quantile(.x, 0.95, na.rm = TRUE),
+      .names = "overallp95_{.col}"
+    ),
+    across(
+      starts_with("meanRelChange_"),
+      ~quantile(.x, 0.05, na.rm = TRUE),
+      .names = "overallp5_{.col}"
     )
   ) %>%
   pivot_longer(
     cols = everything(),
     names_to = c(".value", "Scenario"),
-    names_pattern = "(overallMean|overallSd)_meanRelChange_(.*)"
+    names_pattern = "(overallMean|overallp95|overallp5)_meanRelChange_(.*)"
   ) %>%
   rename(
     overallMeanRelChange = overallMean,
-    overallSdRelChange   = overallSd
+    overallp95RelChange   = overallp95,
+    overallp5RelChange   = overallp5
   )
 
 ############# Richness peak value #############
@@ -78,24 +78,23 @@ relative_change_richness_summary %>%
 relative_change_max_richness <- maxRichness %>%
   rename(maxR = maxRichness) %>%
   # Reshape so each scenario has its own column for maxZ
-  select(X, Y, speciesPool, timeStep, scenario, maxR) %>%
+  select(SpeciesPool, Year, Scenario, maxR) %>%
   tidyr::pivot_wider(
-    names_from = scenario,
+    names_from = Scenario,
     values_from = maxR,
     names_prefix = "scenario_"
   ) %>%
   # Compute relative change compared to baseline scenario==1
   mutate(
-    relChange_0   = (scenario_0   - scenario_1) / scenario_1,
-    relChange_0.5 = (scenario_0.5 - scenario_1) / scenario_1,
-    relChange_1.5 = (scenario_1.5 - scenario_1) / scenario_1
+    relChange_0   = 100*((scenario_0   - scenario_1) / scenario_1),
+    relChange_0.5 = 100*((scenario_0.5 - scenario_1) / scenario_1),
+    relChange_1.5 = 100*((scenario_1.5 - scenario_1) / scenario_1)
   )
 
 # - Summarize relative changes across space and time
 
 relative_change_max_richness_summary <- relative_change_max_richness %>%
-  filter(timeStep >= 187 & timeStep <= 197) %>%
-  group_by(speciesPool) %>%
+  group_by(SpeciesPool) %>%
     summarise(
         meanRelChange_0   = mean(relChange_0, na.rm = TRUE),
         meanRelChange_0.5 = mean(relChange_0.5, na.rm = TRUE),
@@ -117,18 +116,24 @@ relative_change_max_richness_summary %>%
     ),
     across(
       starts_with("meanRelChange_"),
-      ~sd(.x, na.rm = TRUE),
-      .names = "overallSd_{.col}"
+      ~quantile(.x, 0.95, na.rm = TRUE),
+      .names = "overallp95_{.col}"
+    ),
+    across(
+      starts_with("meanRelChange_"),
+      ~quantile(.x, 0.05, na.rm = TRUE),
+      .names = "overallp5_{.col}"
     )
   ) %>%
   pivot_longer(
     cols = everything(),
     names_to = c(".value", "Scenario"),
-    names_pattern = "(overallMean|overallSd)_meanRelChange_(.*)"
+    names_pattern = "(overallMean|overallp95|overallp5)_meanRelChange_(.*)"
   ) %>%
   rename(
     overallMeanRelChange = overallMean,
-    overallSdRelChange   = overallSd
+    overallp5RelChange   = overallp5,
+    overallp95RelChange   = overallp95
   )
 
 ############### Shannon diversity peak position #############
@@ -210,10 +215,16 @@ relative_change_distr <- verticalDistr %>%
   ) %>%
   # Compute relative change compared to baseline scenario==1
   mutate(
-    relChange_0   = (scenario_0   - scenario_1) / scenario_1,
-    relChange_0.5 = (scenario_0.5 - scenario_1) / scenario_1,
-    relChange_1.5 = (scenario_1.5 - scenario_1) / scenario_1
+    relChange_0   = 100*((scenario_0   - scenario_1) / scenario_1),
+    relChange_0.5 = 100*((scenario_0.5 - scenario_1) / scenario_1),
+    relChange_1.5 = 100*((scenario_1.5 - scenario_1) / scenario_1)
   )
+
+# Check if notmal
+shapiro.test(sample(relative_change_distr$scenario_0, 1000))
+shapiro.test(sample(relative_change_distr$scenario_0.5, 1000))
+shapiro.test(sample(relative_change_distr$scenario_1.5, 1000))
+shapiro.test(sample(relative_change_distr$scenario_1, 1000))
 
 # - Summarize relative changes across space and time
 
@@ -224,9 +235,9 @@ relative_change_distr_summary <- relative_change_distr %>%
         meanRelChange_0   = mean(relChange_0, na.rm = TRUE),
         meanRelChange_0.5 = mean(relChange_0.5, na.rm = TRUE),
         meanRelChange_1.5 = mean(relChange_1.5, na.rm = TRUE),
-        sdRelChange_0     = sd(relChange_0, na.rm = TRUE),
-        sdRelChange_0.5   = sd(relChange_0.5, na.rm = TRUE),
-        sdRelChange_1.5   = sd(relChange_1.5, na.rm = TRUE),
+        sdRelChange_0     = sd(relChange_0, na.rm = TRUE)* 1.96,
+        sdRelChange_0.5   = sd(relChange_0.5, na.rm = TRUE)* 1.96,
+        sdRelChange_1.5   = sd(relChange_1.5, na.rm = TRUE)* 1.96,
         nVoxels           = n()
     )
 relative_change_distr_summary
@@ -241,18 +252,24 @@ relative_change_distr_summary %>%
     ),
     across(
       starts_with("meanRelChange_"),
-      ~sd(.x, na.rm = TRUE),
-      .names = "overallSd_{.col}"
+      ~quantile(.x, 0.05, na.rm = TRUE),
+      .names = "overallp5_{.col}"
+    ),
+    across(
+      starts_with("meanRelChange_"),
+      ~quantile(.x, 0.95, na.rm = TRUE),
+      .names = "overallp95_{.col}"
     )
   ) %>%
   pivot_longer(
     cols = everything(),
     names_to = c(".value", "Scenario"),
-    names_pattern = "(overallMean|overallSd)_meanRelChange_(.*)"
+    names_pattern = "(overallMean|overallp5|overallp95)_meanRelChange_(.*)"
   ) %>%
   rename(
     overallMeanRelChange = overallMean,
-    overallSdRelChange   = overallSd
+    overallp5RelChange   = overallp5,
+    overallp95RelChange   = overallp95
   )
 
 ############### Species range (Variance) #############
@@ -318,18 +335,24 @@ relative_change_range_summary %>%
 
 relative_change_iqr <- verticalDistr %>%
   # Reshape so each scenario has its own column for meanHeight
-  select(SpeciesID, speciesPool, timeStep, scenario, varHeight) %>%
+  select(SpeciesID, speciesPool, timeStep, scenario, iqrHeight) %>%
   tidyr::pivot_wider(
     names_from = scenario,
-    values_from = varHeight,
+    values_from = iqrHeight,
     names_prefix = "scenario_"
   ) %>%
+  drop_na() %>%
   # Compute relative change compared to baseline scenario==1
   mutate(
-    relChange_0   = (scenario_0   - scenario_1) / scenario_1,
-    relChange_0.5 = (scenario_0.5 - scenario_1) / scenario_1,
-    relChange_1.5 = (scenario_1.5 - scenario_1) / scenario_1
+    relChange_0   = 100*((scenario_0   - scenario_1) / scenario_1),
+    relChange_0.5 = 100*((scenario_0.5 - scenario_1) / scenario_1),
+    relChange_1.5 = 100*((scenario_1.5 - scenario_1) / scenario_1)
   )
+
+shapiro.test(sample(relative_change_iqr$scenario_0, 1000))
+shapiro.test(sample(relative_change_iqr$scenario_0.5, 1000))
+shapiro.test(sample(relative_change_iqr$scenario_1.5, 1000))
+shapiro.test(sample(relative_change_iqr$scenario_1, 1000))
 
 # - Summarize relative changes across space and time
 
@@ -358,16 +381,22 @@ relative_change_iqr_summary %>%
     ),
     across(
       starts_with("meanRelChange_"),
-      ~ sd(.x, na.rm = TRUE),
-      .names = "overallSd_{.col}"
+      ~quantile(.x, 0.05, na.rm = TRUE),
+      .names = "overallp5_{.col}"
+    ),
+    across(
+      starts_with("meanRelChange_"),
+      ~quantile(.x, 0.95, na.rm = TRUE),
+      .names = "overallp95_{.col}"
     )
   ) %>%
   pivot_longer(
     cols = everything(),
     names_to = c(".value", "Scenario"),
-    names_pattern = "(overallMean|overallSd)_meanRelChange_(.*)"
+    names_pattern = "(overallMean|overallp95|overallp5)_meanRelChange_(.*)"
   ) %>%
   rename(
     overallMeanRelChange = overallMean,
-    overallSdRelChange   = overallSd
+    overallp5RelChange   = overallp5,
+    overallp95RelChange   = overallp95
   )
