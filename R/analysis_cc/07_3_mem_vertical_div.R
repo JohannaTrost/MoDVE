@@ -136,34 +136,52 @@ df <- data.frame(
   ForestID = mf$ForestID
 )
 
-# Scenario level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_scenario_v1.pdf")))
-xyplot(resid ~ fitted | Scenario, data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
-dev.off()
+# Named vectors for clean relabeling
+forest_labs <- c(
+  "0" = "Forest 1",
+  "1" = "Forest 2",
+  "2" = "Forest 3"
+)
 
-# Species pool level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_sp_v1.pdf")))
-xyplot(resid ~ fitted | as.factor(SpeciesPool), data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
-dev.off()
+scenario_labs <- c(
+  "CC"    = "Climate change",
+  "No CC" = "Baseline"
+)
 
-# Forest level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_forest_v1.pdf")))
-xyplot(resid ~ fitted | as.factor(ForestID), data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
+p1 <- ggplot(df, aes(x = resid, y = as.factor(SpeciesPool))) +
+  geom_boxplot(outlier.alpha = 0.4) +
+  facet_wrap(
+    ~ ForestID,
+    ncol = 3,
+    labeller = labeller(ForestID = forest_labs)
+  ) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    x = "Pearson residuals",
+    y = "Species pool"
+  ) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "grey90"),
+    panel.grid.major.y = element_blank()
+  )
+
+p2 <- ggplot(df, aes(x = fitted, y = resid)) +
+  geom_point(alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  facet_wrap(
+    ~ Scenario,
+    ncol = 3,
+    labeller = labeller(Scenario = scenario_labs)
+  ) +
+  labs(
+    x = "Fitted values",
+    y = "Pearson residuals"
+  ) +
+  theme_bw()
+
+pdf(file.path(DirectoryPlots, "richness_res_grouped.pdf"), width = 7, height = 7)
+print(p2 / p1)
 dev.off()
 
 # -- Normality of randm effects -> OK but very small sample size to make strong statement
@@ -279,34 +297,53 @@ df <- data.frame(
   ForestID = mf$ForestID
 )
 
-# Scenario level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_scenario_v1.pdf")))
-xyplot(resid ~ fitted | Scenario, data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
-dev.off()
 
-# Species pool level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_sp_v1.pdf")))
-xyplot(resid ~ fitted | as.factor(SpeciesPool), data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
-dev.off()
+# Named vectors for clean relabeling
+forest_labs <- c(
+  "0" = "Forest 1",
+  "1" = "Forest 2",
+  "2" = "Forest 3"
+)
 
-# Forest level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_forest_v1.pdf")))
-xyplot(resid ~ fitted | as.factor(ForestID), data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
+scenario_labs <- c(
+  "CC"    = "Climate change",
+  "No CC" = "Baseline"
+)
+
+p1 <- ggplot(df, aes(x = resid, y = as.factor(SpeciesPool))) +
+  geom_boxplot(outlier.alpha = 0.4) +
+  facet_wrap(
+    ~ ForestID,
+    ncol = 3,
+    labeller = labeller(ForestID = forest_labs)
+  ) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    x = "Pearson residuals",
+    y = "Species pool"
+  ) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "grey90"),
+    panel.grid.major.y = element_blank()
+  )
+
+p2 <- ggplot(df, aes(x = fitted, y = resid)) +
+  geom_point(alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  facet_wrap(
+    ~ Scenario,
+    ncol = 3,
+    labeller = labeller(Scenario = scenario_labs)
+  ) +
+  labs(
+    x = "Fitted values",
+    y = "Pearson residuals"
+  ) +
+  theme_bw()
+
+pdf(file.path(DirectoryPlots, "richness_hgt_res_grouped.pdf"), width = 7, height = 7)
+print(p2 / p1)
 dev.off()
 
 # -- Normality of randm effects -> OK but very small sample size to make strong statement
@@ -378,7 +415,8 @@ mem_alpha_div <- glmmTMB(
   Count ~ Scenario * Year_c + (Scenario | SpeciesPool) + (1 | ForestID),
    dispformula = ~ SpeciesPool,  # models variance structure
   data = alpha_div,
-  family = Gamma(link = "log"),
+  #family = Gamma(link = "log"),
+  family = tweedie(link = "log"),
   REML = TRUE
 )
 
@@ -396,7 +434,18 @@ mem_alpha_div$sdr$gradient.fixed  # Should be close to zero
 # 4. Convergence code
 mem_alpha_div$fit$convergence  # Should be 0
 
-round(exp(fixef(mem_alpha_div)$cond), 2)
+# Get confidence intervals and estimates on the link scale
+ci_link <- confint(mem_alpha_div, parm = "beta_", method = "wald")
+ci_link_cond <- ci_link[grepl("cond", rownames(ci_link)), ]
+ci_response <- exp(ci_link_cond)
+
+estimates_with_ci <- data.frame(
+  Parameter = names(fixef(mem_alpha_div)$cond),
+  Estimate = round(exp(fixef(mem_alpha_div)$cond), 2),
+  Lower_CI = round(ci_response[, 1], 2),
+  Upper_CI = round(ci_response[, 2], 2)
+)
+print(estimates_with_ci)
 
 # --- DIAGONSTICS
 
@@ -405,12 +454,13 @@ prefix <- "alpha_div_peak_val_"
 # Create scaled residuals
 simulationOutput <- simulateResiduals(fittedModel = mem_alpha_div, n = 1000)
 
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_qq_dharma_compois.pdf")),
+pdf(file.path(DirectoryPlots, paste0(prefix, "res_qq_dharma_tweedie_id.pdf")),
     width = 10, height = 5)
 plot(simulationOutput)
 dev.off() # --> no outlier issues when modelling dispersion
 
 testDispersion(simulationOutput)
+testUniformity(simulationOutput)
 
 # -- CHeck residuals on different levels - heteroscedasticity across groups
 
@@ -423,34 +473,52 @@ df <- data.frame(
   ForestID = mf$ForestID
 )
 
-# Scenario level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_scenario_v2.pdf")))
-xyplot(resid ~ fitted | Scenario, data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
-dev.off()
+# Named vectors for clean relabeling
+forest_labs <- c(
+  "0" = "Forest 1",
+  "1" = "Forest 2",
+  "2" = "Forest 3"
+)
 
-# Species pool level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_sp_v2.pdf")))
-xyplot(resid ~ fitted | as.factor(SpeciesPool), data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
-dev.off()
+scenario_labs <- c(
+  "CC"    = "Climate change",
+  "No CC" = "Baseline"
+)
 
-# Forest level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_forest_v2.pdf")))
-xyplot(resid ~ fitted | as.factor(ForestID), data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
+p1 <- ggplot(df, aes(x = resid, y = as.factor(SpeciesPool))) +
+  geom_boxplot(outlier.alpha = 0.4) +
+  facet_wrap(
+    ~ ForestID,
+    ncol = 3,
+    labeller = labeller(ForestID = forest_labs)
+  ) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    x = "Pearson residuals",
+    y = "Species pool"
+  ) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "grey90"),
+    panel.grid.major.y = element_blank()
+  )
+
+p2 <- ggplot(df, aes(x = fitted, y = resid)) +
+  geom_point(alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  facet_wrap(
+    ~ Scenario,
+    ncol = 3,
+    labeller = labeller(Scenario = scenario_labs)
+  ) +
+  labs(
+    x = "Fitted values",
+    y = "Pearson residuals"
+  ) +
+  theme_bw()
+
+pdf(file.path(DirectoryPlots, "alpha_div_res_grouped.pdf"), width = 7, height = 7)
+print(p2 / p1)
 dev.off()
 
 # -- Normality of randm effects -> OK but very small sample size to make strong statement
@@ -508,7 +576,7 @@ cat(
   paste0(
     "Conditional R2: ", round(r2$R2_conditional, 3), "\n",
     "Marginal R2: ", round(r2$R2_marginal, 3), "\n",
-    "ICC unadjusted: ", round(icc_unadj, 3), "%\n",
+    "ICC unadjusted: ", round((icc$ICC_unadjusted / r2$R2_conditional) * 100, 2), "%\n",
     "Sp: ", round(var_species_intercept, 2), "(", round(prop_species_intercept, 2), "%)\n",
     "Sp_slope: ", round(var_species_slope, 2), "(", round(prop_species_slope, 2), "%)\n",
     "Forest: ", round(var_forest, 2), "(", round(prop_forest, 2), "%)"
@@ -519,9 +587,9 @@ cat(
 
 mem_alpha_div_pos <- glmmTMB(
   Height ~ Scenario * Year_c + (Scenario | SpeciesPool) + (1 | ForestID),
-  dispformula = ~ SpeciesPool + Scenario,  # models variance structure
+  dispformula = ~ SpeciesPool,  # models variance structure
   data = alpha_div,
-  family = Gamma(link = "log"),
+  family = tweedie(link = "log"),
   REML = TRUE
 )
 
@@ -539,13 +607,25 @@ mem_alpha_div_pos$sdr$gradient.fixed  # Should be close to zero
 # 4. Convergence code
 mem_alpha_div_pos$fit$convergence  # Should be 0
 
-round(exp(fixef(mem_alpha_div_pos)$cond), 2)
+# Get confidence intervals and estimates on the link scale
+ci_link <- confint(mem_alpha_div_pos, parm = "beta_", method = "wald")
+ci_link_cond <- ci_link[grepl("cond", rownames(ci_link)), ]
+ci_response <- exp(ci_link_cond)
+
+estimates_with_ci <- data.frame(
+  Parameter = names(fixef(mem_alpha_div_pos)$cond),
+  Estimate = round(exp(fixef(mem_alpha_div_pos)$cond), 2),
+  Lower_CI = round(ci_response[, 1], 2),
+  Upper_CI = round(ci_response[, 2], 2)
+)
+print(estimates_with_ci)
 
 # Did the model improve at all? -> Yes better to estimate dispersions
 mem_alpha_div_pos_null <- update(mem_alpha_div_pos, dispformula = ~1)
 mem_cc <- update(mem_alpha_div_pos, dispformula = ~ Scenario)
 mem_sp_cc <- update(mem_alpha_div_pos, dispformula = ~ SpeciesPool + Scenario)
-anova(mem_alpha_div_pos_null, mem_cc, mem_sp_cc, mem_alpha_div_pos)
+mem_sp <- update(mem_alpha_div_pos, dispformula = ~ SpeciesPool)
+anova(mem_alpha_div_pos_null, mem_cc, mem_sp_cc, mem_sp)
 
 # --- DIAGONSTICS
 
@@ -554,12 +634,13 @@ prefix <- "alpha_div_peak_pos_"
 # Create scaled residuals
 simulationOutput <- simulateResiduals(fittedModel = mem_alpha_div_pos, n = 1000)
 
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_qq_dharma_compois.pdf")),
+pdf(file.path(DirectoryPlots, paste0(prefix, "res_qq_dharma_tweedie_v2.pdf")),
     width = 10, height = 5)
 plot(simulationOutput)
 dev.off() # --> no outlier issues when modelling dispersion
 
 testDispersion(simulationOutput)
+testOutliers(simulationOutput)
 
 # -- CHeck residuals on different levels - heteroscedasticity across groups
 
@@ -572,34 +653,52 @@ df <- data.frame(
   ForestID = mf$ForestID
 )
 
-# Scenario level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_scenario_v1.pdf")))
-xyplot(resid ~ fitted | Scenario, data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
-dev.off()
+# Named vectors for clean relabeling
+forest_labs <- c(
+  "0" = "Forest 1",
+  "1" = "Forest 2",
+  "2" = "Forest 3"
+)
 
-# Species pool level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_sp_v1.pdf")))
-xyplot(resid ~ fitted | as.factor(SpeciesPool), data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
-dev.off()
+scenario_labs <- c(
+  "CC"    = "Climate change",
+  "No CC" = "Baseline"
+)
 
-# Forest level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_forest_v1.pdf")))
-xyplot(resid ~ fitted | as.factor(ForestID), data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
+p1 <- ggplot(df, aes(x = resid, y = as.factor(SpeciesPool))) +
+  geom_boxplot(outlier.alpha = 0.4) +
+  facet_wrap(
+    ~ ForestID,
+    ncol = 3,
+    labeller = labeller(ForestID = forest_labs)
+  ) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    x = "Pearson residuals",
+    y = "Species pool"
+  ) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "grey90"),
+    panel.grid.major.y = element_blank()
+  )
+
+p2 <- ggplot(df, aes(x = fitted, y = resid)) +
+  geom_point(alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  facet_wrap(
+    ~ Scenario,
+    ncol = 3,
+    labeller = labeller(Scenario = scenario_labs)
+  ) +
+  labs(
+    x = "Fitted values",
+    y = "Pearson residuals"
+  ) +
+  theme_bw()
+
+pdf(file.path(DirectoryPlots, "alpha_div_hgt_res_grouped.pdf"), width = 7, height = 7)
+print(p2 / p1)
 dev.off()
 
 # -- Normality of randm effects -> OK but very small sample size to make strong statement
@@ -656,7 +755,7 @@ cat(
   paste0(
     "Conditional R2: ", round(r2$R2_conditional, 3), "\n",
     "Marginal R2: ", round(r2$R2_marginal, 3), "\n",
-    "ICC unadjusted: ", round(icc_unadj, 3), "%\n",
+    "ICC unadjusted: ", (icc$ICC_unadjusted / r2$R2_conditional) * 100, "%\n",
     "Sp: ", round(var_species_intercept, 2), "(", round(prop_species_intercept, 2), "%)\n",
     "Sp_slope: ", round(var_species_slope, 2), "(", round(prop_species_slope, 2), "%)\n",
     "Forest: ", round(var_forest, 2), "(", round(prop_forest, 2), "%)"
@@ -667,8 +766,11 @@ cat(
 
 abundance <- div_peak_filtered %>% filter(level_5 == "Abundance")
 
+abundance$Year_log <- log(abundance$Year_c)
+abundance$Year_c2 <- abundance$Year_c^2
+
 mem_abundance <- glmmTMB(
-  Count ~ Scenario * Year_c + (Scenario + Year_c | SpeciesPool) + (Scenario | ForestID),
+  Count ~ Scenario * Year_c2 + (Scenario + Year_c2 | SpeciesPool) + (Scenario | ForestID),
   #dispformula = ~ SpeciesPool + Scenario,  # models variance structure
   data = abundance,
   family = poisson(link = "log"),
@@ -689,7 +791,17 @@ mem_abundance$sdr$gradient.fixed  # Should be close to zero
 # 4. Convergence code
 mem_abundance$fit$convergence  # Should be 0
 
-round(exp(fixef(mem_abundance)$cond), 2)
+# Get confidence intervals and estimates on the link scale
+ci_link <- confint(mem_abundance, parm = "beta_", method = "wald")
+ci_response <- exp(ci_link[,c(1, 2)])
+
+estimates_with_ci <- data.frame(
+  Parameter = names(fixef(mem_abundance)$cond),
+  Estimate = round(exp(fixef(mem_abundance)$cond), 2),
+  Lower_CI = round(ci_response[, 1], 2),
+  Upper_CI = round(ci_response[, 2], 2)
+)
+print(estimates_with_ci)
 
 # --- DIAGONSTICS
 
@@ -698,52 +810,71 @@ prefix <- "abundance_peak_val_"
 # Create scaled residuals
 simulationOutput <- simulateResiduals(fittedModel = mem_abundance, n = 1000)
 
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_qq_dharma_pois_v2.pdf")),
+pdf(file.path(DirectoryPlots, paste0(prefix, "res_qq_dharma_pois_v3.pdf")),
     width = 10, height = 5)
 plot(simulationOutput)
 dev.off()
 
 testDispersion(simulationOutput)
+testDispersion(simulationOutput)
 
 # -- CHeck residuals on different levels - heteroscedasticity across groups
 
-mf <- model.frame(mem_alpha_div_pos)            # model frame used to fit mem_richness
+mf <- model.frame(mem_abundance)            # model frame used to fit mem_richness
 df <- data.frame(
-  resid   = resid(mem_alpha_div_pos, type = "pearson"),
-  fitted  = fitted(mem_alpha_div_pos),
+  resid   = resid(mem_abundance, type = "pearson"),
+  fitted  = fitted(mem_abundance),
   Scenario = mf$Scenario,
   SpeciesPool = mf$SpeciesPool,
   ForestID = mf$ForestID
 )
 
-# Scenario level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_scenario_v2.pdf")))
-xyplot(resid ~ fitted | Scenario, data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
-dev.off()
+# Named vectors for clean relabeling
+forest_labs <- c(
+  "0" = "Forest 1",
+  "1" = "Forest 2",
+  "2" = "Forest 3"
+)
 
-# Species pool level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_sp_v2.pdf")))
-xyplot(resid ~ fitted | as.factor(SpeciesPool), data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
-dev.off()
+scenario_labs <- c(
+  "CC"    = "Climate change",
+  "No CC" = "Baseline"
+)
 
-# Forest level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_forest_v2.pdf")))
-xyplot(resid ~ fitted | as.factor(ForestID), data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
+p1 <- ggplot(df, aes(x = resid, y = as.factor(SpeciesPool))) +
+  geom_boxplot(outlier.alpha = 0.4) +
+  facet_wrap(
+    ~ ForestID,
+    ncol = 3,
+    labeller = labeller(ForestID = forest_labs)
+  ) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    x = "Pearson residuals",
+    y = "Species pool"
+  ) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "grey90"),
+    panel.grid.major.y = element_blank()
+  )
+
+p2 <- ggplot(df, aes(x = fitted, y = resid)) +
+  geom_point(alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  facet_wrap(
+    ~ Scenario,
+    ncol = 3,
+    labeller = labeller(Scenario = scenario_labs)
+  ) +
+  labs(
+    x = "Fitted values",
+    y = "Pearson residuals"
+  ) +
+  theme_bw()
+
+pdf(file.path(DirectoryPlots, "abundance_res_grouped.pdf"), width = 7, height = 7)
+print(p2 / p1)
 dev.off()
 
 # Did the model improve at all? -> Does not help! stick with non dispersion model
@@ -804,7 +935,7 @@ cat(
   paste0(
     "Conditional R2: ", round(r2$R2_conditional, 3), "\n",
     "Marginal R2: ", round(r2$R2_marginal, 3), "\n",
-    "ICC unadjusted: ", round(icc_unadj, 3), "%\n",
+    "ICC unadjusted: ", round((icc$ICC_unadjusted / r2$R2_conditional) * 100, 2), "%\n",
     "Sp: ", round(var_species_intercept, 2), "(", round(prop_species_intercept, 2), "%)\n",
     "Sp_slope: ", round(var_species_slope, 2), "(", round(prop_species_slope, 2), "%)\n",
     "Forest: ", round(var_forest, 2), "(", round(prop_forest, 2), "%)"
@@ -818,10 +949,16 @@ abundance_no_outliers <- abundance[-outls, ]
 mem_abundance_pos <- glmmTMB(
   Height ~ Scenario * Year_c + (Scenario | SpeciesPool) + (Scenario | ForestID),
   dispformula = ~ SpeciesPool + Scenario,  # models variance structure
-  data = abundance_no_outliers,
-  family = Gamma(link = "log"),
+  data = abundance,
+  family = tweedie(link = "log"),
   REML = TRUE
 )
+
+mem_abundance_pos_null <- update(mem_abundance_pos, dispformula = ~1)
+mem_cc <- update(mem_abundance_pos, dispformula = ~ Scenario)
+mem_sp <- update(mem_abundance_pos, dispformula = ~ SpeciesPool)
+mem_sp_cc <- update(mem_abundance_pos, dispformula = ~ SpeciesPool + Scenario)
+anova(mem_abundance_pos_null, mem_cc, mem_sp, mem_sp_cc)
 
 # 0. check singular fit
 performance::check_singularity(mem_abundance_pos)
@@ -842,17 +979,17 @@ round(exp(fixef(mem_abundance_pos)$cond), 2)
 # Get 95% confidence intervals on the link (log) scale
 ci_link <- confint(mem_abundance_pos, parm = "beta_", level = 0.95)
 ci_resp <- exp(ci_link)
-ci_resp
+round(as.data.frame(ci_resp), 2)
 
 # --- DIAGONSTICS
 
 DirectoryPlots <- file.path("../../figs/a5_plots_test/cc_vs_no_cc/VerticalDiversity/Diagnostics")
-prefix <- "abundance_peak_pos_no_outls_"
+prefix <- "abundance_peak_pos_"
 
 # Create scaled residuals
 simulationOutput <- simulateResiduals(fittedModel = mem_abundance_pos, n = 1000)
 
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_qq_dharma_v2.pdf")),
+pdf(file.path(DirectoryPlots, paste0(prefix, "res_qq_dharma_tweedie.pdf")),
     width = 10, height = 5)
 plot(simulationOutput)
 dev.off()
@@ -860,16 +997,16 @@ dev.off()
 testDispersion(simulationOutput)
 
 # Quantify outliers
-outls_2 <- outliers(simulationOutput)
-
-abundance[outls_2, ] %>%
-  count(ForestID, sort = TRUE)
-
-abundance[outls_2, ] %>%
-  count(SpeciesPool, sort = TRUE)
-
-abundance[outls_2, ] %>%
-  count(Scenario, sort = TRUE)
+# outls_2 <- outliers(simulationOutput)
+#
+# abundance[outls_2, ] %>%
+#   count(ForestID, sort = TRUE)
+#
+# abundance[outls_2, ] %>%
+#   count(SpeciesPool, sort = TRUE)
+#
+# abundance[outls_2, ] %>%
+#   count(Scenario, sort = TRUE)
 
 # -- CHeck residuals on different levels - heteroscedasticity across groups
 
@@ -882,41 +1019,54 @@ df <- data.frame(
   ForestID = mf$ForestID
 )
 
-# Scenario level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_scenario_v2.pdf")))
-xyplot(resid ~ fitted | Scenario, data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
-dev.off()
 
-# Species pool level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_sp_v2.pdf")))
-xyplot(resid ~ fitted | as.factor(SpeciesPool), data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
-dev.off()
+# Named vectors for clean relabeling
+forest_labs <- c(
+  "0" = "Forest 1",
+  "1" = "Forest 2",
+  "2" = "Forest 3"
+)
 
-# Forest level plots
-pdf(file.path(DirectoryPlots, paste0(prefix, "res_spread_forest_v2.pdf")))
-xyplot(resid ~ fitted | as.factor(ForestID), data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
-dev.off()
+scenario_labs <- c(
+  "CC"    = "Climate change",
+  "No CC" = "Baseline"
+)
 
-# Did the model improve at all? -> Does not help! stick with non dispersion model
-mem_abundance_pos_null <- update(mem_abundance_pos, dispformula = ~1)
-mem_cc <- update(mem_abundance_pos, dispformula = ~ Scenario)
-mem_sp_cc <- update(mem_abundance_pos, dispformula = ~ SpeciesPool + Scenario)
-anova(mem_abundance_pos_null, mem_cc, mem_sp_cc, mem_abundance_pos)
+p1 <- ggplot(df, aes(x = resid, y = as.factor(SpeciesPool))) +
+  geom_boxplot(outlier.alpha = 0.4) +
+  facet_wrap(
+    ~ ForestID,
+    ncol = 3,
+    labeller = labeller(ForestID = forest_labs)
+  ) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    x = "Pearson residuals",
+    y = "Species pool"
+  ) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "grey90"),
+    panel.grid.major.y = element_blank()
+  )
+
+p2 <- ggplot(df, aes(x = fitted, y = resid)) +
+  geom_point(alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  facet_wrap(
+    ~ Scenario,
+    ncol = 3,
+    labeller = labeller(Scenario = scenario_labs)
+  ) +
+  labs(
+    x = "Fitted values",
+    y = "Pearson residuals"
+  ) +
+  theme_bw()
+
+pdf(file.path(DirectoryPlots, "abundance_hgt_res_grouped.pdf"), width = 7, height = 7)
+print(p2 / p1)
+dev.off()
 
 # ----- Variance partitioning ----- #
 
@@ -947,7 +1097,7 @@ cat(
   paste0(
     "Conditional R2: ", round(r2$R2_conditional, 3), "\n",
     "Marginal R2: ", round(r2$R2_marginal, 3), "\n",
-    "ICC unadjusted: ", round(icc_unadj, 3), "%\n",
+    "ICC unadjusted: ", round((icc$ICC_unadjusted / r2$R2_conditional) * 100, 2), "%\n",
     "Sp: ", round(var_species_intercept, 2), "(", round(prop_species_intercept, 2), "%)\n",
     "Sp_slope: ", round(var_species_slope, 2), "(", round(prop_species_slope, 2), "%)\n",
     "Forest: ", round(var_forest, 2), "(", round(prop_forest, 2), "%)"
