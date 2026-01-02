@@ -279,6 +279,8 @@ range_filling_long <- range_filling %>%
 # Define colors for scenarios
 colors <- c('CC' = '#f7766e', 'No CC' = '#004aad')
 
+write_csv(range_filling_long, file.path(base_dir, "a5_niche_filling_cc_vs_no_cc.csv"))
+
 # Create the boxplot
 output_file2 <- file.path(DirectoryPlots, "boxplot_niche_filling.pdf")
 pdf(output_file2, width = 7, height = 6)
@@ -341,11 +343,11 @@ dev.off()
 
 range_diff <- range_filling %>%
   select(SpeciesID, SpeciesPool, Scenario, AvgDiff, TempNicheFill, TempRangeFill,
-         HumNicheFill, HumRangeFill, LightNicheFill, LightRangeFill) %>%
+         HumNicheFill, HumRangeFill, LightNicheFill, LightRangeFill, MaxTemp, MaxHum, MinLight) %>%
   pivot_wider(
     names_from = Scenario,
     values_from = c(TempNicheFill, TempRangeFill, HumNicheFill, HumRangeFill, LightNicheFill,
-                    LightRangeFill),
+                    LightRangeFill, MaxTemp, MaxHum, MinLight),
     names_sep = "_"
   ) %>%
   mutate(
@@ -357,6 +359,13 @@ range_diff <- range_filling %>%
     Diff_LightNicheFill = LightNicheFill_CC - `LightNicheFill_No CC`,
     Diff_LightRangeFill = LightRangeFill_CC - `LightRangeFill_No CC`,
   )
+
+# Compute correlartions
+cor.test(range_diff$Diff_TempNicheFill, range_diff$AvgDiff, use = "complete.obs")
+cor.test(range_diff$Diff_HumNicheFill, range_diff$AvgDiff, use = "complete.obs")
+cor.test(range_diff$Diff_LightNicheFill, range_diff$AvgDiff, use = "complete.obs")
+
+cor.test(range_diff$MaxTemp_CC, range_diff$AvgDiff, use = "complete.obs")
 
 # Step 3: Scatter plot of shift vs niche filling difference
 output_file2 <- file.path(DirectoryPlots, "scatter_shift_vs_niche_fill_diff_temp.pdf")
