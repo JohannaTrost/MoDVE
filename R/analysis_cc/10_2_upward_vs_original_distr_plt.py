@@ -105,6 +105,13 @@ df_plot['error'] = 1.96 * df_plot['SdDiff']
 # get simulation groups (preserve original order of appearance)
 sims = df_plot['Simulation'].unique()
 palette = ["#214E34", "#88A2AA"]
+upward_sim_name = "Upward shifted species"
+arrow_length = 2  # controls arrow size
+angle_deg = -11
+angle_rad = np.deg2rad(angle_deg)
+
+dx = arrow_length * np.sin(angle_rad)  # horizontal shift
+dy = arrow_length * np.cos(angle_rad)  # vertical shift
 
 plt.rcParams.update({'font.size': 18})
 plt.figure(figsize=(35, 5))
@@ -126,6 +133,29 @@ for i, (sim, color) in enumerate(zip(sims, palette)):
         markersize=7,
         label=sim
     )
+    for i, sim in enumerate(sims):
+        if sim != upward_sim_name:
+            continue
+
+        sub = df_plot[df_plot['Simulation'] == sim].sort_values('x')
+
+        # only shifts >= 0.2
+        sub = sub[sub['AvgDiff'] > np.quantile(np.abs(df_plot["AvgDiff"]), 0.05)]
+
+        for _, row in sub.iterrows():
+            x = row['x'] + offsets[i]
+            y_top = row['AvgDiff'] + row['error'] + 0.2  # small gap above error bar
+
+            plt.annotate(
+                '',
+                xy=(x + dx, y_top + dy),
+                xytext=(x, y_top),
+                arrowprops=dict(
+                    arrowstyle='<|-',
+                    color="#FAC05E",
+                    lw=2
+                )
+            )
 
 # Labels
 plt.xlabel("Species", fontsize=23)
@@ -133,7 +163,9 @@ plt.ylabel("Species shift with CC (m)", fontsize=23)
 
 plt.xticks([])
 
-plt.axhline(0, color='gray', linestyle='--', linewidth=1)
+# plt.axhline(0, color='gray', linestyle='--', linewidth=1)
+plt.axhline(-0.2, color='gray', linestyle='--', linewidth=1.2)
+# plt.axhline(0.2, color='gray', linestyle='--', linewidth=1)
 
 # Add vertical gridlines at each species position
 species_positions = df_plot['x'].unique()
@@ -142,6 +174,8 @@ for x_pos in species_positions:
 
 for spine in plt.gca().spines.values():
     spine.set_visible(False)
+
+plt.ylim(-10, 14)
 plt.grid(alpha=0.3, axis='y')  # Only horizontal gridlines from grid()
 
 plt.legend(title="Simulation", fontsize=18, title_fontsize=20, loc='lower right')
@@ -149,4 +183,7 @@ plt.legend(title="Simulation", fontsize=18, title_fontsize=20, loc='lower right'
 plt.tight_layout()
 
 # Save then show
-plt.savefig(DirectoryPlots / "species_shift_comp_v2.pdf")
+plt.savefig(DirectoryPlots / "species_shift_comp_v3.pdf")
+
+
+
