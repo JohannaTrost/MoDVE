@@ -97,10 +97,8 @@ eff_sizes <- lapply(pairs, function(p) {
 eff_sizes <- bind_rows(eff_sizes)
 eff_sizes
 
-# TODO test normality
+# test normality of ricjhness peak position and richness
+shapiro.test(sample(maxRichness$maxZ, 5000))
+shapiro.test(sample(maxRichness$maxRichness, 5000))
 
-# TODO do this for richnes itself
-
-# TODO do this for species position
-
-# TODO do this for species range
+# Save data to p
