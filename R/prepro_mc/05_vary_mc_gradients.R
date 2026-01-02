@@ -43,3 +43,9 @@ for (ts in seq(start_ts, end_ts)) {
 
     saveRDS(mc_varied_grad, file.path(outdir, paste0("MicrohabitatMatrix", ts, ".rds")))
 }
+
+# Plot gradients
+
+base_dir <- file.path("/Users/johanna/Uni/masterarbeit/data/modve_output/pirineus/scenarios")
+
+path <- file.path(base_dir, "climdata_era5_cmip6_1906-2024_ssp245_119ts_0.5_mc_grad/a1_2") # TODO plot gradients
