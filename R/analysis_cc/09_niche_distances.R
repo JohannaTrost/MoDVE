@@ -44,13 +44,20 @@ shift <- species_distr_stats %>%
 
 summary_shift <- shift %>%
   group_by(SpeciesPool, SpeciesID) %>%
-  arrange(Year, .by_group = TRUE) %>%  # ensure data is sorted by Year
-  reframe(
-    initial_diff = mean(diff[Year == 2000], na.rm = TRUE),
-    diff = mean(tail(diff[!is.na(diff)], 20), na.rm = TRUE),
-    last_year_alive = max(Year[!is.na(diff)]),
+  arrange(Year, .by_group = TRUE) %>%
+  summarise(
+    initial_diff = mean(.data$diff[.data$Year == 2000], na.rm = TRUE),
+    valid_diff = .data$diff[!is.na(.data$diff)],
+    diff = mean(tail(valid_diff, 20), na.rm = TRUE),
+    diff_sem = sd(tail(valid_diff, 20), na.rm = TRUE) / sqrt(length(tail(valid_diff, 20))),
+    last_year_alive = max(.data$Year[!is.na(.data$diff)]),
+    .groups = "drop"
   ) %>%
-  filter(last_year_alive >= 2050)
+  filter(last_year_alive >= 2050) %>%
+  select(-valid_diff) %>%
+  distinct()
+
+write_csv(summary_shift, file.path(base_dir, "a5_species_shift_cc_vs_no_cc_last20_yrs_past_2050.csv"))
 
 # Get species niches
 niches <- NULL
