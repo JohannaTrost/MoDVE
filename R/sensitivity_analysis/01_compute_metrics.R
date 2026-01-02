@@ -141,6 +141,23 @@ maxRichness <- diversity_complete %>%
   ) %>%
   ungroup()
 
+# Not by cell
+richness_by_Z <- diversity_complete %>%
+  group_by(speciesPool, timeStep, scenario, Z) %>%
+  summarise(
+    richness_sum = sum(richness, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+maxRichnessAgg <- richness_by_Z %>%
+  group_by(speciesPool, timeStep, scenario) %>%
+  slice_max(order_by = richness_sum, with_ties = FALSE) %>%
+  rename(
+    maxRichness = richness_sum,
+    maxZ = Z
+  ) %>%
+  ungroup()
+
 maxShannon <- diversity_complete %>%
   group_by(X, Y, speciesPool, timeStep, scenario) %>%
   slice_max(order_by = shannon, with_ties = FALSE) %>%
@@ -156,6 +173,14 @@ savePathDiv1 <- file.path(
           DirectoryModelResults,
           "a5_Rep_1_climdata_era5_cmip6_1906-2024_ssp245_119ts_maxRichness_mcGradients_full.csv")
 write_csv(maxRichness, savePathDiv1)
+savePathDiv1 <- file.path(
+          DirectoryModelResults,
+          "a5_Rep_1_climdata_era5_cmip6_1906-2024_ssp245_119ts_maxRichnessAgg_mcGradients_full.csv")
+write_csv(maxRichnessAgg, savePathDiv1)
+savePathDiv1 <- file.path(
+          DirectoryModelResults,
+          "a5_Rep_1_climdata_era5_1906-2024_119ts_verticalRichness_mcGradients_full.csv")
+write_csv(richness_by_Z, savePathDiv1)
 savePathDiv2 <- file.path(
           DirectoryModelResults,
           "a5_Rep_1_climdata_era5_cmip6_1906-2024_ssp245_119ts_maxShannonDiv_mcGradients_full.csv")
