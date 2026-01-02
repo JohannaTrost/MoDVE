@@ -7,7 +7,6 @@ library(microclimf)
 library(lubridate)
 library(furrr)
 library(future)
-library(microclimf)
 library(dplyr)
 library(ggplot2)
 library(purrr)
@@ -27,7 +26,7 @@ extract_params <- function(raster_list, lon, lat, crs = "EPSG:4326") {
   # Extract the value at the projected point for each raster
   result <- lapply(raster_list, function(r) {
     r <- unwrap(r)
-    extract(r, point_proj)[[2]]
+    terra::extract(r, point_proj)[[2]]
   })
 
   return(result)
@@ -67,7 +66,8 @@ in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
 in_dir_regua <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
 vegp_reg <- readRDS(paste(in_dir_regua, "vegp_mof3d_ptm_v2.RDS", sep = "/"))  # PAI and canopy height will be replaced by MoF3D output below
 soilc_reg <- readRDS(paste(in_dir, "soilc_v2.RDS", sep = "/"))
-climdata_reg <- read_csv(paste(in_dir, "climdata_era5_cmip6_2024_v3.csv", sep = "/"))
+climdata_reg <- read_csv(paste(in_dir, "climdata_era5_cmip6_2024_v3.csv", sep = "/")) # REGUA
+#climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2024.csv", sep = "/")) # Pirineaus SA
 
 # Get coordiantes
 coords_veg <- indices2coords(x, y, terra::unwrap(vegp_reg$pai))[c("x", "y")]
@@ -80,7 +80,9 @@ vegparams <- extract_params(vegp_reg, coords_veg[[1]], coords_veg[[2]])
 grndparams <- extract_params(soilc_reg, lon, lat)
 
 # Get PAI
-microhab_file <- "/Users/johanna/Uni/masterarbeit/data/modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/a1_2/forest0/MicrohabitatMatrix123.rds"
+microhab_file <- "/Users/johanna/Uni/masterarbeit/data/modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/a1_2/forest0/MicrohabitatMatrix123.rds" # Regua
+#microhab_file <- "/Users/johanna/Uni/masterarbeit/data/modve_output/pirineus/scenarios/climdata_era5_cmip6_1906-2024_ssp245_119ts/a1_2/MicrohabitatMatrix198.rds" # Pirineus
+
 pai <- readRDS(microhab_file)[,,,5]
 paii <- apply(pai[,,1:max(vegparams$h, 0.5)], c(3), mean, na.rm = TRUE)
 #paii <- pai[25, 25, 1:max(vegparams$h, 0.5)]
@@ -109,15 +111,15 @@ mc_sim <- data.frame(
 
 # --- Load empirical data
 
-# # -- Regua
-# # Define paths
+# -- Pirineus
+# Define paths
 # emp_path <- "/Users/johanna/Uni/masterarbeit/data/empirical/Datalogger 770m elevation low Pirineus understorey transect"
 #
 # # Define logger directories
 # emp_dirs <- c("10m", "30m", "50m", "70m", "90m")
 # macro_dir <- "Reference or at 30m in rockfall sort of gap on pole"  # This is the macroclimate reference
 
-# -- Pirineus
+# # -- Regua
 # Define paths
 emp_path <- "/Users/johanna/Uni/masterarbeit/data/empirical/Datalogger 400m elevation REGUA understory Trilha Verde"
 
@@ -272,7 +274,7 @@ plot_airt <- ggplot(emp_summary) +
        y = "Temperature (°C)") +
   theme_minimal() +
   theme(legend.position = "bottom",
-        text = element_text(size = 15),
+        text = element_text(size = 18),
         legend.title = element_text(face = "bold"))
 
 # Second plot: Relative Humidity (empirical vs. simulated)
@@ -308,12 +310,12 @@ plot_relhum <- ggplot(emp_summary) +
   theme_minimal() +
   theme(
     legend.position = "bottom",
-    text = element_text(size = 15),
+    text = element_text(size = 18),
     legend.title = element_text(face = "bold")
   )
 
 # Print plots to a pdf file
-pdf("../../figs/mc_output/mc_emp_vs_sim_mc_regua_v2.pdf", height = 5, width = 10)
+pdf("../../figs/mc_output/mc_emp_vs_sim_mc_regua_era5_v1.pdf", height = 5, width = 10)
 print((plot_airt + plot_relhum) +
   plot_layout(guides = "collect") &
   guides(color = guide_legend(ncol = 2)) &
