@@ -210,34 +210,52 @@ df <- data.frame(
   ForestID = mf$ForestID
 )
 
-# Scenario level plots
-pdf(file.path(DirectoryPlots, "diag_range_res_spread_scenario_v1.pdf"))
-xyplot(resid ~ fitted | Scenario, data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
-dev.off()
+# Named vectors for clean relabeling
+forest_labs <- c(
+  "0" = "Forest 1",
+  "1" = "Forest 2",
+  "2" = "Forest 3"
+)
 
-# Species pool level plots
-pdf(file.path(DirectoryPlots, "diag_range_res_spread_sp_v1.pdf"))
-xyplot(resid ~ fitted | as.factor(SpeciesPool), data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
-dev.off()
+scenario_labs <- c(
+  "CC"    = "Climate change",
+  "No CC" = "Baseline"
+)
 
-# Forest level plots
-pdf(file.path(DirectoryPlots, "diag_range_res_spread_forest_v1.pdf"))
-xyplot(resid ~ fitted | as.factor(ForestID), data = df,
-       panel = function(x, y, ...) {
-         panel.xyplot(x, y, ...)
-         panel.abline(h = 0)   # horizontal line at 0
-       },
-       xlab = "Fitted values", ylab = "Pearson residuals")
+p1 <- ggplot(df, aes(x = resid, y = as.factor(SpeciesPool))) +
+  geom_boxplot(outlier.alpha = 0.4) +
+  facet_wrap(
+    ~ ForestID,
+    ncol = 3,
+    labeller = labeller(ForestID = forest_labs)
+  ) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    x = "Pearson residuals",
+    y = "Species pool"
+  ) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "grey90"),
+    panel.grid.major.y = element_blank()
+  )
+
+p2 <- ggplot(df, aes(x = fitted, y = resid)) +
+  geom_point(alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  facet_wrap(
+    ~ Scenario,
+    ncol = 3,
+    labeller = labeller(Scenario = scenario_labs)
+  ) +
+  labs(
+    x = "Fitted values",
+    y = "Pearson residuals"
+  ) +
+  theme_bw()
+
+pdf(file.path(DirectoryPlots, "range_res_grouped_v2.pdf"), width = 7, height = 7)
+print(p2 / p1)
 dev.off()
 
 # Did the model improve at all? -> Yes better to estimate dispersions
@@ -352,6 +370,16 @@ mem_iqr$fit$convergence  # Should be 0
 
 round(exp(fixef(mem_iqr)$cond), 2)
 
+# --- DIAGONSTICS
+
+# Create scaled residuals
+simulationOutput <- simulateResiduals(fittedModel = mem_iqr, n = 1000)
+
+pdf(file.path(DirectoryPlots, "iqr_dharma.pdf"),
+    width = 10, height = 5)
+plot(simulationOutput)
+dev.off()
+
 # ----- Variance partitioning -----
 
 # Residual variance approx. from non-dispersion model
@@ -394,4 +422,63 @@ simulationOutput <- simulateResiduals(fittedModel = mem_iqr, n = 1000)
 pdf(file.path(DirectoryPlots, "diag_range_res_qq_dharma.pdf"),
     width = 10, height = 5)
 plot(simulationOutput)
+dev.off()
+
+# -- CHeck residuals on different levels
+
+mf <- model.frame(mem_iqr)            # model frame used to fit mem_iqr
+df <- data.frame(
+  resid        = resid(mem_iqr, type = "pearson"),
+  fitted       = fitted(mem_iqr),
+  Scenario     = mf$Scenario,
+  SpeciesPool  = mf$SpeciesPool,
+  ForestID     = mf$ForestID
+)
+
+# Named vectors for clean relabeling
+forest_labs <- c(
+  "0" = "Forest 1",
+  "1" = "Forest 2",
+  "2" = "Forest 3"
+)
+
+scenario_labs <- c(
+  "CC"    = "Climate change",
+  "No CC" = "Baseline"
+)
+
+p1 <- ggplot(df, aes(x = resid, y = as.factor(SpeciesPool))) +
+  geom_boxplot(outlier.alpha = 0.4) +
+  facet_wrap(
+    ~ ForestID,
+    ncol = 3,
+    labeller = labeller(ForestID = forest_labs)
+  ) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    x = "Pearson residuals",
+    y = "Species pool"
+  ) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "grey90"),
+    panel.grid.major.y = element_blank()
+  )
+
+p2 <- ggplot(df, aes(x = fitted, y = resid)) +
+  geom_point(alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  facet_wrap(
+    ~ Scenario,
+    ncol = 3,
+    labeller = labeller(Scenario = scenario_labs)
+  ) +
+  labs(
+    x = "Fitted values",
+    y = "Pearson residuals"
+  ) +
+  theme_bw()
+
+pdf(file.path(DirectoryPlots, "iqr_res_grouped_v2.pdf"), width = 7, height = 7)
+print(p2 / p1)
 dev.off()
