@@ -2,16 +2,18 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import matplotlib
-from matplotlib.pyplot import ylabel
 from scipy.stats import entropy
-import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.patches import Patch
-from matplotlib.lines import Line2D
+import matplotlib.pyplot as plt
+from scipy.ndimage import gaussian_filter1d
+import imageio
+
 matplotlib.use("MacOSX")
 
 from scipy.signal import savgol_filter
 
+plt.rcParams.update({'font.size': 12})
 
 def apply_savgol_filter(group, window_length=5, polyorder=2,
         column_to_filter='Height'):
@@ -105,7 +107,7 @@ def diversity(counts):
 div = species_counts.groupby(["Scenario", "Year", "ForestID", "SpeciesPool", "Height"])['Count'].apply(diversity).reset_index()
 
 # - Plot vertical diversity profiles averaged last 10 years (showing mean and CI), facet over forests and species pools
-div_last10 = div[div['Year'] >= 2079]
+div_last10 = div[div['Year'] == 2050]
 
 def plot_div_profiles(div_data, div_metric):
 
@@ -177,7 +179,7 @@ for metric in metrics:
     plt.close("all")
     g = plot_div_profiles(div_last10, metric)
     plt.show()
-    plt.savefig(DirectoryPlots / f"Vertival_{metric}_facet_last20.pdf")
+    plt.savefig(DirectoryPlots / f"Vertival_{metric}_facet_2030.pdf")
 
 
 # Analyse peak in each time step, where at least 2 species are present
@@ -519,3 +521,385 @@ for metric in metrics:
 # Save processed data
 div.to_csv(base_dir / "a5_vertical_diversity_cc_vs_no_cc.csv")
 div_peak.to_csv(base_dir / "a5_vertical_diversity_peak_cc_vs_no_cc.csv")
+
+# ------ Overall summary ------ #
+
+div_peak = pd.read_csv(base_dir / "a5_vertical_diversity_peak_cc_vs_no_cc.csv")
+
+overall_peak = div_peak.groupby(["Scenario", "level_5", "Year"]).agg(
+        mean_div=("Count", "mean"),
+        sem_div = ("Count", "sem"),
+        mean_div_hgt= ("Height", "mean"),
+        sem_div_hgt = ("Height", "sem")
+    ).reset_index()
+
+overall_peak[overall_peak["Year"] == 2050]
+
+# ------ Compute percent change in 2050 ------ #
+
+# 1. Filter for year 2030
+df_2050 = div_peak[div_peak['Year'] == 2070]
+
+# 2. Split by scenario
+cc = df_2050[df_2050['Scenario'] == 'CC']
+nocc = df_2050[df_2050['Scenario'] == 'No CC']
+
+# 3. Merge CC and No CC rows by ForestID + SpeciesPool (or other IDs you need)
+merged = pd.merge(
+    cc, nocc,
+    on=['ForestID', 'SpeciesPool', 'Year', 'level_5'],
+    suffixes=('_CC', '_NoCC')
+)
+
+# 4. Compute percent change in richness
+merged['pct_change_div'] = (
+    (merged['Count_CC'] - merged['Count_NoCC']) /
+     merged['Count_NoCC'] * 100
+)
+merged['pct_change_height'] = (
+    (merged['Height_CC'] - merged['Height_NoCC']) /
+     merged['Height_NoCC'] * 100
+)
+
+# 5. Average percent change
+metric = "Shannon"
+avg_pct_change_div = merged.loc[merged['level_5'] == metric, 'pct_change_div'].mean()
+avg_pct_change_height = merged.loc[merged['level_5'] == metric, 'pct_change_height'].mean()
+sem_pct_change_div = merged.loc[merged['level_5'] == metric, 'pct_change_div'].sem()
+sem_pct_change_height = merged.loc[merged['level_5'] == metric, 'pct_change_height'].sem()
+print(f"Average percent change in diversity (2050): {avg_pct_change_div:.1f} % ± {1.96 * sem_pct_change_div:.1f} %")
+print(f"Average percent change in peak height (2050): {avg_pct_change_height:.1f} % ± {1.96 * sem_pct_change_height:.1f} %")
+
+# ------ Overall vertical div all replicates in one ------ #
+
+div = pd.read_csv(base_dir / "a5_vertical_diversity_cc_vs_no_cc.csv")
+
+# - Step 2: compute across-forest mean + CI ---
+div2030 = div[(div['Year'] == 2030)  & (div['SpeciesPool'] == 3) & (div['ForestID'] == 0)]
+summary = (
+    div2030.groupby(["Scenario", "level_5", "Height"])
+    .agg(
+        mean_div=("Count", "mean"),
+        sem_div = ("Count", "sem")
+    )
+    .reset_index()
+)
+
+# 95% confidence intervals
+summary["div_ci_lower"] = summary["mean_div"] - 1.96 * summary["sem_div"]
+summary["div_ci_upper"] = summary["mean_div"] + 1.96 * summary["sem_div"]
+
+data = summary.copy()
+
+# Plot lines and confidence intervals
+scenarios = data['Scenario'].unique()
+colors = {'CC': '#f7766e', 'No CC': '#004aad'}
+
+plt.close("all")
+
+metric = "Richness"
+sigma = 2  # controls smoothing strength
+
+plt.figure(figsize=(6, 8))
+
+for scenario in scenarios:
+    scenario_data = data[
+        (data['Scenario'] == scenario) &
+        (data["level_5"] == metric)
+        ].sort_values('Height')
+
+    if not scenario_data.empty:
+        # Apply Gaussian smoothing
+        smoothed_mean = gaussian_filter1d(scenario_data['mean_div'],
+                                          sigma=sigma)
+        smoothed_lower = gaussian_filter1d(scenario_data['div_ci_lower'],
+                                           sigma=sigma)
+        smoothed_upper = gaussian_filter1d(scenario_data['div_ci_upper'],
+                                           sigma=sigma)
+
+        color = colors.get(scenario, 'black')
+
+        # --- Plot smoothed mean ---
+        plt.plot(smoothed_mean, scenario_data['Height'],
+                 color=color, linewidth=2, label=f"{scenario} (smoothed)")
+
+        # --- Plot smoothed CI ---
+        plt.fill_betweenx(scenario_data['Height'],
+                          smoothed_lower, smoothed_upper,
+                          color=color, alpha=0.2)
+
+        # --- Plot raw (non-smoothed) mean for transparency ---
+        plt.plot(scenario_data['mean_div'], scenario_data['Height'],
+                 color=color, alpha=0.3, linestyle='--', linewidth=1)
+
+plt.xlabel("Species richness")
+plt.ylabel("Height (m)")
+plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
+           fancybox=True, shadow=False, ncol=1, frameon=False)
+plt.grid(alpha=0.3)
+for spine in plt.gca().spines.values(): spine.set_visible(False)
+plt.tight_layout()
+plt.show()
+plt.savefig(DirectoryPlots / "vertical_richness_smooth_sp3_f0.png", dpi=700)
+
+# ---- Plot vertical diversity across replicates for each year ---- #
+
+plt.close("all")
+
+# ---- Make GIF for richness over time ---- #
+
+years = np.asarray(sorted(div['Year'].unique()))
+years = years[years >= 2030]
+metrics = ["Richness", "Abundance"]
+
+# Determine global plotting limits
+global_limits = {'Richness':
+                     {'xmin': 1.0, 'xmax': 6.0, 'ymin': 0.5, 'ymax': 51.5},
+                 'Abundance':
+                     {'xmin': 1.0, 'xmax': 50.0, 'ymin': 0.5, 'ymax': 51.5},
+                 'Shannon':
+                     {'xmin': 0.0, 'xmax': 1.3, 'ymin': 0.5, 'ymax': 51.5}
+                 }
+
+out_dir = Path(DirectoryPlots)
+out_dir.mkdir(exist_ok=True)
+
+sigma = 2
+gif_files = {m: [] for m in metrics}
+
+for metric in metrics:
+    for year in years:
+
+        fig, ax = plt.subplots(figsize=(7, 8))
+
+        div_year = div[div['Year'] == year]
+
+        # Filter: richness >=2 combos still applied
+        rich = div_year[div_year["level_5"] == "Richness"]
+        valid = rich[rich["Count"] >= 2][["SpeciesPool","Scenario"]]
+        div_filtered = div_year.merge(valid, on=["SpeciesPool","Scenario"], how="inner")
+
+        summary = (
+            div_filtered.groupby(["Scenario", "level_5", "Height"])
+            .agg(mean_div=("Count", "mean"), sem_div=("Count", "sem"))
+            .reset_index()
+        )
+
+        summary["div_ci_lower"] = summary["mean_div"] - 1.96 * summary["sem_div"]
+        summary["div_ci_upper"] = summary["mean_div"] + 1.96 * summary["sem_div"]
+
+        data = summary.copy()
+
+        for scenario in scenarios:
+            df_s = data[(data["Scenario"] == scenario) & (data["level_5"] == metric)]
+            df_s = df_s.sort_values("Height")
+
+            if df_s.empty:
+                continue
+
+            sm_mean = gaussian_filter1d(df_s["mean_div"], sigma=sigma)
+            sm_low  = gaussian_filter1d(df_s["div_ci_lower"], sigma=sigma)
+            sm_up   = gaussian_filter1d(df_s["div_ci_upper"], sigma=sigma)
+
+            color = colors.get(scenario, 'black')
+
+            # Smooth curve
+            ax.plot(sm_mean, df_s["Height"], color=color, linewidth=2)
+
+            # CI band
+            ax.fill_betweenx(df_s["Height"], sm_low, sm_up, color=color, alpha=0.2)
+
+        ## --- fixed axes for all frames ---
+        ax.set_xlim(global_limits[metric]["xmin"], global_limits[metric]["xmax"])
+        ax.set_ylim(global_limits[metric]["ymin"], global_limits[metric]["ymax"])
+
+        ax.set_title(f"Shannon diversity index - Year {year}", fontsize=22)
+        ax.set_xlabel(metric, fontsize=24)
+        ax.set_ylabel("Height (m)", fontsize=24)
+        ax.grid(alpha=0.3)
+
+        # remove spines
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+
+        # Save temporary PNG per frame
+        frame_path = out_dir / f"{metric}_{year}.png"
+        plt.tight_layout()
+        plt.savefig(frame_path, dpi=120)
+        gif_files[metric].append(frame_path)
+
+        plt.close(fig)
+
+# ---- Build GIFs ----
+for metric in metrics:
+    frames = [imageio.imread(p) for p in gif_files[metric]]
+    imageio.mimsave(out_dir / f"{metric}_animation.gif", frames, duration=0.5)  # 0.5s per frame
+
+# -------------------- Time series of max and max height ---- #
+
+colors = {'CC': '#f7766e', 'No CC': '#004aad'}  # keep same colors as your example
+
+# --- Aggregate across Species to get time series (mean ± 95% CI) for position and range ---
+# For each Year and Scenario we compute the mean of mean_height across species, sem, and 95% CI
+def summarize_across_species(df, value_col, prefix):
+    summary = (
+        df
+        .groupby(['Scenario', 'Year', 'level_5'], observed=True)[value_col]
+        .agg(['mean', 'std', 'count'])
+        .rename(columns={'mean': f'mean_{prefix}', 'std': f'std_{prefix}', 'count': f'n_{prefix}'})
+        .reset_index()
+    )
+    # SEM and 95% CI (approx normal, z=1.96)
+    summary[f'sem_{prefix}'] = summary[f'std_{prefix}'] / np.sqrt(summary[f'n_{prefix}'])
+    summary[f'ci_lower_{prefix}'] = summary[f'mean_{prefix}'] - 1.96 * summary[f'sem_{prefix}']
+    summary[f'ci_upper_{prefix}'] = summary[f'mean_{prefix}'] + 1.96 * summary[f'sem_{prefix}']
+    return summary
+
+summary_max_val = summarize_across_species(filtered_div_peak, 'Count', 'Count')
+summary_max_hgt = summarize_across_species(filtered_div_peak, 'Height', 'Height')
+
+# For plotting convenience, merge the two summaries on Scenario+Year so we can pick xticks from range of years
+# But plotting will iterate over each independently (like your example)
+years_min = min(summary_max_val['Year'].min(), summary_max_hgt['Year'].min())
+years_max = max(summary_max_val['Year'].max(), summary_max_hgt['Year'].max())
+
+# --- Plotting: 3 metrics × 2 columns = 6 subplots ---
+
+metrics = [
+    ("Abundance", "Vertical max.\nabundance", "Max. abundance\nheight (m)"),
+    ("Shannon", "Vertical max.\nShannon index", "Max. Shannon index\nheight (m)"),
+    ("Richness", "Vertical max.\nrichness", "Max. richness\nheight (m)")
+]
+yrs = [2050, 2080, 2090]
+
+plt.rcParams.update({'font.size': 20})
+
+fig, axes = plt.subplots(
+    nrows=3, ncols=3, figsize=(15, 15)
+)
+
+xticks = range(years_min - 1, years_max + 1, 10)
+
+for col, (metric, ylabel_top, ylabel_middle) in enumerate(metrics):
+
+    # ---------------- TOP ROW: maximum value ----------------
+    ax_top = axes[0, col]
+    data_max = summary_max_val[summary_max_val["level_5"] == metric]
+
+    for scenario, group in data_max.groupby("Scenario"):
+        ax_top.plot(group["Year"], group["mean_Count"],
+                    color=colors.get(scenario, None),
+                    linewidth=2, label=scenario)
+        ax_top.fill_between(group["Year"],
+                            group["ci_lower_Count"],
+                            group["ci_upper_Count"],
+                            color=colors.get(scenario, None),
+                            alpha=0.2)
+
+    ax_top.set_ylabel(ylabel_top, fontsize=25)
+    ax_top.set_xticks(xticks)
+    ax_top.set_xticklabels([], )
+    ax_top.set_xlim(years_min, years_max)
+    ax_top.grid(alpha=0.3)
+    for spine in ax_top.spines.values():
+        spine.set_visible(False)
+    ax_top.yaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+
+    # ---------------- MIDDLE ROW: height of maximum ----------------
+    ax_middle = axes[1, col]   # <--- FIXED
+    data_hgt = summary_max_hgt[summary_max_hgt["level_5"] == metric]
+
+    for scenario, group in data_hgt.groupby("Scenario"):
+        ax_middle.plot(group["Year"], group["mean_Height"],
+                       color=colors.get(scenario, None),
+                       linewidth=2)
+        ax_middle.fill_between(group["Year"],
+                               group["ci_lower_Height"],
+                               group["ci_upper_Height"],
+                               color=colors.get(scenario, None),
+                               alpha=0.2)
+
+    ax_middle.set_ylabel(ylabel_middle, fontsize=25)
+    ax_middle.set_xticks(xticks)
+    ax_middle.set_xticklabels(xticks, rotation=90, fontsize=18)
+    ax_middle.set_xlim(years_min, years_max)
+    ax_middle.yaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+
+    # ---------------- BOTTOM ROW: vertical profile ----------------
+    ax_bottom = axes[2, col]
+    year = yrs[col]
+
+    div2030 = div[(div['Year'] == year)]
+
+    richness = div2030[div2030['level_5'] == 'Richness']
+    valid_combinations = richness[richness['Count'] >= 2][
+        ['SpeciesPool', 'Scenario']]
+
+    div_filtered = div2030.merge(valid_combinations,
+                                 on=['SpeciesPool', 'Scenario'], how='inner')
+
+    summary = (
+        div_filtered.groupby(["Scenario", "level_5", "Height"])
+        .agg(
+            mean_div=("Count", "mean"),
+            sem_div=("Count", "sem")
+        )
+        .reset_index()
+    )
+
+    summary["div_ci_lower"] = summary["mean_div"] - 1.96 * summary["sem_div"]
+    summary["div_ci_upper"] = summary["mean_div"] + 1.96 * summary["sem_div"]
+    summary["div_ci_lower"] = summary["div_ci_lower"].clip(lower=0)
+
+    data = summary.copy()
+    sigma = 2
+
+    for scenario in ["CC", "No CC"]:
+
+        scenario_data = data[
+            (data['Scenario'] == scenario) &
+            (data["level_5"] == metric)
+        ].sort_values('Height')
+
+        if not scenario_data.empty:
+
+            smoothed_mean = gaussian_filter1d(scenario_data['mean_div'], sigma)
+            smoothed_lower = gaussian_filter1d(scenario_data['div_ci_lower'], sigma)
+            smoothed_upper = gaussian_filter1d(scenario_data['div_ci_upper'], sigma)
+
+            color = colors.get(scenario, 'black')
+
+            ax_bottom.plot(smoothed_mean, scenario_data['Height'],
+                           color=color, linewidth=2)
+
+            ax_bottom.fill_betweenx(scenario_data['Height'],
+                                    smoothed_lower, smoothed_upper,
+                                    color=color, alpha=0.2)
+
+            ax_bottom.plot(scenario_data['mean_div'], scenario_data['Height'],
+                           color=color, alpha=0.3, linestyle='--', linewidth=1)
+
+    ax_bottom.set_title(str(year), fontsize=25, loc='center')
+    ax_bottom.set_xlabel(metric if metric != "Shannon" else "Shannon index",
+                         fontsize=25)
+
+# Shared Y label for bottom-left plot
+axes[2, 0].set_ylabel("Height (m)", fontsize=25)
+
+for ax in axes.ravel():
+    ax.grid(alpha=0.3)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+handles, labels = axes[0, 0].get_legend_handles_labels()
+label_map = {'CC': 'Climate change', 'No CC': 'Baseline'}
+friendly_labels = [label_map.get(l, l) for l in labels]
+
+fig.legend(handles, friendly_labels,
+           loc="lower center", ncol=2, bbox_to_anchor=(0.5, 0.02))
+
+plt.tight_layout(rect=[0, 0.05, 1, 1])
+plt.savefig(DirectoryPlots / "vertical_div_ts_profile_v2.pdf")
+
+
+
