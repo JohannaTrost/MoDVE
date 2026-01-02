@@ -71,6 +71,11 @@ write_csv(
   "/Users/johanna/Uni/masterarbeit/data/modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/a5/species_heights.csv",
 )
 
+speciesHeight <- read_csv(
+  "/Users/johanna/Uni/masterarbeit/data/modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/a5/species_heights.csv",
+  show_col_types = FALSE
+)
+
 overallStats <- speciesHeight %>%
   group_by(TimeStep, Replicate, SpeciesPool, ForestID) %>%
   summarize(
@@ -200,7 +205,10 @@ pRichness <- ggplot(CVsLast10, aes(x = SampleSize, y = RichnessCV, group = Rep))
     x = "Number of Draws",
     y = "Richness CV"
   ) +
-  theme_minimal()
+  theme_minimal() +
+  theme(
+    text = element_text(size = 25),
+    axis.text = element_text(size = 20))
 
 pAbundance <- ggplot(CVsLast10, aes(x = SampleSize, y = AbundanceCV, group = Rep)) +
   geom_line(alpha = 0.3, color = "darkred") +
@@ -208,9 +216,12 @@ pAbundance <- ggplot(CVsLast10, aes(x = SampleSize, y = AbundanceCV, group = Rep
     x = "Number of Draws",
     y = "Abundance CV"
   ) +
-  theme_minimal()
+  theme_minimal() +
+  theme(
+    text = element_text(size = 25),
+    axis.text = element_text(size = 20))
 
-pdf("../../../figs/a5_plots_test/CV_bootstrap_richness_abundance_no_ts_cc_v3.pdf", width = 12, height = 6)
+pdf("../../figs/a5_plots_test/CV_bootstrap_richness_abundance_no_ts_cc_v4.pdf", width = 12, height = 6)
 print(pRichness + pAbundance)
 dev.off()
 
