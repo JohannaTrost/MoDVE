@@ -1,4 +1,3 @@
-setwd("/home/jtrost_ext/MoDVE/R/")
 
 # Create microhabitat matrices
 source("utils.R")
@@ -29,7 +28,7 @@ SurfaceAreaLossOpt <- config$SurfaceAreaLossOpt
 LightNicheOpt <- config$LightNicheOpt
 AverageWeightedAngles <- config$AverageWeightedAngles
 
-# Parameters that need to be specified if MicrohabitatType=1 or MicrohabitatType=2
+# Parameters that need to be specified if microhabitat_type=1 or microhabitat_type=2
 # Directory of GroIMP files (this directory is stored in the Microhabitat folder so that the
 # connection to the input GroIMP files is always clear)
 DirectoryGroIMP <- config$DirectoryGroIMP
@@ -42,8 +41,8 @@ ReplicateForest <- config$ReplicateForest
 timeStepStart <- config$timeStepStart
 timeStepEnd <- config$timeStepEnd
 
-# Parameters that need to be specified if MicrohabitatType=3
-# The following parameters are only needed if MicrohabitatType=3
+# Parameters that need to be specified if microhabitat_type=3
+# The following parameters are only needed if microhabitat_type=3
 # Dimensions of the theoretical forest
 # ForestHeight <- 40
 # dimXTheoretical <- 50
@@ -99,7 +98,7 @@ if (MicrohabitatType == 1 || MicrohabitatType == 2) {
 }
 
 
-# Generation of microhabitat matrix of static or dynamic forest (MicrohabitatType=1 or MicrohabitatType=2)
+# Generation of microhabitat matrix of static or dynamic forest (microhabitat_type=1 or microhabitat_type=2)
 # Here, the choosen parameter (total surface, surface loss, light conditions,average angle) are calculated for each voxel in each timestep
 
 if (MicrohabitatType == 1 || MicrohabitatType == 2) {

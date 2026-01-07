@@ -1,7 +1,6 @@
 options(warn=-1)  # Suppress warnings
 options(digits.secs=3)  # 3 decimal digits for seconds
 
-setwd("/home/jtrost_ext/MoDVE/R/")
 
 # Epiphte IBM - Model
 # This model simulates the development of the entire epiphyte community
