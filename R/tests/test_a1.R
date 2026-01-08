@@ -14,10 +14,10 @@ dimPlot_received <- readRDS(file.path(dir_received, "dimPlot.rds"))
 stopifnot(identical(length(dimPlot_expected), length(dimPlot_received)))
 stopifnot(identical(dimPlot_expected, dimPlot_received))
 
-# Test Microhabitat
+# Test microhabitat
 Nfiles <- 3
 for (t in seq_len(Nfiles)) {
-    microhab_filename <- paste("MicrohabitatMatrix", t, ".rds", sep="")
+    microhab_filename <- paste("microhabitatMatrix", t, ".rds", sep="")
 
     microhab_expected <- readRDS(file.path(dir_expected, microhab_filename))
     microhab_received <- readRDS(file.path(dir_received, microhab_filename))

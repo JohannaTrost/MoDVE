@@ -23,7 +23,7 @@ SingleSpeciesModel <- config$SingleSpeciesModel  # 1: Single species model, 0: C
 # Directory where model is save and directory where microhabitat matrices
 # are stored
 DirectoryModelMain <- config$DirectoryModelMain
-DirectoryMicrohabitatMain <- config$DirectoryMicrohabitatMain
+DirectorymicrohabitatMain <- config$DirectorymicrohabitatMain
 DirectorySpeciesPoolsMain <- config$DirectorySpeciesPoolsMain
 
 # Choose species pools to use and number of replicates per species pool
@@ -49,11 +49,11 @@ SurfaceBiomassScaling <- config$SurfaceBiomassScaling  # cm^2 per m^2
 Imax <- config$Imax
 
 # Get microhabitat matrix variables - dynamic handling of selected variables
-MicrohabitatVariableFlags <- config$MicrohabitatVariableFlags
+microhabitatVariableFlags <- config$microhabitatVariableFlags
 MhVarNames <- c("TotalSurfaceAreaOpt", "SurfaceAreaLossOpt", "LightNicheOpt", "AverageWeightedAngles",
                 "HumNicheOpt", "TempNicheOpt", "WindNicheOpt")
 # Only keep active options
-ActiveOpts <- MhVarNames[as.logical(MicrohabitatVariableFlags)]
+ActiveOpts <- MhVarNames[as.logical(microhabitatVariableFlags)]
 # Assign indices
 Indices <- setNames(seq_along(ActiveOpts), ActiveOpts)
 
@@ -67,7 +67,7 @@ dir.create(DirectoryModelMain, recursive=TRUE)
 # Load parameters saved along with the microhabitat and species pool files
 
 # Load plot dimensions if an artifical theoretical forest is used
-dimPlot <- readRDS(file.path(DirectoryMicrohabitatMain, "dimPlot.rds"))
+dimPlot <- readRDS(file.path(DirectorymicrohabitatMain, "dimPlot.rds"))
 
 # Calculate individuals per species if normalization per hectare (ScalingPerHa=1) is chosen
 if (ScalingPerHa == 1) {
@@ -97,12 +97,12 @@ TotalIndividuals <- NumberSpecies * IndividualsPerSpecies
 NumberMaturesPerSpecies <- round(IndividualsPerSpecies * (PercentageMaturePerSpecies / 100))
 
 # Load initial microhabitat matrix
-microhabitat_filename <- paste("MicrohabitatMatrix", TimeStep, ".rds", sep="")
-FileInitalMatrix <- file.path(DirectoryMicrohabitatMain, microhabitat_filename)
-Microhabitat <- readRDS(FileInitalMatrix)
+microhabitat_filename <- paste("microhabitatMatrix", TimeStep, ".rds", sep="")
+FileInitalMatrix <- file.path(DirectorymicrohabitatMain, microhabitat_filename)
+microhabitat <- readRDS(FileInitalMatrix)
 
 # Set real light values (in microhabitat, relative light values are saved)
-Microhabitat[, , , Indices["LightNicheOpt"]] <- Microhabitat[, , , Indices["LightNicheOpt"]] * Imax
+microhabitat[, , , Indices["LightNicheOpt"]] <- microhabitat[, , , Indices["LightNicheOpt"]] * Imax
 
 ###############################################################################
 # Main loop for Single Species Model
@@ -126,7 +126,7 @@ if (SingleSpeciesModel == 1) {
 
             # Initialize Available surface area
             # - Matrix to trace the still available surface area per voxel
-            AvailableSurfaceArea <- Microhabitat[, , , Indices["TotalSurfaceAreaOpt"]]
+            AvailableSurfaceArea <- microhabitat[, , , Indices["TotalSurfaceAreaOpt"]]
 
             # Fill InitialEpiphyteMatrix with species trait informations and the
             # initial size of each individual
@@ -179,20 +179,20 @@ if (SingleSpeciesModel == 1) {
                 HumIdx <- Indices["HumNicheOpt"]
                 TempIdx <- Indices["TempNicheOpt"]
                 WindIdx <- Indices["WindNicheOpt"]
-                # Verify suitable Microclimate for the species
-                compMinLight <- Microhabitat[, , , LightIdx] >= SpeciesPool$MinLight[numSpecies]
-                compMaxLight <- Microhabitat[, , , LightIdx] <= SpeciesPool$MaxLight[numSpecies]
-                compMinHum <- Microhabitat[, , , HumIdx] >= SpeciesPool$MinHum[numSpecies]
-                compMaxHum <- Microhabitat[, , , HumIdx] <= SpeciesPool$MaxHum[numSpecies]
-                compMinTemp <- Microhabitat[, , , TempIdx] >= SpeciesPool$MinTemp[numSpecies]
-                compMaxTemp <- Microhabitat[, , , TempIdx] <= SpeciesPool$MaxTemp[numSpecies]
-                compMinWind <- Microhabitat[, , , WindIdx] >= SpeciesPool$MinWind[numSpecies]
-                compMaxWind <- Microhabitat[, , , WindIdx] <= SpeciesPool$MaxWind[numSpecies]
+                # Verify suitable microclimate for the species
+                compMinLight <- microhabitat[, , , LightIdx] >= SpeciesPool$MinLight[numSpecies]
+                compMaxLight <- microhabitat[, , , LightIdx] <= SpeciesPool$MaxLight[numSpecies]
+                compMinHum <- microhabitat[, , , HumIdx] >= SpeciesPool$MinHum[numSpecies]
+                compMaxHum <- microhabitat[, , , HumIdx] <= SpeciesPool$MaxHum[numSpecies]
+                compMinTemp <- microhabitat[, , , TempIdx] >= SpeciesPool$MinTemp[numSpecies]
+                compMaxTemp <- microhabitat[, , , TempIdx] <= SpeciesPool$MaxTemp[numSpecies]
+                compMinWind <- microhabitat[, , , WindIdx] >= SpeciesPool$MinWind[numSpecies]
+                compMaxWind <- microhabitat[, , , WindIdx] <= SpeciesPool$MaxWind[numSpecies]
 
                 ids <- arrayInd(
                   which(comp1 & compMinLight & compMaxLight & compMinHum & compMaxHum &
                         compMinTemp & compMaxTemp & compMinWind & compMaxWind),
-                  dim(Microhabitat)
+                  dim(microhabitat)
                 )
                 x <- ids[, 1]
                 y <- ids[, 2]
@@ -261,7 +261,7 @@ if (SingleSpeciesModel == 0) {
             IntitalEpiphyteMatrix <- array(rep(0, TotalIndividuals * (SizeSpeciesPool[2] + 8)), dim=c(TotalIndividuals, SizeSpeciesPool[2] + 8))
 
             # Initialize Available surface area
-            AvailableSurfaceArea <- Microhabitat[, , , Indices["TotalSurfaceAreaOpt"]]  # Matrix to trace the still available surface area per voxel
+            AvailableSurfaceArea <- microhabitat[, , , Indices["TotalSurfaceAreaOpt"]]  # Matrix to trace the still available surface area per voxel
 
             # Fill InitialEpiphyteMatrix with species trait informations and the
             # initial size of each individual
@@ -324,14 +324,14 @@ if (SingleSpeciesModel == 0) {
                 # 1. Get the postions of all voxels fullfilling the
                 # requirements of the individual (light+area)
                 tmp1 <- AvailableSurfaceArea[, , ] > AreaNeededInd
-                tmp2 <- Microhabitat[, , , Indices["LightNicheOpt"]] >= MinLightInd
-                tmp3 <- Microhabitat[, , , Indices["LightNicheOpt"]] <= MaxLightInd
-                tmp4 <- Microhabitat[, , , HumIdx] >= MinHumInd
-                tmp5 <- Microhabitat[, , , HumIdx] <= MaxHumInd
-                tmp6 <- Microhabitat[, , , TempIdx] >= MinTempInd
-                tmp7 <- Microhabitat[, , , TempIdx] <= MaxTempInd
-                tmp8 <- Microhabitat[, , , WindIdx] >= MinWindInd
-                tmp9 <- Microhabitat[, , , WindIdx] <= MaxWindInd
+                tmp2 <- microhabitat[, , , Indices["LightNicheOpt"]] >= MinLightInd
+                tmp3 <- microhabitat[, , , Indices["LightNicheOpt"]] <= MaxLightInd
+                tmp4 <- microhabitat[, , , HumIdx] >= MinHumInd
+                tmp5 <- microhabitat[, , , HumIdx] <= MaxHumInd
+                tmp6 <- microhabitat[, , , TempIdx] >= MinTempInd
+                tmp7 <- microhabitat[, , , TempIdx] <= MaxTempInd
+                tmp8 <- microhabitat[, , , WindIdx] >= MinWindInd
+                tmp9 <- microhabitat[, , , WindIdx] <= MaxWindInd
                 SuitableVoxels <- which(tmp1 & tmp2 & tmp3)
                                       #& tmp4 & tmp5 & tmp6 & tmp7 & tmp8 & tmp9)
 

@@ -8,7 +8,7 @@ out_dir <- file.path("/Users/johanna/Uni/masterarbeit/data/a4_output/v8_real_nic
 suit_file <- "ScaledSuitability_1_TimeStep199.h5"
 
 mh_path <- file.path("/Users/johanna/Uni/masterarbeit/data/modve_input/v2_microhabitat_lowland_zach_mh_2024_mc")
-mh_file <- "MicrohabitatMatrix199.rds"
+mh_file <- "microhabitatMatrix199.rds"
 
  # --- Realised ranges
 

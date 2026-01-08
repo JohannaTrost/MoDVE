@@ -113,7 +113,7 @@ for (forest in 0:2) {
 
     # Load mC matrix
     mh <- readRDS(file.path(base_dir, "climdata_era5_cmip6_1981-2100_ssp245", "a1_2",
-                            paste0("forest", forest), paste0("MicrohabitatMatrix", ts, ".rds")))
+                            paste0("forest", forest), paste0("microhabitatMatrix", ts, ".rds")))
     mc <- mh[,,, c(3,4,5)]
     species_locations[, c("Light", "Hum", "Temp")] <- t(mapply(function(x, y, z) {
       mc[x, y, z, ]

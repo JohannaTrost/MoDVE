@@ -1,11 +1,11 @@
 
 DirectoryOutput = "/Users/johanna/Uni/masterarbeit/code/MoDVE/R/tests/data/output_a2_100spec_real_v3"
-DirectoryMicrohabitat = "/Users/johanna/Uni/masterarbeit/data/modve_input/v2_microhabitat_lowland_zach_mh_2024_mc"
+Directorymicrohabitat = "/Users/johanna/Uni/masterarbeit/data/modve_input/v2_microhabitat_lowland_zach_mh_2024_mc"
 
 initialTimeStep = 100
 timeSteps = 99
 chunkSize = 20  # time steps will be processed in chunks of this size
 
-# Microhabitat variable settings
+# microhabitat variable settings
 # - Variables: TotalSurfaceAreaOpt, SurfaceAreaLossOpt, LightNicheOpt, AverageWeightedAngles, HumNicheOpt, TempNicheOpt, WindNicheOpt
-MicrohabitatVariableFlags = [1, 1, 1, 0, 1, 1, 1]
+microhabitatVariableFlags = [1, 1, 1, 0, 1, 1, 1]

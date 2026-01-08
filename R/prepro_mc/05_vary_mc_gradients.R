@@ -2,7 +2,7 @@
 # Load matrix
 vars <- c("TotalSurfaceAreaOpt", "SurfaceAreaLossOpt", "LightNicheOpt", "AverageWeightedAngles",
           "HumNicheOpt", "TempNicheOpt", "WindNicheOpt")
-MicrohabitatVariableFlags <- c(1, 1, 1, 0, 1, 1, 0)
+microhabitatVariableFlags <- c(1, 1, 1, 0, 1, 1, 0)
 
 start_ts <- 80
 end_ts <- 198
@@ -17,13 +17,13 @@ dir.create(outdir, recursive = TRUE)
 
 for (ts in seq(start_ts, end_ts)) {
     cat("Time step:", ts, "\n")
-    mc <- readRDS(file.path(indir, paste0("MicrohabitatMatrix", ts, ".rds")))
+    mc <- readRDS(file.path(indir, paste0("microhabitatMatrix", ts, ".rds")))
 
     mc_no_grad <- mc
     mc_varied_grad <- mc
 
-    humIdx <- which(vars[as.logical(MicrohabitatVariableFlags)] == "HumNicheOpt")
-    tempIdx <- which(vars[as.logical(MicrohabitatVariableFlags)] == "TempNicheOpt")
+    humIdx <- which(vars[as.logical(microhabitatVariableFlags)] == "HumNicheOpt")
+    tempIdx <- which(vars[as.logical(microhabitatVariableFlags)] == "TempNicheOpt")
 
     for (mcIdx in c(humIdx, tempIdx)) {
       # Compute vertical means (averaging over z dimension)
@@ -41,7 +41,7 @@ for (ts in seq(start_ts, end_ts)) {
 
     }
 
-    saveRDS(mc_varied_grad, file.path(outdir, paste0("MicrohabitatMatrix", ts, ".rds")))
+    saveRDS(mc_varied_grad, file.path(outdir, paste0("microhabitatMatrix", ts, ".rds")))
 }
 
 # Plot gradients

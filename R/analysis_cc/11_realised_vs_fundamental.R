@@ -63,7 +63,7 @@ for (scenario in c("CC", "No CC")) {
 
       # Load mC matrix
       mh <- readRDS(file.path(base_dir, scenario_dir[[scenario]], "a1_2",
-                              paste0("forest", forest), paste0("MicrohabitatMatrix", ts, ".rds")))
+                              paste0("forest", forest), paste0("microhabitatMatrix", ts, ".rds")))
       mc <- mh[,,, c(3,4,5)]
 
       # Get the env conditions at the species position

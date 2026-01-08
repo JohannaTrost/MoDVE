@@ -1,7 +1,7 @@
 seed = 42
 SingleSpeciesModel = 0
 DirectoryModelMain = "/Users/johanna/Uni/masterarbeit/data/a3_output/v4_real_niches"
-DirectoryMicrohabitatMain = "/Users/johanna/Uni/masterarbeit/data/modve_input/v2_microhabitat_lowland_zach_mh_2024_mc"
+DirectorymicrohabitatMain = "/Users/johanna/Uni/masterarbeit/data/modve_input/v2_microhabitat_lowland_zach_mh_2024_mc"
 DirectorySpeciesPoolsMain = "/Users/johanna/Uni/masterarbeit/code/MoDVE/R/tests/data/output_a2_100spec_real_v4/"
 numSpeciesPools = [1, 2]
 replicatePerSpeciesPool = 1
@@ -13,6 +13,6 @@ PercentageMaturePerSpecies = 50
 SurfaceBiomassScaling = 100
 Imax = 900
 
-# Microhabitat variable settings
+# microhabitat variable settings
 # - Variables: TotalSurfaceAreaOpt, SurfaceAreaLossOpt, LightNicheOpt, AverageWeightedAngles, HumNicheOpt, TempNicheOpt, WindNicheOpt
-MicrohabitatVariableFlags = [1, 1, 1, 0, 1, 1, 1]
+microhabitatVariableFlags = [1, 1, 1, 0, 1, 1, 1]

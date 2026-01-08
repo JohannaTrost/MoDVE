@@ -118,7 +118,7 @@ faceted_plot <- ggplot(combined_data, aes(x = value, y = height)) +
   geom_point(color = "red", size = 1, alpha = 0.7) +
   facet_wrap(~ variable, scales = "free_x", ncol = 4) +
   labs(
-    title = paste("Vertical Profiles of Microclimate Variables (Grid Point:", x_coord, ",", y_coord, ")"),
+    title = paste("Vertical Profiles of microclimate Variables (Grid Point:", x_coord, ",", y_coord, ")"),
     x = "Value",
     y = "Height (m)"
   ) +

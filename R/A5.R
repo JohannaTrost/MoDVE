@@ -122,7 +122,7 @@ SuitabilityScore <- function (MinEnvVar, MaxEnvVar, OptEnvVar, EnvVar) {
 
 dispersal <- function(NumberOfSpecies,
                       E,
-                      Microhabitat,
+                      microhabitat,
                       SurfaceBiomassScaling,
                       dimPlot,
                       centralPoint,
@@ -144,7 +144,7 @@ dispersal <- function(NumberOfSpecies,
     NumberRecruitsPerSpecies <- array(rep(0, NumberOfSpecies))
 
     # Calculate free surface area per voxel
-    AvailableSurfaceArea <- Microhabitat[, , , Inds["TotalSurfaceAreaOpt"]]
+    AvailableSurfaceArea <- microhabitat[, , , Inds["TotalSurfaceAreaOpt"]]
     for (i in seq_len(nrow(E))) {
         SurfaceAreaNeededInVoxel <- E$Mass[i]^(2/3) / SurfaceBiomassScaling
         AvailableSurfaceArea[E$X[i], E$Y[i], E$Z[i]] <- max(0, AvailableSurfaceArea[E$X[i], E$Y[i], E$Z[i]] - SurfaceAreaNeededInVoxel)
@@ -201,14 +201,14 @@ dispersal <- function(NumberOfSpecies,
                 IdxTemp <- Inds["TempNicheOpt"]
                 IdxWind <- Inds["WindNicheOpt"]
 
-                LightSuitable <- ((Microhabitat[, , , IdxLight] >= MatureIndividulsPerSpecies$MinLight[1]) &
-                                  (Microhabitat[, , , IdxLight] <= MatureIndividulsPerSpecies$MaxLight[1]))
-                HumSuitable <- ((Microhabitat[, , , IdxHum] >= MatureIndividulsPerSpecies$MinHum[1]) &
-                                (Microhabitat[, , , IdxHum] <= MatureIndividulsPerSpecies$MaxHum[1]))
-                TempSuitable <- ((Microhabitat[, , , IdxTemp] >= MatureIndividulsPerSpecies$MinTemp[1]) &
-                                 (Microhabitat[, , , IdxTemp] <= MatureIndividulsPerSpecies$MaxTemp[1]))
-                WindSuitable <- ((Microhabitat[, , , IdxWind] >= MatureIndividulsPerSpecies$MinWind[1]) &
-                                 (Microhabitat[, , , IdxWind] <= MatureIndividulsPerSpecies$MaxWind[1]))
+                LightSuitable <- ((microhabitat[, , , IdxLight] >= MatureIndividulsPerSpecies$MinLight[1]) &
+                                  (microhabitat[, , , IdxLight] <= MatureIndividulsPerSpecies$MaxLight[1]))
+                HumSuitable <- ((microhabitat[, , , IdxHum] >= MatureIndividulsPerSpecies$MinHum[1]) &
+                                (microhabitat[, , , IdxHum] <= MatureIndividulsPerSpecies$MaxHum[1]))
+                TempSuitable <- ((microhabitat[, , , IdxTemp] >= MatureIndividulsPerSpecies$MinTemp[1]) &
+                                 (microhabitat[, , , IdxTemp] <= MatureIndividulsPerSpecies$MaxTemp[1]))
+                WindSuitable <- ((microhabitat[, , , IdxWind] >= MatureIndividulsPerSpecies$MinWind[1]) &
+                                 (microhabitat[, , , IdxWind] <= MatureIndividulsPerSpecies$MaxWind[1]))
                 # Compute potential habitat based on selected flags
                 vars <- c("LightSuitable", "HumSuitable", "TempSuitable", "WindSuitable")
                 pot_habitat <- Reduce("&", mget(vars[as.logical(EnvVarFlags)]))
@@ -336,7 +336,7 @@ main <- function() {
     # Parameters that need to be specified/checked before running this script
 
     # Input directories
-    DirectoryMicrohabitat <- config$DirectoryMicrohabitat
+    Directorymicrohabitat <- config$Directorymicrohabitat
     DirectorySpeciesPools <- config$DirectorySpeciesPools
     DirectoryModelMain <- config$DirectoryModelMain
     DirectoryEnvScores <- config$DirectoryEnvScores
@@ -344,7 +344,7 @@ main <- function() {
     # Output directory
     DirectoryModelResults <- config$DirectoryModelResults
 
-    MicrohabitatType <- config$MicrohabitatType  # Define which type of forest the microhabitat belongs to. 1: dynamic forest, 2: static forest, 3: uniform forest
+    microhabitatType <- config$microhabitatType  # Define which type of forest the microhabitat belongs to. 1: dynamic forest, 2: static forest, 3: uniform forest
 
     # Model parameters
     timeSteps <- config$timeSteps  # Model for timeSteps beginning at the time step given by the initial distribution
@@ -375,11 +375,11 @@ main <- function() {
     EnvVarFlags <- config$EnvVarFlags
 
     # Get microhabitat matrix variables - dynamic handling of selected variables
-    MicrohabitatVariableFlags <- config$MicrohabitatVariableFlags
+    microhabitatVariableFlags <- config$microhabitatVariableFlags
     MhVarNames <- c("TotalSurfaceAreaOpt", "SurfaceAreaLossOpt", "LightNicheOpt", "AverageWeightedAngles",
                     "HumNicheOpt", "TempNicheOpt", "WindNicheOpt")
     # Only keep active options
-    ActiveOpts <- MhVarNames[as.logical(MicrohabitatVariableFlags)]
+    ActiveOpts <- MhVarNames[as.logical(microhabitatVariableFlags)]
     # Assign indices
     Inds <- setNames(seq_along(ActiveOpts), ActiveOpts)
 
@@ -409,7 +409,7 @@ main <- function() {
     save_rng(file.path(DirectoryModelResults, "random_state_seed.RData"))
 
     # Load plot dimensions
-    dimPlot <- readRDS(file.path(DirectoryMicrohabitat, "dimPlot.rds"))
+    dimPlot <- readRDS(file.path(Directorymicrohabitat, "dimPlot.rds"))
 
     # Set StopCriterion for this simulation
     StopCriterion <- 0.0001 * StopCriterionHa * dimPlot[1] * dimPlot[2]
@@ -548,13 +548,13 @@ main <- function() {
         colnames(SummaryMatrixCommunity) <- SummaryMatrixCommunityHeaders
 
         # Load microhabitat matrix if a uniform or static forest is simulated (only needs to be loaded once an not envery timestep)
-        if (MicrohabitatType == 2 || MicrohabitatType == 3) {
-            Microhabitat <- readRDS(file.path(DirectoryMicrohabitat, "MicrohabitatMatrix1.rds"))
-            Microhabitat[, , , 3] <- Microhabitat[, , , 3] * Imax  # In the microhabitat matrix, the realtive light extinction is stored: convert to light values in ?mol*m-2*s-1
+        if (microhabitatType == 2 || microhabitatType == 3) {
+            microhabitat <- readRDS(file.path(Directorymicrohabitat, "microhabitatMatrix1.rds"))
+            microhabitat[, , , 3] <- microhabitat[, , , 3] * Imax  # In the microhabitat matrix, the realtive light extinction is stored: convert to light values in ?mol*m-2*s-1
 
-            d1 <- dim(Microhabitat)[1]
-            d2 <- dim(Microhabitat)[2]
-            d3 <- dim(Microhabitat)[3]
+            d1 <- dim(microhabitat)[1]
+            d2 <- dim(microhabitat)[2]
+            d3 <- dim(microhabitat)[3]
             pot_habitat <- array(rep(0, d1 * d2 * d3), dim=c(d1, d2, d3))
         }
 
@@ -573,11 +573,11 @@ main <- function() {
             }
 
             # Load microhabitat matrix for specific timeStep if dynamic forest is simulated
-            Microhabitat <- readRDS(file.path(DirectoryMicrohabitat, paste("MicrohabitatMatrix", timeStep, ".rds", sep="")))
-            Microhabitat[, , , 3] <- Microhabitat[, , , 3] * Imax  # In the microhabitat matrix, the realtive light extinction is stored: convert to light values in ?mol*m-2*s-1
-            d1 <- dim(Microhabitat)[1]
-            d2 <- dim(Microhabitat)[2]
-            d3 <- dim(Microhabitat)[3]
+            microhabitat <- readRDS(file.path(Directorymicrohabitat, paste("microhabitatMatrix", timeStep, ".rds", sep="")))
+            microhabitat[, , , 3] <- microhabitat[, , , 3] * Imax  # In the microhabitat matrix, the realtive light extinction is stored: convert to light values in ?mol*m-2*s-1
+            d1 <- dim(microhabitat)[1]
+            d2 <- dim(microhabitat)[2]
+            d3 <- dim(microhabitat)[3]
             pot_habitat <- array(rep(0, d1 * d2 * d3), dim=c(d1, d2, d3))
 
             # Load environmental scores for the current time step
@@ -602,13 +602,13 @@ main <- function() {
             if (UseWindDispersal) {
                 ProbabilityMatrixNormalized <- compute_prob_matrix_norm(
                   centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool,
-                  Microhabitat[, , , Inds["WindNicheOpt"]])
+                  microhabitat[, , , Inds["WindNicheOpt"]])
             }
 
             disp_items <- dispersal(
                 NumberOfSpecies,
                 E,
-                Microhabitat,
+                microhabitat,
                 SurfaceBiomassScaling,
                 dimPlot,
                 centralPoint,
@@ -671,12 +671,12 @@ main <- function() {
 
                 # Add information about the voxel to the epiphyte matrix
                 E$SurfaceAreaOccupied[i] <- (E$Mass[i]^(2/3)) / SurfaceBiomassScaling
-                E$TotalSurfaceInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], 1]  # Total surface in voxel
-                E$SurfaceLossInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], 2]  # Percentage surface loss in this year
-                E$LightInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["LightNicheOpt"]]  # Light conditions in voxel
-                E$HumInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["HumNicheOpt"]]  # Humidity in voxel
-                E$TempInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["TempNicheOpt"]]  # Temperature in voxel
-                E$WindInVoxel[i] <- Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["WindNicheOpt"]]  # Wind in voxel
+                E$TotalSurfaceInVoxel[i] <- microhabitat[E$X[i], E$Y[i], E$Z[i], 1]  # Total surface in voxel
+                E$SurfaceLossInVoxel[i] <- microhabitat[E$X[i], E$Y[i], E$Z[i], 2]  # Percentage surface loss in this year
+                E$LightInVoxel[i] <- microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["LightNicheOpt"]]  # Light conditions in voxel
+                E$HumInVoxel[i] <- microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["HumNicheOpt"]]  # Humidity in voxel
+                E$TempInVoxel[i] <- microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["TempNicheOpt"]]  # Temperature in voxel
+                E$WindInVoxel[i] <- microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["WindNicheOpt"]]  # Wind in voxel
             }
 
             # Print average and std of suitability and response
@@ -694,11 +694,11 @@ main <- function() {
                 if (E$Status[i] == 1) {
 
                     # The following comparison would fail without the is.nan check,
-                    # because Microhabitat contains NaNs in some entries and
+                    # because microhabitat contains NaNs in some entries and
                     # in R a comparison with a NaN returns NA, not a boolean.
                     # Note: We call runif repeatedly intentionally. See Issue #16 on Github
-                    if (!is.nan(Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["SurfaceAreaLossOpt"]]) &&
-                      runif(1, min = 0, max = 1) < Microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["SurfaceAreaLossOpt"]]) {  # Mortality due to branch fall
+                    if (!is.nan(microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["SurfaceAreaLossOpt"]]) &&
+                      runif(1, min = 0, max = 1) < microhabitat[E$X[i], E$Y[i], E$Z[i], Inds["SurfaceAreaLossOpt"]]) {  # Mortality due to branch fall
                         E$Status[i] <- 3
                     } else if ("LightSuitable" %in% vars && E$LightInVoxel[i] < E$MinLight[i] | E$LightInVoxel[i] > E$MaxLight[i]) {  # Mortality due to changing light conditions
                         E$Status[i] <- 4
@@ -727,7 +727,7 @@ main <- function() {
             }
 
             # Indices of voxel where total area of epiphytes exeeds the available surface area
-            ind_tmp <- arrayInd(which(TotalSurfaceArePerVoxelOccupied > Microhabitat[, , , 1]), dim(TotalSurfaceArePerVoxelOccupied))
+            ind_tmp <- arrayInd(which(TotalSurfaceArePerVoxelOccupied > microhabitat[, , , 1]), dim(TotalSurfaceArePerVoxelOccupied))
             IndX <- ind_tmp[, 1]
             IndY <- ind_tmp[, 2]
             IndZ <- ind_tmp[, 3]
@@ -744,7 +744,7 @@ main <- function() {
                 }
 
                 CumulativeSumOfSurface <- cumsum(EpisInVoxel$SurfaceAreaOccupied)
-                CumulativeSumOfSurfaceSum <- length(which(CumulativeSumOfSurface <= Microhabitat[IndX[i], IndY[i], IndZ[i], 1]))
+                CumulativeSumOfSurfaceSum <- length(which(CumulativeSumOfSurface <= microhabitat[IndX[i], IndY[i], IndZ[i], 1]))
 
                 if (CumulativeSumOfSurfaceSum < nrow(EpisInVoxel)) {
                     E[is.element(E$IndividualID, EpisInVoxel[int_seq(CumulativeSumOfSurfaceSum + 1, nrow(EpisInVoxel)), "IndividualID"]), "Status"] <- 2
@@ -862,8 +862,8 @@ main <- function() {
             SummaryMatrixCommunity$MortalityHum[t] <- MortalityHum  # Mortality due to humidity
             SummaryMatrixCommunity$MortalityTemp[t] <- MortalityTemp  # Mortality due to temperature
             SummaryMatrixCommunity$MortalityWind[t] <- MortalityWind  # Mortality due to wind
-            SummaryMatrixCommunity$BranchSurfaceIndex[t] <- sum(Microhabitat[, , , 1]) / (dimPlot[1] * dimPlot[2])  # BranchSurfaceIndex
-            SummaryMatrixCommunity$EpiphyteFilling[t] <- (sum(E$Mass^(2/3)) / SurfaceBiomassScaling) / sum(Microhabitat[, , , 1])  # EpiphyteFilling
+            SummaryMatrixCommunity$BranchSurfaceIndex[t] <- sum(microhabitat[, , , 1]) / (dimPlot[1] * dimPlot[2])  # BranchSurfaceIndex
+            SummaryMatrixCommunity$EpiphyteFilling[t] <- (sum(E$Mass^(2/3)) / SurfaceBiomassScaling) / sum(microhabitat[, , , 1])  # EpiphyteFilling
             ###############################################################################
 
             # Command window information

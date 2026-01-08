@@ -4,7 +4,7 @@
 #                        force = TRUE)
 #!/usr/bin/env Rscript
 
-# Microclimate Simulation CLI with TOML Configuration
+# microclimate Simulation CLI with TOML Configuration
 # Usage: Rscript microclimate_cli.R --config config.toml [--verbose]
 
 suppressPackageStartupMessages({
@@ -437,7 +437,7 @@ option_list <- list(
 
 # Parse command line arguments
 opt_parser <- OptionParser(option_list = option_list,
-                          description = "Microclimate simulation processing script using TOML configuration")
+                          description = "microclimate simulation processing script using TOML configuration")
 
 opt <- parse_args(opt_parser)
 
@@ -527,7 +527,7 @@ if (!dir.exists(outdir)) {
 }
 
 # Define file paths
-microhab_path <- file.path(veg_indir, paste0("MicrohabitatMatrix", ts, ".rds"))
+microhab_path <- file.path(veg_indir, paste0("microhabitatMatrix", ts, ".rds"))
 vegp_path <- file.path(in_dir, paste0("rep", rep), paste0("vegp_mof3d_ptm_", ts, "_v4.RDS"))
 soilc_path <- file.path(in_dir, "soilc_v2.RDS")
 

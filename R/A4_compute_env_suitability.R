@@ -59,7 +59,7 @@ main <- function() {
 
     config <- read.config(configFile)
 
-    DirectoryMicrohabitat <- config$DirectoryMicrohabitat
+    Directorymicrohabitat <- config$Directorymicrohabitat
     DirectorySpeciesPools <- config$DirectorySpeciesPools
     DirectoryOutput <- config$DirectoryOutput
     timeSteps <- config$timeSteps  # Model for timeSteps beginning at the time step given by the initial distribution
@@ -76,14 +76,14 @@ main <- function() {
     WindNicheOpt <- config$WindNicheOpt
 
     # Load plot dimensions
-    dimPlot <- readRDS(file.path(DirectoryMicrohabitat, "dimPlot.rds"))
+    dimPlot <- readRDS(file.path(Directorymicrohabitat, "dimPlot.rds"))
 
     # Get microhabitat matrix variables - dynamic handling of selected variables
-    MicrohabitatVariableFlags <- config$MicrohabitatVariableFlags
+    microhabitatVariableFlags <- config$microhabitatVariableFlags
     MhVarNames <- c("TotalSurfaceAreaOpt", "SurfaceAreaLossOpt", "LightNicheOpt", "AverageWeightedAngles",
                     "HumNicheOpt", "TempNicheOpt", "WindNicheOpt")
     # Only keep active options
-    ActiveOpts <- MhVarNames[as.logical(MicrohabitatVariableFlags)]
+    ActiveOpts <- MhVarNames[as.logical(microhabitatVariableFlags)]
     # Assign indices
     Inds <- setNames(seq_along(ActiveOpts), ActiveOpts)
     # Check which light response function to use and get Mh indices for suitability calculation in correct order
@@ -133,20 +133,20 @@ main <- function() {
                                   paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5"))
 
             # Efficiently read microhabitat for this timestep
-            FileNameMicrohabitat <- file.path(DirectoryMicrohabitat, paste0("MicrohabitatMatrix", t, ".rds"))
-            if (!file.exists(FileNameMicrohabitat)) {
-                stop(paste("Microhabitat file for time step", t, "does not exist:", FileNameMicrohabitat))
+            FileNamemicrohabitat <- file.path(Directorymicrohabitat, paste0("microhabitatMatrix", t, ".rds"))
+            if (!file.exists(FileNamemicrohabitat)) {
+                stop(paste("microhabitat file for time step", t, "does not exist:", FileNamemicrohabitat))
             }
-            Microhabitat <- readRDS(FileNameMicrohabitat)
+            microhabitat <- readRDS(FileNamemicrohabitat)
 
             # Scale light
-            Microhabitat[, , , Inds["LightNicheOpt"]] <- Imax * Microhabitat[, , , Inds["LightNicheOpt"]]
+            microhabitat[, , , Inds["LightNicheOpt"]] <- Imax * microhabitat[, , , Inds["LightNicheOpt"]]
 
             SuitabilityScoresT <- array(NA, dim=c(dimPlot, nrow(SpeciesPool), length(allEnvVarsIdx)))
 
             for (j in seq_along(EnvScoreVars)) {
                 envVarIdx <- allEnvVarsIdx[j]
-                envVar <- c(Microhabitat[, , , envVarIdx])
+                envVar <- c(microhabitat[, , , envVarIdx])
                 VarName <- strsplit(names(envVarIdx), split='NicheOpt', fixed=TRUE)[[1]]
 
                 for (i in seq_len(nrow(SpeciesPool))) {

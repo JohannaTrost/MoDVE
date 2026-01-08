@@ -80,8 +80,8 @@ vegparams <- extract_params(vegp_reg, coords_veg[[1]], coords_veg[[2]])
 grndparams <- extract_params(soilc_reg, lon, lat)
 
 # Get PAI
-microhab_file <- "/Users/johanna/Uni/masterarbeit/data/modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/a1_2/forest0/MicrohabitatMatrix123.rds" # Regua
-#microhab_file <- "/Users/johanna/Uni/masterarbeit/data/modve_output/pirineus/scenarios/climdata_era5_cmip6_1906-2024_ssp245_119ts/a1_2/MicrohabitatMatrix198.rds" # Pirineus
+microhab_file <- "/Users/johanna/Uni/masterarbeit/data/modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/a1_2/forest0/microhabitatMatrix123.rds" # Regua
+#microhab_file <- "/Users/johanna/Uni/masterarbeit/data/modve_output/pirineus/scenarios/climdata_era5_cmip6_1906-2024_ssp245_119ts/a1_2/microhabitatMatrix198.rds" # Pirineus
 
 pai <- readRDS(microhab_file)[,,,5]
 paii <- apply(pai[,,1:max(vegparams$h, 0.5)], c(3), mean, na.rm = TRUE)

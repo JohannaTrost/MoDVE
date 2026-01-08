@@ -493,7 +493,7 @@ for forest in forests:
 
         # Save figure
         plt.savefig(
-            DirectoryPlots / f"Species_HeightDiff_ts_Forest{forest}_SP{sp}.pdf")
+            DirectoryPlots / f"Species_height_diff_ts_Forest{forest}_SP{sp}.pdf")
 
 # Species-wise Difference mean forests
 for sp in species_pools:

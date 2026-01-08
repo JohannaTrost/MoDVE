@@ -99,7 +99,7 @@ set.seed(seed, kind="Mersenne-Twister")  # integer for fixed seed or NULL for ra
 # Parameters that need to be specified/checked before running this script
 MainOutputDirectory <- config$MainOutputDirectory
 PathUniqueEnvVarCombs <- config$PathUniqueEnvVarCombs
-DirectoryMicrohabitat <- config$DirectoryMicrohabitat
+Directorymicrohabitat <- config$Directorymicrohabitat
 
 # Folder to save species trait matrices
 # NameSpeciesPool <- "IntAgeMat_2_IntRec_70"  # Give meaningful name (the species type is automatically added to the name)
@@ -154,7 +154,7 @@ MassAtMaturityRelativeRandom <- config$MassAtMaturityRelativeRandom  # Relative 
 DispersalKernelRandom <- config$DispersalKernelRandom  # The higher this values, the more local is the dispersal
 DispersalKernelAsymmetryRandom <- config$DispersalKernelAsymmetryRandom  # The trait describes the relative proportion of seed dispersed below the mother (i.e. 0.5=> symmetric dispersal kernel)
 
-# Microclimate parameters
+# microclimate parameters
 Random <- config$Random  # Flag to indicate if random MC niches
 HeightModel <- config$HeightModel  # Flag to indicate if MC niches shall be inferred from height
 HeightBreadthRandom <- config$HeightBreadthRandom  # Relative height
@@ -170,14 +170,14 @@ if (length(LightBreadthRandom) == 0) {
     LightBreadthRandom <- c(MinLightRandom, MaxLightRandom)
 }
 
-dimPlot <- readRDS(file.path(DirectoryMicrohabitat, "dimPlot.rds"))
+dimPlot <- readRDS(file.path(Directorymicrohabitat, "dimPlot.rds"))
 
 # Get microhabitat matrix variables - dynamic handling of selected variables
-MicrohabitatVariableFlags <- config$MicrohabitatVariableFlags
+microhabitatVariableFlags <- config$microhabitatVariableFlags
 MhVarNames <- c("TotalSurfaceAreaOpt", "SurfaceAreaLossOpt", "LightNicheOpt", "AverageWeightedAngles",
                 "HumNicheOpt", "TempNicheOpt", "WindNicheOpt")
 # Only keep active options
-ActiveOpts <- MhVarNames[as.logical(MicrohabitatVariableFlags)]
+ActiveOpts <- MhVarNames[as.logical(microhabitatVariableFlags)]
 # Assign indices
 Indices <- setNames(seq_along(ActiveOpts), ActiveOpts)
 # Check which env. variables are available and make named list with flags
@@ -289,9 +289,9 @@ if (!HeightModel) { # Don't use height to determine MC niches, draw randomly
 
         row <- 1
         for (t in unique(OptEnvValInds$time)) {
-            microhabitat_filename <- paste("MicrohabitatMatrix", t, ".rds", sep="")
-            FileMhMatrix <- file.path(DirectoryMicrohabitat, microhabitat_filename)
-            Microhabitat <- readRDS(FileMhMatrix)
+            microhabitat_filename <- paste("microhabitatMatrix", t, ".rds", sep="")
+            FileMhMatrix <- file.path(Directorymicrohabitat, microhabitat_filename)
+            microhabitat <- readRDS(FileMhMatrix)
 
             mhInds <- as.data.frame(OptEnvValInds[OptEnvValInds$time == t,])
             colnames(mhInds) <- c("x", "y", "z", "time")
@@ -301,7 +301,7 @@ if (!HeightModel) { # Don't use height to determine MC niches, draw randomly
                 x <- mhInds[i, "x"]
                 y <- mhInds[i, "y"]
                 z <- mhInds[i, "z"]
-                OptEnvVals[row,] <- Microhabitat[x, y, z, Indices[EnvVarNames[EnvVarFlags]]]
+                OptEnvVals[row,] <- microhabitat[x, y, z, Indices[EnvVarNames[EnvVarFlags]]]
                 row <- row + 1
             }
         }

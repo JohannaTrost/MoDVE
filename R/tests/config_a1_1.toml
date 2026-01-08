@@ -1,4 +1,4 @@
-MicrohabitatType = 1
+microhabitatType = 1
 kL = 0.6
 DistVoxToConsider = 8
 TotalSurfaceAreaOpt = 1

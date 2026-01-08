@@ -1,12 +1,5 @@
-TotalSurfaceAreaOpt = 1
-SurfaceAreaLossOpt = 1
-LightNicheOpt = 1
-AverageWeightedAngles = 0
-HumNicheOpt = 1
-TempNicheOpt = 1
-WindNicheOpt = 1
-DirectoryMicrohabitat = "/Users/johanna/Uni/masterarbeit/output/modve_a1_lowland_zach/Rep0"
-DirectoryMicroclimate = "tests/data/microclimate"
-DirectoryNewMicrohabitat = "/Users/johanna/Uni/masterarbeit/data/modve_input/v2_microhabitat_lowland_zach_mh_2024_mc"
+Directorymicrohabitat = "/Users/johanna/Uni/masterarbeit/output/modve_a1_lowland_zach/Rep0"
+Directorymicroclimate = "tests/data/microclimate"
+Directorynew_microhabitat = "/Users/johanna/Uni/masterarbeit/data/modve_input/v2_microhabitat_lowland_zach_mh_2024_mc"
 timeStepStart = 100
 timeStepEnd = 199

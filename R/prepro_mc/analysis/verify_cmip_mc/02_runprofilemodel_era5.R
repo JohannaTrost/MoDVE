@@ -129,7 +129,7 @@ heights <- seq(0.5, max_veg_height + 1)
 # Load data for one year
 soilc_reg <- readRDS(paste(in_dir, "soilc_v2.RDS", sep = "/"))
 climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2024_v2.csv", sep = "/"))
-microhab_file <- "/Users/johanna/Uni/masterarbeit/output/modev_zach_25_01_07/MicrohabitatMatrix99.rds"
+microhab_file <- "/Users/johanna/Uni/masterarbeit/output/modev_zach_25_01_07/microhabitatMatrix99.rds"
 pai <- readRDS(microhab_file)[,,,5]
 
 # Veg heights

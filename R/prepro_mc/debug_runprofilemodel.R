@@ -179,8 +179,8 @@ in_dir <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
 vegp_reg <- readRDS(paste(in_dir, "vegp_mof3d_ptm_v3.RDS", sep = "/"))
 soilc_reg <- readRDS(paste(in_dir, "soilc_v2.RDS", sep = "/"))
 climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2024_v2.csv", sep = "/"))
-#microhab_file <- "/Users/johanna/Uni/masterarbeit/code/output/modev_zach_25_01_07/MicrohabitatMatrix99.rds"
-microhab_file <- "/Users/johanna/Uni/masterarbeit/data/a1_1_output/a1/MicrohabitatMatrix199.rds"
+#microhab_file <- "/Users/johanna/Uni/masterarbeit/code/output/modev_zach_25_01_07/microhabitatMatrix99.rds"
+microhab_file <- "/Users/johanna/Uni/masterarbeit/data/a1_1_output/a1/microhabitatMatrix199.rds"
 pai <- readRDS(microhab_file)[,,,4]
 
 # Veg heights
