@@ -5,13 +5,29 @@
 #' It is intended to be executed as a standalone script.
 #'
 #' @details
-#' The script expects one command-line argument:
+#' The script expects one command-line argument specified with -i or --input:
 #' \itemize{
 #' \item \code{configFile}: path to a configuration file readable by
 #'   \code{read.config()}
 #' }
+#' The configuration file should define the following parameters:
+#' \itemize{
+#' \item timeStepStart first simulation timestep
+#' \item timeStepEnd last simulation timestep
+#' \item yearStart starting calendar year
+#' \item region region identifier for microclimate files
+#' \item Directorymicrohabitat input microhabitat directory
+#' \item Directorymicroclimate input microclimate directory
+#' \item Directorynew_microhabitat output directory
+#' \item TotalSurfaceAreaOpt include total surface area
+#' \item SurfaceAreaLossOpt include surface area loss
+#' \item LightNicheOpt include light niche variables
+#' \item AverageWeightedAngles include weighted angle averages
+#' \item HumNicheOpt include humidity niche
+#' \item TempNicheOpt include temperature niche
+#' \item WindNicheOpt include wind niche
+#' }
 #'
-#' @keywords internal
 NULL
 
 source("utils.R")
@@ -45,6 +61,11 @@ add_microclimate_dimensions <- function(microhab_dims,
                                         microhabitat_index_list) {
 
   newD4 <- microhab_dims[4] + microclim_dims[4]
+
+  # Assert that newD4 matches length of microhabitat_index_list otherwise throw an error
+  if (newD4 != length(microhabitat_index_list)) {
+      stop("Mismatch between expected new variable dimension and provided index list.")
+  }
 
   new_microhabitat <- array(
     NA_real_,
@@ -104,7 +125,7 @@ adapt_microclimate_height <- function(microclimate,
     top_layer <- microclimate[,, microclim_dims[3], , drop = FALSE]
 
     fill_array <- array(
-      rep(top_layer, each = height_diff),
+      rep(top_layer, times = height_diff),
       dim = c(
         microhab_dims[1:2],
         height_diff,
@@ -126,9 +147,32 @@ adapt_microclimate_height <- function(microclimate,
   microclimate
 }
 
-main <- function() {
-
-  config <- parse_config()
+#' Add microclimate data to microhabitat matrices
+#'
+#' This function loads microhabitat matrices for each timestep, integrates
+#' selected microclimate variables (humidity, temperature, wind),
+#' adjusts vertical dimensions if needed, and saves updated matrices
+#' to a new output directory.
+#'
+#' @param config A list containing configuration parameters (see script details)
+#'
+#' @details
+#' Microclimate variables are extracted from fixed layers of the
+#' microclimate matrix:
+#' \itemize{
+#' \item Temperature = layer 1
+#' \item Humidity = layer 7
+#' \item Wind speed = layer 11
+#' }
+#'
+#' The function creates the output directory if necessary and copies
+#' required forest parameter files.
+#'
+#' @return Invisibly returns \code{TRUE} upon successful completion.
+#'
+#' @import fs
+#' @export
+add_microclimate_to_microhabitat <- function(config) {
 
   # Start and end timestep
   timeStepStart <- config$timeStepStart
@@ -169,13 +213,24 @@ main <- function() {
     # Load  microhabitat matrix
     microhabitat_fname <- paste("microhabitatMatrix", TimeStep, ".rds", sep="")
     FileMatrix <- file.path(Directorymicrohabitat, microhabitat_fname)
+    if (!file.exists(FileMatrix)) {
+      stop("Microhabitat file not found: ", FileMatrix)
+    }
     microhabitat <- readRDS(FileMatrix)
 
     # Load microclimate matrix
     year <- yearStart + TimeStep - timeStepStart
     microclimate_fname <- paste0(year, "_", region, "_mc_matrix.rds")
     FileMcMatrix <- file.path(Directorymicroclimate, microclimate_fname)
+    if (!file.exists(FileMcMatrix)) {
+      stop("Microclimate file not found: ", FileMcMatrix)
+    }
     microclimate <- readRDS(FileMcMatrix)
+
+    # Check if first 2 dimensions of microclimate and microhabitat match
+    if (!all(dim(microclimate)[1:2] == dim(microhabitat)[1:2])) {
+      stop("Microclimate and microhabitat dimensions do not match in x and y.")
+    }
 
     # 1. Select relevant microclimate variables (humidity=7, temperature=1, windspeed=11)
     microclimate_flags <- c(
@@ -185,17 +240,19 @@ main <- function() {
     ) == 1
 
     # mean annual humidity (7), temperature (1), wind (11)
-    microclimate <- microclimate <- microclimate[,,, c(7, 1, 11)[microclimate_flags]]
+    microclimate <- microclimate[,,, c(7, 1, 11)[microclimate_flags], drop = FALSE]
 
     # 2. Fill up above canopy microclimate given microhabitat matrix height
     microhab_dims <- dim(microhabitat)
     microclim_dims <- dim(microclimate)
 
-    microclimate <- adapt_microclimate_height(
-      microclimate,
-      microhab_dims,
-      microclim_dims
-    )
+    if (any(microclimate_flags)) {
+      microclimate <- adapt_microclimate_height(
+        microclimate,
+        microhab_dims,
+        microclim_dims
+      )
+    }
 
     # 3. Insert microclimate into microhabitat matrix
     microhabitat_with_climate <- add_microclimate_dimensions(
@@ -227,4 +284,11 @@ main <- function() {
   invisible(TRUE)
 }
 
-main()
+main <- function () {
+  config <- parse_config()
+  add_microclimate_to_microhabitat(config)
+}
+
+if (sys.nframe() == 0) { # If script is run directly (e.g. using source()), execute
+  main()
+}
