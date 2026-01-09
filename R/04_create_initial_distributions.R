@@ -1,6 +1,49 @@
 # Create the initial epiphyte distrubution depending on the epiphyte traits and the initial microhabitat matrix
 source("utils.R")
 
+ComputeSuitableVoxels <- function(microhabitat,
+                                  microhabitat_index_list,
+                                  microhabitat_var_names,
+                                  SpeciesPool,
+                                  numSpecies) {
+
+  # Base condition: Total surface area option must be present and > 0
+  SuitableMask <- microhabitat_index_list["TotalSurfaceAreaOpt"] > 0
+
+  # ---- Light ----
+  if (microhabitat_var_names["LightNicheOpt"] == 1) {
+    LightIdx <- microhabitat_index_list[["LightNicheOpt"]]
+    SuitableMask <- SuitableMask &
+      microhabitat[, , , LightIdx] >= SpeciesPool$MinLight[numSpecies] &
+      microhabitat[, , , LightIdx] <= SpeciesPool$MaxLight[numSpecies]
+  }
+
+  # ---- Humidity ----
+  if (microhabitat_var_names["HumNicheOpt"] == 1) {
+    HumIdx <- microhabitat_index_list[["HumNicheOpt"]]
+    SuitableMask <- SuitableMask &
+      microhabitat[, , , HumIdx] >= SpeciesPool$MinHum[numSpecies] &
+      microhabitat[, , , HumIdx] <= SpeciesPool$MaxHum[numSpecies]
+  }
+
+  # ---- Temperature ----
+  if (microhabitat_var_names["TempNicheOpt"] == 1) {
+    TempIdx <- microhabitat_index_list[["TempNicheOpt"]]
+    SuitableMask <- SuitableMask &
+      microhabitat[, , , TempIdx] >= SpeciesPool$MinTemp[numSpecies] &
+      microhabitat[, , , TempIdx] <= SpeciesPool$MaxTemp[numSpecies]
+  }
+
+  # ---- Wind ----
+  if (microhabitat_var_names["WindNicheOpt"] == 1) {
+    WindIdx <- microhabitat_index_list[["WindNicheOpt"]]
+    SuitableMask <- SuitableMask &
+      microhabitat[, , , WindIdx] >= SpeciesPool$MinWind[numSpecies] &
+      microhabitat[, , , WindIdx] <= SpeciesPool$MaxWind[numSpecies]
+  }
+
+  return(which(SuitableMask))
+}
 
 # Growth function. Used here to approximate the age of the individuals
 # MassFunctionOfAge=@(MaxMass,K,Age) (MaxMass*(1-exp(-K*(Age))));
@@ -50,16 +93,15 @@ Imax <- config$Imax
 
 # Get microhabitat matrix variables - dynamic handling of selected variables
 microhabitatVariableFlags <- config$microhabitatVariableFlags
-MhVarNames <- c("TotalSurfaceAreaOpt", "SurfaceAreaLossOpt", "LightNicheOpt", "AverageWeightedAngles",
-                "HumNicheOpt", "TempNicheOpt", "WindNicheOpt")
+microhabitat_var_names <- c(
+  "TotalSurfaceAreaOpt", "SurfaceAreaLossOpt", "LightNicheOpt", "AverageWeightedAngles",
+  "HumNicheOpt", "TempNicheOpt", "WindNicheOpt"
+)
 # Only keep active options
-ActiveOpts <- MhVarNames[as.logical(microhabitatVariableFlags)]
+active_options <- microhabitat_var_names[as.logical(microhabitatVariableFlags)]
 # Assign indices
-Indices <- setNames(seq_along(ActiveOpts), ActiveOpts)
+microhabitat_index_list <- setNames(seq_along(active_options), active_options)
 
-###############################################################################
-
-###############################################################################
 # Generate directories to save the model
 dir.create(DirectoryModelMain, recursive=TRUE)
 
@@ -80,7 +122,8 @@ Input_file <- file.path(DirectorySpeciesPoolsMain, species_filename)
 SpeciesPool <- read.csv(Input_file)
 NumberSpecies <- length(SpeciesPool$SpeciesID)
 
-ColumnHeaders <- c(colnames(SpeciesPool), c("X", "Y", "Z", "Mass", "Status", "IndividualID", "SurfaceAreaOccupied", "Age"))
+ColumnHeaders <- c(colnames(SpeciesPool),
+                   c("X", "Y", "Z", "Mass", "Status", "IndividualID", "SurfaceAreaOccupied", "Age"))
 
 # Get numbers of columns used in this script
 ColMinLight <- match("MinLight", ColumnHeaders)
@@ -171,29 +214,18 @@ if (SingleSpeciesModel == 1) {
                 IntitalEpiphyteMatrixSub <- IntitalEpiphyteMatrixSub[sort_ids, ]
                 NumNoSurface <- 0
 
-                # Calculate potential voxels for for each species which fullfil
-                # their niche requirments (to save time they are precomputed here)
-                comp1 <-  Indices["TotalSurfaceAreaOpt"] > 0
-                # Get MC indices
-                LightIdx <- Indices["LightNicheOpt"]
-                HumIdx <- Indices["HumNicheOpt"]
-                TempIdx <- Indices["TempNicheOpt"]
-                WindIdx <- Indices["WindNicheOpt"]
-                # Verify suitable microclimate for the species
-                compMinLight <- microhabitat[, , , LightIdx] >= SpeciesPool$MinLight[numSpecies]
-                compMaxLight <- microhabitat[, , , LightIdx] <= SpeciesPool$MaxLight[numSpecies]
-                compMinHum <- microhabitat[, , , HumIdx] >= SpeciesPool$MinHum[numSpecies]
-                compMaxHum <- microhabitat[, , , HumIdx] <= SpeciesPool$MaxHum[numSpecies]
-                compMinTemp <- microhabitat[, , , TempIdx] >= SpeciesPool$MinTemp[numSpecies]
-                compMaxTemp <- microhabitat[, , , TempIdx] <= SpeciesPool$MaxTemp[numSpecies]
-                compMinWind <- microhabitat[, , , WindIdx] >= SpeciesPool$MinWind[numSpecies]
-                compMaxWind <- microhabitat[, , , WindIdx] <= SpeciesPool$MaxWind[numSpecies]
-
-                ids <- arrayInd(
-                  which(comp1 & compMinLight & compMaxLight & compMinHum & compMaxHum &
-                        compMinTemp & compMaxTemp & compMinWind & compMaxWind),
-                  dim(microhabitat)
+                # Find all suitable voxels for this species
+                SuitableVoxels <- ComputeSuitableVoxels(
+                  microhabitat,
+                  microhabitat_index_list,
+                  microhabitat_var_names,
+                  SpeciesPool,
+                  numSpecies
                 )
+
+                # Rearrange voxel indices
+                ids <- arrayInd(SuitableVoxels, dim(microhabitat))
+
                 x <- ids[, 1]
                 y <- ids[, 2]
                 z <- ids[, 3]
@@ -315,25 +347,15 @@ if (SingleSpeciesModel == 0) {
                 MaxWindInd <- IntitalEpiphyteMatrix[NumIndRand, ColMaxWind]
                 AreaNeededInd <- IntitalEpiphyteMatrix[NumIndRand, SizeSpeciesPool[2] + 7]
 
-                # Get MC indices
-                LightIdx <- Indices["LightNicheOpt"]
-                HumIdx <- Indices["HumNicheOpt"]
-                TempIdx <- Indices["TempNicheOpt"]
-                WindIdx <- Indices["WindNicheOpt"]
-
-                # 1. Get the postions of all voxels fullfilling the
-                # requirements of the individual (light+area)
-                tmp1 <- AvailableSurfaceArea[, , ] > AreaNeededInd
-                tmp2 <- microhabitat[, , , Indices["LightNicheOpt"]] >= MinLightInd
-                tmp3 <- microhabitat[, , , Indices["LightNicheOpt"]] <= MaxLightInd
-                tmp4 <- microhabitat[, , , HumIdx] >= MinHumInd
-                tmp5 <- microhabitat[, , , HumIdx] <= MaxHumInd
-                tmp6 <- microhabitat[, , , TempIdx] >= MinTempInd
-                tmp7 <- microhabitat[, , , TempIdx] <= MaxTempInd
-                tmp8 <- microhabitat[, , , WindIdx] >= MinWindInd
-                tmp9 <- microhabitat[, , , WindIdx] <= MaxWindInd
-                SuitableVoxels <- which(tmp1 & tmp2 & tmp3)
-                                      #& tmp4 & tmp5 & tmp6 & tmp7 & tmp8 & tmp9)
+                # - 1. Get the postions of all voxels fullfilling the
+                #      requirements of the individual (light+area+microclimate)
+                SuitableVoxels <- ComputeSuitableVoxels(
+                  microhabitat,
+                  microhabitat_index_list,
+                  microhabitat_var_names,
+                  SpeciesPool,
+                  numSpecies
+                )
 
                 # Choose one of the suitable voxels based on the specified
                 # Method (if suitable voxels are available)
