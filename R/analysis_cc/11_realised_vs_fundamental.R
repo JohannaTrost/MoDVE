@@ -64,7 +64,14 @@ for (scenario in c("CC", "No CC")) {
       # Load mC matrix
       mh <- readRDS(file.path(base_dir, scenario_dir[[scenario]], "a1_2",
                               paste0("forest", forest), paste0("microhabitatMatrix", ts, ".rds")))
-      mc <- mh[,,, c(3,4,5)]
+      mc <- mh[,,, c(3,4,5)] # Get microclimate
+      substrate_area <- mh[,,, 1] # Get substrate area
+
+      # For each individual, get the max non-zero value in substrate_area[X, Y, ]
+      species_locations$VegetationHeight <- mapply(function(x, y) {
+          layer_values <- substrate_area[x, y, ]
+          max_non_zero <- max(which(layer_values != 0))
+        }, species_locations$X, species_locations$Y)
 
       # Get the env conditions at the species position
       species_locations[, c("Light", "Hum", "Temp")] <- t(mapply(function(x, y, z) {
@@ -72,14 +79,26 @@ for (scenario in c("CC", "No CC")) {
       }, species_locations$X, species_locations$Y, species_locations$Z))
 
       # Get the minimum potential env. conditions on the vertical axes
-      species_locations[, c("MinPotLight", "MinPotHum", "MinPotTemp")] <- t(mapply(function(x, y) {
-        apply(mc[x, y, , ], 2, min)
-      }, species_locations$X, species_locations$Y))
+      species_locations[, c("MinPotLight", "MinPotHum", "MinPotTemp")] <- t(
+        mapply(function(x, y, hgt) {
+          if (hgt <= 1) {
+            mc[x, y, 1, ]  # Return the values at height 1 if hgt <= 1
+          } else {
+            apply(mc[x, y, 1:hgt, ], 2, min)  # Otherwise, return the min values across 1:hgt
+          }
+        }, species_locations$X, species_locations$Y, species_locations$VegetationHeight)
+      )
 
       # Get the max potential env. conditions on the vertical axes
-      species_locations[, c("MaxPotLight", "MaxPotHum", "MaxPotTemp")] <- t(mapply(function(x, y) {
-        apply(mc[x, y, , ], 2, max)
-      }, species_locations$X, species_locations$Y))
+      species_locations[, c("MaxPotLight", "MaxPotHum", "MaxPotTemp")] <- t(
+        mapply(function(x, y, hgt) {
+          if (hgt <= 1) {
+            mc[x, y, 1, ]  # Return the values at height 1 if hgt <= 1
+          } else {
+            apply(mc[x, y, 1:hgt, ], 2, max)  # Otherwise, return the min values across 1:hgt
+          }
+        }, species_locations$X, species_locations$Y, species_locations$VegetationHeight)
+      )
 
       # Specifiy scenario
       species_locations$Scenario <- scenario
@@ -110,7 +129,7 @@ for (sp in 1:10) {
 }
 
 indiv_env_niches <- left_join(species_env, niches, by = c("SpeciesID", "SpeciesPool"))
-#write_csv(indiv_env_niches, file.path(DirectoryPlots, "a5_individuals_cc_vs_no_cc_niches_envCond_shift.csv"))
+write_csv(indiv_env_niches, file.path(DirectoryPlots, "a5_individuals_cc_vs_no_cc_niches_envCond_shift_v2.csv"))
 
 # Species env. conditions in simulation with community
 species_env_agg <- species_env %>%
@@ -125,13 +144,14 @@ species_env_agg <- species_env %>%
             MaxLightCond = max(Light, na.rm = TRUE) * 900,
             MinLightCond = min(Light, na.rm = TRUE) * 900,
             # Potential env. conditions per species
-            MaxPotLight = mean(MaxPotLight, na.rm = TRUE) * 900,
-            MaxPotHum = mean(MaxPotHum, na.rm = TRUE),
-            MaxPotTemp = mean(MaxPotTemp, na.rm = TRUE),
-            MinPotLight = mean(MinPotLight, na.rm = TRUE) * 900,
-            MinPotHum = mean(MinPotHum, na.rm = TRUE),
-            MinPotTemp = mean(MinPotTemp, na.rm = TRUE),
+            MaxPotLight = max(MaxPotLight, na.rm = TRUE) * 900,
+            MaxPotHum = max(MaxPotHum, na.rm = TRUE),
+            MaxPotTemp = max(MaxPotTemp, na.rm = TRUE),
+            MinPotLight = min(MinPotLight, na.rm = TRUE) * 900,
+            MinPotHum = min(MinPotHum, na.rm = TRUE),
+            MinPotTemp = min(MinPotTemp, na.rm = TRUE),
             AvgDiff = mean(diff, na.rm = TRUE),
+            AvgHeight = mean(VegetationHeight, na.rm = TRUE),
             .groups = "drop")
 
 # Merge realized and fundamental niches
@@ -139,14 +159,10 @@ species_env_niches <- left_join(species_env_agg, niches, by = c("SpeciesID", "Sp
 
 # ---- Plot realised vs theoretical niches
 
-# Assuming your tibble is named species_env_niches
-df <- species_env_niches %>%
-    filter(AvgDiff <= quantile(AvgDiff, 0.25) | AvgDiff >= quantile(AvgDiff, 0.75))
-
 # --- Prepare data in long format for easier plotting ---
 # We'll gather realised and theoretical values for Temp, Hum, Light
 
-realised <- df %>%
+realised <- species_env_niches %>%
   select(SpeciesPool, SpeciesID,
          AvgTempCond, MinTempCond, MaxTempCond,
          AvgHumCond, MinHumCond, MaxHumCond, Scenario,
@@ -159,7 +175,7 @@ realised <- df %>%
   ) %>%
   mutate(Type = ifelse(Scenario == "CC", "Realized niche (CC)", "Realized niche (no CC)"))
 
-potential <- df %>%
+potential <- species_env_niches %>%
   select(SpeciesPool, SpeciesID, MaxPotLight, MinPotLight, MaxPotHum, MinPotHum, MaxPotTemp,
          MinPotTemp, Scenario) %>%
   pivot_longer(
@@ -170,7 +186,7 @@ potential <- df %>%
   ) %>%
   mutate(Type = ifelse(Scenario == "CC", "Env. range (CC)", "Env. range (no CC)"))
 
-theoretical <- df %>%
+theoretical <- species_env_niches %>%
   dplyr::select(SpeciesPool, SpeciesID, Scenario,
          OptimumTemp, MinTemp, MaxTemp,
          OptimumHum, MinHum, MaxHum,
@@ -196,9 +212,11 @@ df_long <- bind_rows(realised, theoretical, potential) %>%
   )
 df_wide <- df_long %>%
   pivot_wider(names_from = Stat, values_from = Value) %>%
-  left_join(., df %>% select(SpeciesPool, SpeciesID, Shift, Scenario), by = c("SpeciesPool", "SpeciesID", "Scenario"))
+  left_join(., species_env_niches %>% select(SpeciesPool, SpeciesID, Shift, Scenario),
+            by = c("SpeciesPool", "SpeciesID", "Scenario"))
 
-# -- Plot realized vs fundamental niche
+# -- Plot realized vs fundamental niche per species
+
 DirectoryPlots <- file.path("../../figs/a5_plots_test/cc_vs_no_cc/position_shift")
 
 pd <- position_dodge(width = 0.8)
@@ -248,10 +266,21 @@ ggplot(df_ordered,
   )
 #dev.off()
 
+# --- Constrain realizable values by potential niche
+
+species_env_niches_c <- species_env_niches %>% # Constrain potential limits with fundamental niche
+  mutate(
+    MaxPotTemp = pmin(MaxPotTemp, MaxTemp),
+    MinPotTemp = pmax(MinPotTemp, MinTemp),
+    MaxPotHum = pmin(MaxPotHum, MaxHum),
+    MinPotHum = pmax(MinPotHum, MinHum),
+    MaxPotLight = pmin(MaxPotLight, MaxLight),
+    MinPotLight = pmax(MinPotLight, MinLight),
+  )
 
 # --- Compute range filling
 
-range_filling <- species_env_niches %>%
+range_filling <- species_env_niches_c %>%
   mutate(TempNicheFill = ((MaxTempCond - MinTempCond) / (MaxTemp - MinTemp)) * 100,
          HumNicheFill = ((MaxHumCond - MinHumCond) / (MaxHum - MinHum)) * 100,
          LightNicheFill = ((MaxLightCond - MinLightCond) / (MaxLight - MinLight)) * 100,
@@ -263,28 +292,32 @@ range_filling <- species_env_niches %>%
 
 # Reshape data to long format for ggplot
 range_filling_long <- range_filling %>%
-  select(Scenario, TempNicheFill, HumNicheFill, LightNicheFill) %>%
+  select(Scenario, TempNicheFill, HumNicheFill, LightNicheFill, TempRangeFill, HumRangeFill, LightRangeFill) %>%
   pivot_longer(
-    cols = c(TempNicheFill, HumNicheFill, LightNicheFill),
+    cols = c(TempNicheFill, HumNicheFill, LightNicheFill, TempRangeFill, HumRangeFill, LightRangeFill),
     names_to = "Variable",
-    values_to = "NicheFill"
+    values_to = "Fill"
   ) %>%
   mutate(
     Variable = recode(Variable,
-                      TempNicheFill = "Temperature",
-                      HumNicheFill = "Relative humidity",
-                      LightNicheFill = "Light")
+                      TempNicheFill = "Temperature niche fill",
+                      HumNicheFill = "Relative humidity niche fill",
+                      LightNicheFill = "Light niche fill",
+                      TempRangeFill = "Temperature range fill",
+                      HumRangeFill = "Relative humidity range fill",
+                      LightRangeFill = "Light range fill",
+    )
   )
+
+write_csv(range_filling_long, file.path(base_dir, "a5_niche_range_filling_cc_vs_no_cc_v2.csv"))
 
 # Define colors for scenarios
 colors <- c('CC' = '#f7766e', 'No CC' = '#004aad')
 
-write_csv(range_filling_long, file.path(base_dir, "a5_niche_filling_cc_vs_no_cc.csv"))
-
 # Create the boxplot
 output_file2 <- file.path(DirectoryPlots, "boxplot_niche_filling.pdf")
 pdf(output_file2, width = 7, height = 6)
-ggplot(range_filling_long, aes(x = Variable, y = NicheFill, fill = Scenario)) +
+ggplot(range_filling_long, aes(x = Variable, y = Fill, fill = Scenario)) +
   geom_boxplot(outlier.shape = 21, outlier.alpha = 0.5, notch = TRUE) +
   scale_fill_manual(values = colors) +
   labs(

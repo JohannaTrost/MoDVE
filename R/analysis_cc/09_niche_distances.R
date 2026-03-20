@@ -489,30 +489,3 @@ for (trait in top_traits) {
   print(autoplot(pd))
   dev.off()
 }
-
-
-# ---- REDUCED model removing correlated predictors
-
-# Load required package
-library(caret)
-
-# --- Step 1: Define response and predictors ---
-response <- "Shift"
-predictors <- setdiff(names(plt_data), response)
-
-# --- Step 2: Subset predictors only ---
-predictor_data <- plt_data[, predictors]
-
-# --- Step 3: Calculate correlation matrix ---
-cor_matrix <- cor(predictor_data, use = "pairwise.complete.obs")
-
-# --- Step 4: Identify highly correlated predictors ---
-# Adjust cutoff (e.g., 0.7, 0.8, or 0.9 depending on strictness)
-high_cor <- findCorrelation(cor_matrix, cutoff = 0.7, names = TRUE)
-
-# --- Step 5: Remove correlated predictors ---
-plt_data_reduced <- plt_data[, !(names( ) %in% high_cor)]
-
-# --- Step 6: Check remaining predictors ---
-cat("Removed predictors due to high correlation:\n")
-print(high_cor)

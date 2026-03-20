@@ -538,7 +538,7 @@ overall_peak[overall_peak["Year"] == 2050]
 # ------ Compute percent change in 2050 ------ #
 
 # 1. Filter for year 2030
-df_2050 = div_peak[div_peak['Year'] == 2070]
+df_2050 = div_peak[div_peak['Year'] == 2080]
 
 # 2. Split by scenario
 cc = df_2050[df_2050['Scenario'] == 'CC']
@@ -562,7 +562,7 @@ merged['pct_change_height'] = (
 )
 
 # 5. Average percent change
-metric = "Shannon"
+metric = "Richness"
 avg_pct_change_div = merged.loc[merged['level_5'] == metric, 'pct_change_div'].mean()
 avg_pct_change_height = merged.loc[merged['level_5'] == metric, 'pct_change_height'].mean()
 sem_pct_change_div = merged.loc[merged['level_5'] == metric, 'pct_change_div'].sem()
