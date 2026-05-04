@@ -1,0 +1,138 @@
+---
+title: "R Notebook"
+output: html_document
+---
+
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(tidyverse)
+library(patchwork) # for combining plots
+
+base_dir <- file.path("/Users/johanna/Uni/masterarbeit/data/modve_output/regua")
+scenario_dir <- list("CC" = "climdata_era5_cmip6_1981-2100_ssp245",
+                     "No CC" = "climdata_era5_cmip6_1981-2100_ssp245_no_cc")
+```
+
+Load mh matrix
+
+```{r}
+forest <- 2
+ts <- 185
+mh <- readRDS(file.path(base_dir, scenario_dir[["CC"]], "a1_2",
+                        paste0("forest", forest), paste0("microhabitatMatrix", ts, ".rds")))
+```
+
+Get MC and aggregate
+
+```{r}
+mc <- mh[,,, c(3,4,5)] # Get microclimate (hum, temp, light)
+substrate_area <- mh[,,, 1] # Get substrate area
+veg_hgt <- array(rep(1:80, each = 50 * 50), dim = c(50, 50, 80))
+max_veg_hgt <- max(veg_hgt[substrate_area != 0])
+mc <- mc[,,1:max_veg_hgt,]
+
+#mean_mc <- data.frame(apply(mc, c(3, 4), mean))
+mean_mc <- data.frame(mc[15, 25, ,])
+colnames(mean_mc) <- c("mean_light", "mean_relhum", "mean_temp")
+sd_mc <- data.frame(apply(mc, c(3, 4), sd))
+colnames(sd_mc) <- c("sd_light", "sd_relhum", "sd_temp")
+
+agg_mc <- data.frame(
+  upper_relhum = mean_mc$mean_relhum + 1.96 * sd_mc$sd_relhum,
+  lower_relhum = mean_mc$mean_relhum - 1.96 * sd_mc$sd_relhum,
+  upper_temp = mean_mc$mean_temp + 1.96 * sd_mc$sd_temp,
+  lower_temp = mean_mc$mean_temp - 1.96 * sd_mc$sd_temp,
+  upper_light = mean_mc$mean_light + 1.96 * sd_mc$sd_light,
+  lower_light = mean_mc$mean_light - 1.96 * sd_mc$sd_light
+)
+
+agg_mc <- cbind(mean_mc, agg_mc)
+agg_mc$hgt <- 1:max_veg_hgt
+agg_mc$scenario <- "CC"
+
+head(agg_mc)
+```
+
+Do the same for the baseline scenario.
+
+```{r}
+mh_baseline <- readRDS(file.path(base_dir, scenario_dir[["No CC"]], "a1_2",
+                        paste0("forest", forest), paste0("microhabitatMatrix", ts, ".rds")))
+mc_baseline <- mh_baseline[,,, c(3,4,5)] # Get microclimate (hum, temp, light)
+mc_baseline <- mc_baseline[,,1:max_veg_hgt,]
+
+#mean_mc_baseline <- data.frame(apply(mc_baseline, c(3, 4), mean))
+mean_mc_baseline <- data.frame(mc_baseline[15, 25, ,])
+colnames(mean_mc_baseline) <- c("mean_light", "mean_relhum", "mean_temp")
+sd_mc_baseline <- data.frame(apply(mc_baseline, c(3, 4), sd))
+colnames(sd_mc_baseline) <- c("sd_light", "sd_relhum", "sd_temp")
+
+agg_mc_baseline <- data.frame(
+  upper_relhum = mean_mc_baseline$mean_relhum + 1.96 * sd_mc_baseline$sd_relhum,
+  lower_relhum = mean_mc_baseline$mean_relhum - 1.96 * sd_mc_baseline$sd_relhum,
+  upper_temp = mean_mc_baseline$mean_temp + 1.96 * sd_mc_baseline$sd_temp,
+  lower_temp = mean_mc_baseline$mean_temp - 1.96 * sd_mc_baseline$sd_temp,
+  upper_light = mean_mc_baseline$mean_light + 1.96 * sd_mc_baseline$sd_light,
+  lower_light = mean_mc_baseline$mean_light - 1.96 * sd_mc_baseline$sd_light
+)
+
+agg_mc_baseline <- cbind(mean_mc_baseline, agg_mc_baseline)
+agg_mc_baseline$hgt <- 1:max_veg_hgt
+agg_mc_baseline$scenario <- "Baseline"
+```
+
+Merge both scenarios
+
+```{r}
+vertical_mc <- rbind(agg_mc_baseline, agg_mc)
+
+head(vertical_mc)
+```
+
+Plot vertical MC
+
+```{r}
+
+# Filter data for the specific metric and sort by Height
+plot_data <- vertical_mc %>% arrange(hgt)
+
+# Define colors for scenarios
+colors <- c("CC" = "blue", "Baseline" = "red")  # Customize as needed
+
+# Create the plot
+p <- ggplot() +
+  # Loop through scenarios
+  lapply(c("CC", "Baseline"), function(Scenario) {
+    scenario_data <- plot_data %>% filter(scenario == Scenario)
+
+    if (nrow(scenario_data) > 0) {
+      list(
+        # Add mean line
+        geom_line(
+          data = scenario_data,
+          aes(x = mean_relhum, y = hgt, color = Scenario),
+          linewidth = 2
+        ),
+        # Add confidence interval ribbon
+        geom_ribbon(
+          data = scenario_data,
+          aes(y = hgt, xmin = lower_relhum, xmax = upper_relhum, fill = Scenario),
+          alpha = 0.2, inherit.aes = FALSE
+        )
+      )
+    }
+  }) +
+  # Customize colors
+  scale_color_manual(values = colors) +
+  scale_fill_manual(values = colors) +
+  # Labels and theme
+  labs(x = "Divergence", y = "Height") +
+  theme_minimal()
+
+pdf(paste0("../../figs/a5_plots_test/cc_vs_no_cc/vertical_relhum_15_25", forest, "_", ts, "_.pdf"))
+print(p)
+dev.off()
+```
