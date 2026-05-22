@@ -83,7 +83,7 @@ grndparams <- extract_params(soilc_reg, lon, lat)
 microhab_file <- "/Users/johanna/Uni/masterarbeit/data/modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/a1_2/forest0/microhabitatMatrix123.rds" # Regua
 #microhab_file <- "/Users/johanna/Uni/masterarbeit/data/modve_output/pirineus/scenarios/climdata_era5_cmip6_1906-2024_ssp245_119ts/a1_2/microhabitatMatrix198.rds" # Pirineus
 
-pai <- readRDS(microhab_file)[,,,5]
+pai <- readRDS(microhab_file)[,,,1]
 paii <- apply(pai[,,1:max(vegparams$h, 0.5)], c(3), mean, na.rm = TRUE)
 #paii <- pai[25, 25, 1:max(vegparams$h, 0.5)]
 
@@ -315,7 +315,7 @@ plot_relhum <- ggplot(emp_summary) +
   )
 
 # Print plots to a pdf file
-pdf("../../figs/mc_output/mc_emp_vs_sim_mc_regua_era5_v1.pdf", height = 5, width = 10)
+pdf("../../figs/mc_output/mc_emp_vs_sim_mc_regua_era5_v2.pdf", height = 5, width = 10)
 print((plot_airt + plot_relhum) +
   plot_layout(guides = "collect") &
   guides(color = guide_legend(ncol = 2)) &
