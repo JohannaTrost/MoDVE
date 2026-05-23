@@ -80,12 +80,14 @@ main <- function() {
 
     # Get microhabitat matrix variables - dynamic handling of selected variables
     microhabitatVariableFlags <- config$microhabitatVariableFlags
-    MhVarNames <- c("TotalSurfaceAreaOpt", "SurfaceAreaLossOpt", "LightNicheOpt", "AverageWeightedAngles",
-                    "HumNicheOpt", "TempNicheOpt", "WindNicheOpt")
+    microhabitat_var_names <- c(
+      "TotalSurfaceAreaOpt", "SurfaceAreaLossOpt", "LightNicheOpt", "AverageWeightedAngles",
+      "HumNicheOpt", "TempNicheOpt", "WindNicheOpt"
+    )
     # Only keep active options
-    ActiveOpts <- MhVarNames[as.logical(microhabitatVariableFlags)]
+    active_options <- microhabitat_var_names[as.logical(microhabitatVariableFlags)]
     # Assign indices
-    Inds <- setNames(seq_along(ActiveOpts), ActiveOpts)
+    microhabitat_index_list <- setNames(seq_along(active_options), active_options)
     # Check which light response function to use and get Mh indices for suitability calculation in correct order
     nicheFlags <- c(Light = LightNicheOpt, Hum = HumNicheOpt, Temp = TempNicheOpt, Wind = WindNicheOpt)
     # Filter names where value is 1
@@ -95,9 +97,8 @@ main <- function() {
         EnvScoreVars <- EnvScoreVars[EnvScoreVars != "Light"]
     }
     activeNiches <- nicheFlags[EnvScoreVars]
-    MhIdx <- Inds[paste0(EnvScoreVars, "NicheOpt")]
     #allEnvVarNames <- c("Light", "Hum", "Temp", "Wind")
-    allEnvVarsIdx <- Inds[paste0(EnvScoreVars, "NicheOpt")]
+    allEnvVarsIdx <- microhabitat_index_list[paste0(EnvScoreVars, "NicheOpt")]
 
     # Create folder to save the model results
     dir.create(DirectoryOutput, recursive=TRUE)
