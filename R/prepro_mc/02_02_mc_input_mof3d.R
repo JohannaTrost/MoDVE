@@ -35,7 +35,7 @@ for (ts in seq(start, stop)) {
   cat("Processing time step:", ts, "\n")
 
   # MoF3D microhabitat matrix (generated with modified version of A1.R from MoDVE)
-  microhab_file <- paste0("/Users/johanna/Uni/masterarbeit/data/modve_output/pirineus/a1_1/microhabitatMatrix", ts, ".rds")
+  microhab_file <- paste0("/Users/johanna/Uni/masterarbeit/data/modve_output/", region, "/a1_1/microhabitatMatrix", ts, ".rds")
   mm <- readRDS(microhab_file)
 
   # --- For each cell that is NA extract the max veg. height from PAI
