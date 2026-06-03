@@ -338,7 +338,7 @@ joined %>%
 # ------------------ Plot understorey ts only
 
 # First plot: Air temperature (empirical vs. simulated)
-plot_airt <- ggplot(joined %>% filter(height == 0.4)) +
+plot_airt <- ggplot(joined %>% filter(height == 15.5)) +
   geom_line(aes(x = obs_time, y = tair, color = "Simulated microclimate", linetype = "Simulated microclimate"),
             size = 1) +
   geom_line(aes(x = obs_time, y = tair_emp, color = "Measured microclimate", linetype = "Measured microclimate"),
@@ -371,7 +371,7 @@ plot_airt <- ggplot(joined %>% filter(height == 0.4)) +
         legend.title = element_text(face = "bold"))
 
 # Second plot: Relative Humidity (empirical vs. simulated)
-plot_relhum <- ggplot(joined %>% filter(height == 0.4)) +
+plot_relhum <- ggplot(joined %>% filter(height == 15.5)) +
   geom_line(aes(x = obs_time, y = relhum_emp, color = "Measured microclimate", linetype = "Measured microclimate"),
             size = 1) +
   geom_line(aes(x = obs_time, y = relhum_macro,
@@ -404,7 +404,7 @@ plot_relhum <- ggplot(joined %>% filter(height == 0.4)) +
   )
 
 # Print plots to a pdf file
-pdf("../../figs/mc_output/mc_emp_vs_sim_mc_regua_cmip6_2025_v4.pdf", height = 5, width = 10)
+pdf("../../figs/mc_output/mc_emp_vs_sim_mc_regua_cmip6_2025_15.5m_v5.pdf", height = 5, width = 10)
 print((plot_airt + plot_relhum) +
   plot_layout(guides = "collect") &
   guides(color = guide_legend(ncol = 2)) &
@@ -413,3 +413,132 @@ dev.off()
 
 # ------------------ Plot profile
 
+# Average over days for 3 specific points in time (8am, 12am, 6pm)
+gradient_agg <- joined %>%
+  filter(!date(obs_time) %in% as.Date(c("2025-09-25", "2025-09-26"))) %>%
+  mutate(time = hour(obs_time)) %>%
+  group_by(height, time) %>%
+  summarize(
+    relhum_emp_mean = mean(relhum_emp, na.rm = TRUE),
+    relhum_mean = mean(relhum, na.rm = TRUE),
+    relhum_macro_mean = mean(relhum_macro, na.rm = TRUE),
+    relhum_macro_sim_mean = mean(relhum_macro_sim, na.rm = TRUE),
+    tair_emp_mean = mean(tair_emp, na.rm = TRUE),
+    tair_mean = mean(tair, na.rm = TRUE),
+    tair_macro_mean = mean(tair_macro, na.rm = TRUE),
+    tair_macro_sim_mean = mean(tair_macro_sim, na.rm = TRUE),
+    relhum_emp_sd = sd(relhum_emp, na.rm = TRUE),
+    relhum_sd = sd(relhum, na.rm = TRUE),
+    relhum_macro_sd = sd(relhum_macro, na.rm = TRUE),
+    relhum_macro_sim_sd = sd(relhum_macro_sim, na.rm = TRUE),
+    tair_emp_sd = sd(tair_emp, na.rm = TRUE),
+    tair_sd = sd(tair, na.rm = TRUE),
+    tair_macro_sd = sd(tair_macro, na.rm = TRUE),
+    tair_macro_sim_sd = sd(tair_macro_sim, na.rm = TRUE),
+  )
+
+# ---- Plot gradient for each hour across all days
+
+# Define hour order starting at 8am
+hour_order <- c(8:23, 0:7)
+
+# Prepare data: filter to hours with data and apply ordered factor
+gradient_facet <- gradient_agg %>%
+  filter(time %in% hour_order) %>%
+  mutate(time_label = factor(paste0(sprintf("%02d", time), ":00"),
+                             levels = paste0(sprintf("%02d", hour_order), ":00")))
+
+grad_temp_plt_all_hours <- ggplot(gradient_facet, aes(y = height)) +
+  geom_path(aes(x = tair_mean, color = "Simulated microclimate"), size = 1) +
+  geom_ribbon(aes(xmin = tair_mean - 1.96 * tair_sd,
+                  xmax = tair_mean + 1.96 * tair_sd,
+                  fill = "±Std.Err.(simulated microclimate)"), alpha = 0.2) +
+  geom_path(aes(x = tair_emp_mean, color = "Measured microclimate"), size = 1) +
+  geom_ribbon(aes(xmin = tair_emp_mean - 1.96 * tair_emp_sd,
+                  xmax = tair_emp_mean + 1.96 * tair_emp_sd,
+                  fill = "±Std.Err.(measured microclimate)"), alpha = 0.2) +
+
+  # Measured macroclimate: dashed boundary lines instead of ribbon
+  geom_path(aes(x = tair_macro_mean, color = "Measured macroclimate"), size = 1, linetype = "dashed") +
+  geom_path(aes(x = tair_macro_mean - 1.96 * tair_macro_sd, color = "Measured macroclimate"),
+            size = 0.5, linetype = "dotted") +
+  geom_path(aes(x = tair_macro_mean + 1.96 * tair_macro_sd, color = "Measured macroclimate"),
+            size = 0.5, linetype = "dotted") +
+
+  # CMIP6 macroclimate: dashed boundary lines instead of ribbon
+  geom_path(aes(x = tair_macro_sim_mean, color = "CMIP6 macroclimate"), size = 1, linetype = "dashed") +
+  geom_path(aes(x = tair_macro_sim_mean - 1.96 * tair_macro_sim_sd, color = "CMIP6 macroclimate"),
+            size = 0.5, linetype = "dotted") +
+  geom_path(aes(x = tair_macro_sim_mean + 1.96 * tair_macro_sim_sd, color = "CMIP6 macroclimate"),
+            size = 0.5, linetype = "dotted") +
+
+  scale_color_manual(
+    name = "Temperature Gradient",
+    values = c("Measured microclimate"  = "#3F826D",
+               "Measured macroclimate"  = "#3F826D",
+               "Simulated microclimate" = "#FAC05E",
+               "CMIP6 macroclimate"     = "#FAC05E")
+  ) +
+  scale_fill_manual(
+    name = "Std. Err.",
+    values = c("±Std.Err.(measured microclimate)"  = "#3F826D",
+               "±Std.Err.(simulated microclimate)" = "#FAC05E")
+  ) +
+  facet_wrap(~ time_label, ncol = 6) +
+  labs(
+    x = "Temperature",
+    y = "Height (m)"
+  ) +
+  theme_bw() +
+  theme(
+    strip.text = element_text(size = 10),
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(size = 9),
+    axis.title = element_text(size = 12)
+  )
+
+pdf("../../figs/mc_output/mc_emp_vs_sim_regua_gradient_all_hours_v2.pdf", height = 16, width = 20)
+print(grad_temp_plt_all_hours)
+dev.off()
+
+# ---- Plot gradient for specific day
+
+day <- 29
+
+# Filter for specific day
+gradient_single_day <- joined %>%
+  filter(date(obs_time) == as.Date(paste0("2025-09-", day))) %>%
+  mutate(time_label = factor(paste0(sprintf("%02d", hour(obs_time)), ":00"),
+                             levels = paste0(sprintf("%02d", hour_order), ":00")))
+
+grad_temp_plt_single_day <- ggplot(gradient_single_day, aes(y = height)) +
+  geom_path(aes(x = tair, color = "Simulated microclimate"), size = 1) +
+  geom_path(aes(x = tair_emp, color = "Measured microclimate"), size = 1) +
+  geom_path(aes(x = tair_macro, color = "Measured macroclimate"), size = 1, linetype = "dashed") +
+  geom_path(aes(x = tair_macro_sim, color = "CMIP6 macroclimate"), size = 1, linetype = "dashed") +
+  scale_color_manual(
+    name = "Temperature Gradient",
+    values = c("Measured microclimate"  = "#3F826D",
+               "Measured macroclimate"  = "#3F826D",
+               "Simulated microclimate" = "#FAC05E",
+               "CMIP6 macroclimate"     = "#FAC05E")
+  ) +
+  facet_wrap(~ time_label, ncol = 6) +
+  labs(
+    x = "Temperature",
+    y = "Height (m)",
+    title = paste0(day, " Sep 2025")
+  ) +
+  theme_bw() +
+  theme(
+    strip.text = element_text(size = 10),
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(size = 9),
+    axis.title = element_text(size = 12)
+  )
+
+pdf(paste0("../../figs/mc_output/mc_emp_vs_sim_regua_gradient_single_day_", day, "_v1.pdf"), height = 16, width = 20)
+print(grad_temp_plt_single_day)
+dev.off()
