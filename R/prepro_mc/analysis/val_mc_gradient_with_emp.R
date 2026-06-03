@@ -251,30 +251,114 @@ paii <- apply(pai[,,1:max(vegparams$h, 0.5)], c(3), mean, na.rm = TRUE) * 100
 paii_new <- approx(seq(vegparams$h, 0, length.out = length(paii)),
                     paii,
                     xout = seq(22, 0, length.out = 22))$y
+# Update veg. height and total PAI
 vegparams$h <- 22
-
 vegparams$pai <- sum(paii_new)
 
-# --- Simulate microclimate
+# Define the objective function to optimize PAI profile
+objective_function <- function(paii_candidate, climdata_reg, heights_measured, vegparams, grndparams, lat, lon, emp_data, macro_data) {
+  # Replace paii_new with the candidate
+  vegparams$pai <- sum(paii_candidate)
+  paii_new <- paii_candidate
 
-# test replace other climate variables
-# clim2024 <- read_csv(paste(in_dir, "climdata_era5_cmip6_2024_v3.csv", sep = "/")) # REGUA
-# climdata_reg <- read_csv(paste(in_dir, "climdata_era5_cmip6_2025_v3.csv", sep = "/")) # REGUA
-#
-# cols <- c("swdown","difrad","lwdown","winddir","windspeed_anom","precip","pres","relhum","temp","windspeed")
-# climdata_reg[,cols] <- clim2024[1:8760, cols]
-# heights_measured[heights_measured$logger == "JZ1", "height"] <- 1.5
+  # Run simulations for all heights/loggers
+  mc_sim <- data.frame()
+  for (i in seq_along(heights_measured$height)) {
+    h <- heights_measured$height[i]
+    jz <- heights_measured$logger[i]
 
-mc_sim <- NA
+    mout <- micropoint::runpointmodel(
+      climdata_reg, reqhgt = h, vegparams,
+      paii_new, grndparams, lat = lat, long = lon
+    )
+
+    mc_sim_h <- data.frame(
+      obs_time = mout$obs_time,
+      tair = mout$tair,
+      tleaf = mout$tleaf,
+      relhum = mout$relhum,
+      logger = jz,
+      height = h
+    )
+
+    # Filter to empirical dates
+    mc_sim_h_filtered <- mc_sim_h[mc_sim_h$obs_time %in% macro_data$obs_time, ]
+    mc_sim <- rbind(mc_sim, mc_sim_h_filtered)
+  }
+
+  # Join with empirical and macro data
+  model_macro <- climdata_reg %>%
+    select(obs_time, temp, relhum) %>%
+    rename(tair_macro_sim = temp, relhum_macro_sim = relhum)
+
+  joined <- emp_data %>%
+    left_join(mc_sim, by = c("obs_time", "logger")) %>%
+    left_join(macro_data, by = "obs_time") %>%
+    left_join(model_macro, by = "obs_time") %>%
+    rename("JZ" = "logger")
+
+  # Compute RMSE for each JZ/height
+  rmse_results <- joined %>%
+    group_by(JZ, height) %>%
+    summarize(
+      rmse_tair = sqrt(mean((tair_emp - tair)^2, na.rm = TRUE)),
+      rmse_relhum = sqrt(mean((relhum_emp - relhum)^2, na.rm = TRUE)),
+      .groups = "drop"
+    )
+
+  # Return the sum of all RMSEs (or another scalar metric)
+  sum(rmse_results$rmse_tair, rmse_results$rmse_relhum, na.rm = TRUE)
+}
+
+# Initial paii array (use your current paii_new as starting point)
+paii_initial <- paii_new
+
+# Optimize using Nelder-Mead (gradient-free)
+# Note: paii must be bounded to be non-negative. Use method="L-BFGS-B" for bounds.
+# Here, we use a simple approach: optimize the differences from the initial paii.
+# For better results, consider using DEoptim or nloptr for bounded optimization.
+
+# Example using optim with bounds (L-BFGS-B)
+# Define bounds: paii >= 0
+lower_bounds <- rep(0, length(paii_initial))
+upper_bounds <- rep(Inf, length(paii_initial))
+
+optim_result <- optim(
+  par = paii_initial,
+  fn = objective_function,
+  method = "L-BFGS-B",
+  lower = lower_bounds,
+  upper = upper_bounds,
+  climdata_reg = climdata_reg,
+  heights_measured = heights_measured,
+  vegparams = vegparams,
+  grndparams = grndparams,
+  lat = lat,
+  lon = lon,
+  emp_data = emp_data,
+  macro_data = macro_data,
+  control = list(maxit = 1000)
+)
+
+# Extract the optimized paii
+paii_optimized <- optim_result$par
+
+# ------------------------------------- Re-run the simulation with the optimized paii
+
+vegparams$pai <- sum(paii_optimized)
+paii_new_optimized <- paii_optimized
+
+# Run simulations for all heights/loggers with optimized paii
+mc_sim_optimized <- data.frame()
 for (i in seq_along(heights_measured$height)) {
-
   h <- heights_measured$height[i]
   jz <- heights_measured$logger[i]
 
-  mout <- micropoint::runpointmodel(climdata_reg, reqhgt = h, vegparams,
-                                    paii_new, grndparams, lat = lat, long = lon)
+  mout <- micropoint::runpointmodel(
+    climdata_reg, reqhgt = h, vegparams,
+    paii_new_optimized, grndparams, lat = lat, long = lon
+  )
 
-  # put into dataframe
   mc_sim_h <- data.frame(
     obs_time = mout$obs_time,
     tair = mout$tair,
@@ -284,30 +368,18 @@ for (i in seq_along(heights_measured$height)) {
     height = h
   )
 
-  # Keep only dates that are in empirical data
+  # Filter to empirical dates
   mc_sim_h_filtered <- mc_sim_h[mc_sim_h$obs_time %in% macro_data$obs_time, ]
-
-  if (all(is.na(mc_sim))) {
-    mc_sim <- mc_sim_h_filtered
-  } else {
-    mc_sim <- rbind(mc_sim, mc_sim_h_filtered)
-  }
+  mc_sim_optimized <- rbind(mc_sim_optimized, mc_sim_h_filtered)
 }
 
-##################################################################################
-#                           Emp. vs. sim. comparison                             #
-##################################################################################
-
-# --- Compare empirical data against model and macroclimate
-
-# Get era5 / cmip6 macroclimate data
+# Step 3: Join with empirical and macro data
 model_macro <- climdata_reg %>%
-    select(obs_time, temp, relhum) %>%
-    rename(tair_macro_sim = temp, relhum_macro_sim = relhum)
+  select(obs_time, temp, relhum) %>%
+  rename(tair_macro_sim = temp, relhum_macro_sim = relhum)
 
-# Join with model and macro
-joined <- emp_data %>%
-  left_join(mc_sim, by = c("obs_time", "logger")) %>%
+joined_optimized <- emp_data %>%
+  left_join(mc_sim_optimized, by = c("obs_time", "logger")) %>%
   left_join(macro_data, by = "obs_time") %>%
   left_join(model_macro, by = "obs_time") %>%
   rename("JZ" = "logger")
@@ -321,18 +393,17 @@ safe_cor_test <- function(x, y) {
   }
 }
 
-joined %>%
-  group_by(JZ) %>%
+# Compute RMSE for each JZ/height
+joined_optimized %>%
+  group_by(JZ, height) %>%
   summarize(
     rmse_tair = sqrt(mean((tair_emp - tair)^2, na.rm = TRUE)),
-    mae_tair = mean(tair_emp - tair, na.rm = TRUE),
-    cor_tair = safe_cor_test(tair_emp, tair)$cor,
-    pval_tair = safe_cor_test(tair_emp, tair)$p.value,
-
     rmse_relhum = sqrt(mean((relhum_emp - relhum)^2, na.rm = TRUE)),
+    mae_tair = mean(tair_emp - tair, na.rm = TRUE),
     mae_relhum = mean(relhum_emp - relhum, na.rm = TRUE),
+    cor_tair = safe_cor_test(tair_emp, tair)$cor,
     cor_relhum = safe_cor_test(relhum_emp, relhum)$cor,
-    pval_relhum = safe_cor_test(relhum_emp, relhum)$p.value
+    .groups = "drop"
   )
 
 # ------------------ Plot understorey ts only
