@@ -6,8 +6,8 @@
 args <- commandArgs(trailingOnly = TRUE)
 
 if (length(args) != 2) {
-  cat("Usage: Rscript era5_download.R <output_directory> <year>\n")
-  cat("Example: Rscript era5_download.R /path/to/output/directory 2042\n")
+  cat("Usage: Rscript 03_download_era5.R <output_directory> <year>\n")
+  cat("Example: Rscript 03_download_era5.R /path/to/output/directory 2042\n")
   quit(status = 1)
 }
 
@@ -26,20 +26,7 @@ year <- args[2]  # Year to download, e.g., "2024"
 
 # ERA5 data month and year that are to be downloaded
 era5_months <- list(
-  "1985" = 3:12,
-  "1986" = 2:11,
-  "1987" = 2:10,
-  "1988" = 2:10,
-  "1991" = 2:12,
-  "1992" = 2:12,
-  "1996" = 2:12,
-  "2001" = c(1),
-  "2005" = 4:12,
-  "2007" = c(8, 9, 10), #),
-  "2009" = c(8, 9, 10),#8, 9, 10),
-  "2010" = c(1),
-  "2015" = 11,
-  "2016" = 4
+  "2025" = 1:12
 )
 
 # obs_time – UTC POSIXlt object of observation times for each climate variable, 2017-01-01 00:00:00
