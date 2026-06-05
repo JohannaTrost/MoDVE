@@ -12,6 +12,18 @@ library(purrr)
 library(readxl)
 library(tidyverse)
 library(patchwork)
+library(DEoptim)
+library(parallel)
+library(doFuture)
+library(progressr)
+library(foreach)
+
+format_time <- function(secs) {
+  secs <- max(0L, round(secs))
+  if (secs < 60)   return(sprintf("%ds", secs))
+  if (secs < 3600) return(sprintf("%dm %02ds", secs %/% 60L, secs %% 60L))
+  sprintf("%dh %02dm", secs %/% 3600L, (secs %% 3600L) %/% 60L)
+}
 
 ##################################################################################
 #                               Empirical data                                   #
@@ -214,7 +226,8 @@ indices2coords <- function(x, y, raster, crs_out = "EPSG:4326") {
   return(coords_proj)
 }
 
-# Function to process a single (x, y) cell
+# Set Parameters
+optimize <- FALSE
 x <- 25
 y <- 25
 ts <- 123
@@ -226,7 +239,7 @@ in_dir_regua <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
 vegp_reg <- readRDS(paste(in_dir_regua, "vegp_mof3d_ptm_v2.RDS", sep = "/"))  # PAI and canopy height will be replaced by MoF3D output below
 #vegp_reg <- readRDS(file.path(in_dir_regua, paste0("rep", forst), paste0("vegp_mof3d_ptm_", ts, "_v4.RDS")))  # PAI and canopy height will be replaced by MoF3D output below
 soilc_reg <- readRDS(paste(in_dir, "soilc_v2.RDS", sep = "/"))
-climdata_reg <- read_csv(paste(in_dir, "climdata_era5_cmip6_2025_v3.csv", sep = "/")) # REGUA
+climdata_reg <- read_csv(paste(in_dir, "climdata_era5_2025_v2.csv", sep = "/")) # REGUA
 #climdata_reg <- read_csv(paste(in_dir, "era5_climdata_2024.csv", sep = "/")) # Pirineaus SA
 
 # Get coordiantes
@@ -239,114 +252,179 @@ lat <- coords_soil[[2]]
 vegparams <- extract_params(vegp_reg, coords_veg[[1]], coords_veg[[2]])
 grndparams <- extract_params(soilc_reg, lon, lat)
 
-# Get PAI
-microhab_file <- paste0("/Users/johanna/Uni/masterarbeit/data/modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/a1_2/forest", forst, "/microhabitatMatrix", ts, ".rds") # Regua
-
-# Reduce edge effects on vertical PAI avg. by choosing 3:23
-pai <- readRDS(microhab_file)[,,,1]
-#paii <- pai[x, y, 1:max(vegparams$h, 0.5)]
-paii <- apply(pai[,,1:max(vegparams$h, 0.5)], c(3), mean, na.rm = TRUE) * 100
-
-# Downsample to actual vegeation height.
-paii_new <- approx(seq(vegparams$h, 0, length.out = length(paii)),
-                    paii,
-                    xout = seq(22, 0, length.out = 22))$y
-# Update veg. height and total PAI
+# Update veg. height to actual height
 vegparams$h <- 22
-vegparams$pai <- sum(paii_new)
 
 # Define the objective function to optimize PAI profile
-objective_function <- function(paii_candidate, climdata_reg, heights_measured, vegparams, grndparams, lat, lon, emp_data, macro_data) {
-  # Replace paii_new with the candidate
-  vegparams$pai <- sum(paii_candidate)
-  paii_new <- paii_candidate
+objective_function <- function(par, climdata_reg, heights_measured, vegparams, grndparams,
+                               lat, lon, emp_data, macro_data) {
+  total_pai <- par[1]; skew <- par[2]; spread <- par[3]
 
-  # Run simulations for all heights/loggers
-  mc_sim <- data.frame()
-  for (i in seq_along(heights_measured$height)) {
-    h <- heights_measured$height[i]
-    jz <- heights_measured$logger[i]
-
-    mout <- micropoint::runpointmodel(
-      climdata_reg, reqhgt = h, vegparams,
-      paii_new, grndparams, lat = lat, long = lon
-    )
-
-    mc_sim_h <- data.frame(
-      obs_time = mout$obs_time,
-      tair = mout$tair,
-      tleaf = mout$tleaf,
-      relhum = mout$relhum,
-      logger = jz,
-      height = h
-    )
-
-    # Filter to empirical dates
-    mc_sim_h_filtered <- mc_sim_h[mc_sim_h$obs_time %in% macro_data$obs_time, ]
-    mc_sim <- rbind(mc_sim, mc_sim_h_filtered)
+  paii_new <- PAIgeometry(PAI = total_pai, skew = skew, spread = spread, n = vegparams$h)
+  if (total_pai <= 0 || spread <= 0 || any(is.nan(paii_new))) {
+    cat("Invalid parameter values")
+    return(1e10)
   }
+  vegparams$pai <- sum(paii_new)
 
-  # Join with empirical and macro data
-  model_macro <- climdata_reg %>%
-    select(obs_time, temp, relhum) %>%
-    rename(tair_macro_sim = temp, relhum_macro_sim = relhum)
+  # Parallelise across the 5 logger heights — runs inside the main process
+  mc_sim <- furrr::future_map(
+    seq_len(nrow(heights_measured)),
+    function(i) {
+      h  <- heights_measured$height[i]
+      jz <- heights_measured$logger[i]
+      suppressWarnings(
+        mout <- micropoint::runpointmodel(
+          climdata_reg, reqhgt = h, vegparams,
+          paii_new, grndparams, lat = lat, long = lon
+        )
+      )
+      data.frame(
+        obs_time = mout$obs_time, tair = mout$tair, relhum = mout$relhum,
+        logger = jz, height = h, stringsAsFactors = FALSE
+      ) |> dplyr::filter(obs_time %in% macro_data$obs_time)
+    },
+    .options = furrr_options(packages = c("micropoint", "dplyr"), seed = NULL)
+  ) |> do.call(what = rbind)
 
-  joined <- emp_data %>%
-    left_join(mc_sim, by = c("obs_time", "logger")) %>%
-    left_join(macro_data, by = "obs_time") %>%
-    left_join(model_macro, by = "obs_time") %>%
-    rename("JZ" = "logger")
+  emp_data$tair_emp_std   <- scale(emp_data$tair_emp)
+  emp_data$relhum_emp_std <- scale(emp_data$relhum_emp)
+  mc_sim$tair_std   <- scale(mc_sim$tair)
+  mc_sim$relhum_std <- scale(mc_sim$relhum)
 
-  # Compute RMSE for each JZ/height
-  rmse_results <- joined %>%
-    group_by(JZ, height) %>%
-    summarize(
-      rmse_tair = sqrt(mean((tair_emp - tair)^2, na.rm = TRUE)),
-      rmse_relhum = sqrt(mean((relhum_emp - relhum)^2, na.rm = TRUE)),
+  rmse_results_std <- emp_data |>
+    left_join(mc_sim, by = c("obs_time", "logger")) |>
+    group_by(logger) |>
+    summarise(
+      rmse_tair_std   = sqrt(mean((tair_emp_std - tair_std)^2,     na.rm = TRUE)),
+      rmse_relhum_std = sqrt(mean((relhum_emp_std - relhum_std)^2, na.rm = TRUE)),
       .groups = "drop"
     )
 
-  # Return the sum of all RMSEs (or another scalar metric)
-  sum(rmse_results$rmse_tair, rmse_results$rmse_relhum, na.rm = TRUE)
+  rmse_results_std[rmse_results_std$logger == "JZ2", "rmse_relhum_std"] <- 0
+  if (any(is.nan(rmse_results_std$rmse_tair_std)) ||
+      any(is.nan(rmse_results_std$rmse_relhum_std))) {
+    cat("NaNs not accepted.")
+    return(1e10)
+  }
+
+  sum(rmse_results_std$rmse_tair_std, rmse_results_std$rmse_relhum_std)
 }
 
-# Initial paii array (use your current paii_new as starting point)
-paii_initial <- paii_new
+if (optimize) {
+  # Initial parameter values
+  initial_par <- c(total_pai = 50, skew = 0, spread = 50)
 
-# Optimize using Nelder-Mead (gradient-free)
-# Note: paii must be bounded to be non-negative. Use method="L-BFGS-B" for bounds.
-# Here, we use a simple approach: optimize the differences from the initial paii.
-# For better results, consider using DEoptim or nloptr for bounded optimization.
+  # Bounds for DEoptim (must be a matrix with lower and upper bounds for each parameter)
+  bounds <- matrix(
+    c(5, -10, 0.1,   # Lower bounds
+      100, 10, 100), # Upper bounds
+    ncol = 2,
+    byrow = FALSE,
+    dimnames = list(c("total_pai", "skew", "spread"), c("lower", "upper"))
+  )
 
-# Example using optim with bounds (L-BFGS-B)
-# Define bounds: paii >= 0
-lower_bounds <- rep(0, length(paii_initial))
-upper_bounds <- rep(Inf, length(paii_initial))
+  # ---- Parallel setup (replaces makeCluster + registerDoParallel) ----
+  n_cores <- max(1L, parallel::detectCores() - 1L)
+  plan(multisession, workers = n_cores)
+  registerDoFuture()
 
-optim_result <- optim(
-  par = paii_initial,
-  fn = objective_function,
-  method = "L-BFGS-B",
-  lower = lower_bounds,
-  upper = upper_bounds,
-  climdata_reg = climdata_reg,
-  heights_measured = heights_measured,
-  vegparams = vegparams,
-  grndparams = grndparams,
-  lat = lat,
-  lon = lon,
-  emp_data = emp_data,
-  macro_data = macro_data,
-  control = list(maxit = 1000)
-)
+  # ---- Progress-tracked optimisation ----
+  itermax <- 100L
+  NP      <- 30L
 
-# Extract the optimized paii
-paii_optimized <- optim_result$par
+  # Mutable state in an environment — avoids <<- and works cleanly with closures
+  .track <- new.env(parent = emptyenv())
+  .track$n     <- 0L
+  .track$start <- Sys.time()
 
-# ------------------------------------- Re-run the simulation with the optimized paii
+  tracked_objective <- function(par, ...) {
+    .track$n <- .track$n + 1L
+    n        <- .track$n
+    elapsed  <- as.numeric(difftime(Sys.time(), .track$start, units = "secs"))
+    iter     <- ceiling(n / NP)
 
-vegparams$pai <- sum(paii_optimized)
-paii_new_optimized <- paii_optimized
+    if (n > NP) {                              # wait for at least one full iteration
+      eta <- ((itermax * NP) - n) * (elapsed / n)
+      cat(sprintf("\rIter %4d / %d  |  elapsed: %s  |  ETA: %s    ",
+                  iter, itermax, format_time(elapsed), format_time(eta)),
+          file = stderr())
+    } else {
+      cat(sprintf("\rIter %4d / %d  |  elapsed: %s  |  ETA: calibrating...    ",
+                  iter, itermax, format_time(elapsed)),
+          file = stderr())
+    }
+
+    objective_function(par, ...)
+  }
+
+  # Up to 5 workers — one per logger height; no benefit going higher
+  n_cores <- max(1L, parallel::detectCores() - 1L)
+  plan(multisession, workers = min(5L, n_cores))
+
+  DEoptim_result <- DEoptim(
+    fn    = tracked_objective,
+    lower = bounds[, "lower"],
+    upper = bounds[, "upper"],
+    climdata_reg     = climdata_reg,
+    heights_measured = heights_measured,
+    vegparams        = vegparams,
+    grndparams       = grndparams,
+    lat              = lat,
+    lon              = lon,
+    emp_data         = emp_data,
+    macro_data       = macro_data,
+    control = DEoptim.control(
+      itermax      = itermax,
+      NP           = NP,
+      trace        = FALSE,   # suppressed — progress line replaces it
+      parallelType = 0        # objective fn runs in main process; progress works here
+    )
+  )
+
+  cat("\n")   # move the cursor past the \r progress line
+
+  cat(sprintf("Done — %d / %d iterations  |  best score: %.4f\n",
+              DEoptim_result$optim$iter, itermax, DEoptim_result$optim$bestval))
+  cat(sprintf("  total_pai = %.2f  |  skew = %.2f  |  spread = %.2f\n",
+              DEoptim_result$optim$bestmem[1],
+              DEoptim_result$optim$bestmem[2],
+              DEoptim_result$optim$bestmem[3]))
+
+  plan(sequential)
+
+  # Extract optimized parameters
+  optimized_par <- DEoptim_result$optim$bestmem
+  total_pai_optimized <- optimized_par[1]
+  skew_optimized <- optimized_par[2]
+  spread_optimized <- optimized_par[3]
+
+  cat("Optimized total_pai:", total_pai_optimized, "\n")
+  cat("Optimized skew:", skew_optimized, "\n")
+  cat("Optimized spread:", spread_optimized, "\n")
+
+  paii_new_optimized <- PAIgeometry(PAI = total_pai_optimized, skew = skew_optimized, spread = spread_optimized, n = 22)
+} else {
+
+  # Get PAI
+  microhab_file <- paste0("/Users/johanna/Uni/masterarbeit/data/modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/a1_2/forest", forst, "/microhabitatMatrix", ts, ".rds") # Regua
+
+  # Reduce edge effects on vertical PAI avg. by choosing 3:23
+  pai <- readRDS(microhab_file)[,,,1]
+  #paii <- pai[x, y, 1:max(vegparams$h, 0.5)]
+  paii <- apply(pai[,,1:max(vegparams$h, 0.5)], c(3), mean, na.rm = TRUE) * 100
+
+  # Downsample to actual vegeation height.
+  paii_new_optimized <- approx(seq(vegparams$h, 0, length.out = length(paii)),
+                      paii,
+                      xout = seq(22, 0, length.out = 22))$y
+  vegparams$pai <- sum(paii_new_optimized)
+}
+
+# ------------------------------------- Run the simulation with the (optimized) paii
+
+# Set total PAI according to profile
+vegparams$pai <- sum(paii_new_optimized)
 
 # Run simulations for all heights/loggers with optimized paii
 mc_sim_optimized <- data.frame()
@@ -378,7 +456,7 @@ model_macro <- climdata_reg %>%
   select(obs_time, temp, relhum) %>%
   rename(tair_macro_sim = temp, relhum_macro_sim = relhum)
 
-joined_optimized <- emp_data %>%
+joined <- emp_data %>%
   left_join(mc_sim_optimized, by = c("obs_time", "logger")) %>%
   left_join(macro_data, by = "obs_time") %>%
   left_join(model_macro, by = "obs_time") %>%
@@ -394,7 +472,7 @@ safe_cor_test <- function(x, y) {
 }
 
 # Compute RMSE for each JZ/height
-joined_optimized %>%
+joined %>%
   group_by(JZ, height) %>%
   summarize(
     rmse_tair = sqrt(mean((tair_emp - tair)^2, na.rm = TRUE)),
@@ -406,10 +484,12 @@ joined_optimized %>%
     .groups = "drop"
   )
 
-# ------------------ Plot understorey ts only
+# ------------------ Plot understorey/upper canopy ts only
+
+h <- 0.4
 
 # First plot: Air temperature (empirical vs. simulated)
-plot_airt <- ggplot(joined %>% filter(height == 15.5)) +
+plot_airt <- ggplot(joined %>% filter(height == h)) +
   geom_line(aes(x = obs_time, y = tair, color = "Simulated microclimate", linetype = "Simulated microclimate"),
             size = 1) +
   geom_line(aes(x = obs_time, y = tair_emp, color = "Measured microclimate", linetype = "Measured microclimate"),
@@ -442,7 +522,7 @@ plot_airt <- ggplot(joined %>% filter(height == 15.5)) +
         legend.title = element_text(face = "bold"))
 
 # Second plot: Relative Humidity (empirical vs. simulated)
-plot_relhum <- ggplot(joined %>% filter(height == 15.5)) +
+plot_relhum <- ggplot(joined %>% filter(height == h)) +
   geom_line(aes(x = obs_time, y = relhum_emp, color = "Measured microclimate", linetype = "Measured microclimate"),
             size = 1) +
   geom_line(aes(x = obs_time, y = relhum_macro,
@@ -475,7 +555,7 @@ plot_relhum <- ggplot(joined %>% filter(height == 15.5)) +
   )
 
 # Print plots to a pdf file
-pdf("../../figs/mc_output/mc_emp_vs_sim_mc_regua_cmip6_2025_15.5m_v5.pdf", height = 5, width = 10)
+pdf(paste0("../../figs/mc_output/mc_emp_vs_sim_mc_regua_era5_2025_", h, "m_v5.pdf"), height = 5, width = 10)
 print((plot_airt + plot_relhum) +
   plot_layout(guides = "collect") &
   guides(color = guide_legend(ncol = 2)) &
@@ -569,13 +649,13 @@ grad_temp_plt_all_hours <- ggplot(gradient_facet, aes(y = height)) +
     axis.title = element_text(size = 12)
   )
 
-pdf("../../figs/mc_output/mc_emp_vs_sim_regua_gradient_all_hours_v2.pdf", height = 16, width = 20)
+pdf("../../figs/mc_output/mc_emp_vs_sim_regua_gradient_all_hours_era5_v2.pdf", height = 16, width = 20)
 print(grad_temp_plt_all_hours)
 dev.off()
 
 # ---- Plot gradient for specific day
 
-day <- 29
+day <- 26
 
 # Filter for specific day
 gradient_single_day <- joined %>%
@@ -610,6 +690,6 @@ grad_temp_plt_single_day <- ggplot(gradient_single_day, aes(y = height)) +
     axis.title = element_text(size = 12)
   )
 
-pdf(paste0("../../figs/mc_output/mc_emp_vs_sim_regua_gradient_single_day_", day, "_v1.pdf"), height = 16, width = 20)
+pdf(paste0("../../figs/mc_output/mc_emp_vs_sim_regua_gradient_single_day_", day, "era5_v1.pdf"), height = 16, width = 20)
 print(grad_temp_plt_single_day)
 dev.off()
