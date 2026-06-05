@@ -4,11 +4,6 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
-from matplotlib.patches import Patch
-from matplotlib.ticker import MaxNLocator
-
-from matplotlib.lines import Line2D
-from setuptools.command.rotate import rotate
 
 matplotlib.use("MacOSX")
 
@@ -144,6 +139,8 @@ axes = axes.flatten()
 # Define the order of metrics for subplots
 metrics = ['Richness', 'Abundance', 'Max. richness\nheight (m)',
            'Max. abundance\nheight (m)', 'Position', 'Range']
+metric_label = ['Richness\n(no. species)', 'Abundance\n(no. individuals)', 'Max. richness\nheight (m)',
+           'Max. abundance\nheight (m)', 'Position (m)', 'Range (m)']
 
 # Plot each metric in its respective subplot
 for i, metric in enumerate(metrics):
@@ -152,7 +149,7 @@ for i, metric in enumerate(metrics):
         ax.plot(group['Year'], group['mean'], color=colors[scenario], label=scenario, linewidth=2)
         ax.fill_between(group['Year'], group['ci_lower'], group['ci_upper'], color=colors[scenario], alpha=0.2)
 
-    ax.set_ylabel(metric, fontsize=30)
+    ax.set_ylabel(metric_label[i], fontsize=30)
     ax.grid(alpha=0.3)
     for spine in ax.spines.values():
         spine.set_visible(False)
@@ -170,5 +167,5 @@ plt.tight_layout(rect=[0, 0.05, 1, 1])
 
 # Save the figure
 DirectoryPlots = Path("../../figs/a5_plots_test/cc_vs_no_cc")
-plt.savefig(DirectoryPlots / 'a_species_comm_resp_v2.pdf')
+plt.savefig(DirectoryPlots / 'a_species_comm_resp_v3.pdf')
 
