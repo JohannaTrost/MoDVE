@@ -457,3 +457,96 @@ ggplot(range_diff, aes(x = Diff_LightNicheFill, y = AvgDiff)) +
     legend.position = "none"
   )
 dev.off()
+
+
+############################ Compare range sizes ############################
+
+# --- Compute range sizes
+
+range_sizes <- species_env_niches_c %>%
+  mutate(TempRealizedSize = MaxTempCond - MinTempCond,
+         HumRealizedSize = MaxHumCond - MinHumCond,
+         LightRealizedSize = MaxLightCond - MinLightCond,
+         TempRangeSize = MaxPotTemp - MinPotTemp,
+         HumRangeSize = MaxPotHum - MinPotHum,
+         LightRangeSize = MaxPotLight - MinPotLight,
+         TempNicheSize = MaxTemp - MinTemp,
+         HumNicheSize = MaxHum - MinHum,
+         LightNicheSize = MaxLight - MinLight) %>%
+  select(Scenario, SpeciesPool, SpeciesID, TempRealizedSize, HumRealizedSize, LightRealizedSize, TempRangeSize, HumRangeSize, LightRangeSize,
+         TempNicheSize, HumNicheSize, LightNicheSize) %>%
+  pivot_longer(
+    cols = c(TempRealizedSize, HumRealizedSize, LightRealizedSize, TempRangeSize, HumRangeSize, LightRangeSize,
+             TempNicheSize, HumNicheSize, LightNicheSize),
+    names_to = "Variable",
+    values_to = "Size"
+  ) %>%
+  mutate(
+    Variable = recode(Variable,
+                      TempRealizedSize = "Temperature realized range",
+                      HumRealizedSize = "Relative humidity realized range",
+                      LightRealizedSize = "Light realized range",
+                      TempRangeSize = "Temperature range",
+                      HumRangeSize = "Relative humidity range",
+                      LightRangeSize = "Light range",
+                      TempNicheSize = "Temperature niche",
+                      HumNicheSize = "Relative humidity niche",
+                      LightNicheSize = "Light niche"
+    )
+  )
+
+# - Plot
+
+# Define colors for scenarios
+colors <- c('CC' = '#f7766e', 'No CC' = '#004aad')
+
+# Create the boxplot
+pLight <- ggplot(range_sizes %>% filter(grepl('Light', Variable)),
+                 aes(x = Variable, y = Size, fill = Scenario)) +
+  geom_boxplot(outlier.shape = 21, outlier.alpha = 0.5, notch = TRUE) +
+  scale_fill_manual(values = colors) +
+  labs(
+    x = "",
+    y = "Light range size",
+    fill = "Scenario"
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 15),
+    legend.position = "none"
+  )
+
+pTemp <- ggplot(range_sizes %>% filter(grepl('Temp', Variable)),
+                 aes(x = Variable, y = Size, fill = Scenario)) +
+  geom_boxplot(outlier.shape = 21, outlier.alpha = 0.5, notch = TRUE) +
+  scale_fill_manual(values = colors) +
+  labs(
+    x = "",
+    y = "Temperature range size",
+    fill = "Scenario"
+  )
+
+pHum <- ggplot(range_sizes %>% filter(grepl('Relative', Variable)),
+                 aes(x = Variable, y = Size, fill = Scenario)) +
+  geom_boxplot(outlier.shape = 21, outlier.alpha = 0.5, notch = TRUE) +
+  scale_fill_manual(values = colors) +
+  labs(
+    x = "",
+    y = "Relative humidity range size",
+    fill = "Scenario"
+  )
+
+output_file3 <- file.path(DirectoryPlots, "boxplot_range_niche_realized_sizes_v2.pdf")
+pdf(output_file3, width = 7, height = 6)
+combined_plot <-
+  (pTemp + pHum + pLight) +
+  plot_layout(ncol = 1) &
+  theme(
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    legend.key.width = unit(1.5, "cm")
+  )
+
+print(combined_plot)
+
+dev.off()
