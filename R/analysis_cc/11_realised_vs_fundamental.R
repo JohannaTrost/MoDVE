@@ -4,16 +4,48 @@ library(tidyr)
 library(ggplot2)
 library(tidyverse)
 library(patchwork) # for combining plots
+library(purrr)
+
+# Define a function to compute results for a single species
+compute_suitability <- function(mc, substrate_area, currSpeciesTraits, i) {
+  minL <- currSpeciesTraits[i,]$MinLightScaled
+  maxL <- currSpeciesTraits[i,]$MaxLightScaled
+  minH <- currSpeciesTraits[i,]$MinHum
+  maxH <- currSpeciesTraits[i,]$MaxHum
+  minT <- currSpeciesTraits[i,]$MinTemp
+  maxT <- currSpeciesTraits[i,]$MaxTemp
+  MeanAreaOccupied <- currSpeciesTraits[i,]$MeanAreaOccupied
+
+  lightMask <- mc[,,, 1] >= minL & mc[,,, 1] <= maxL
+  humMask <- mc[,,, 2] >= minH & mc[,,, 2] <= maxH
+  tempMask <- mc[,,, 3] >= minT & mc[,,, 3] <= maxT
+  areaMask <- substrate_area >= MeanAreaOccupied
+
+  suitableMask <- (lightMask & humMask & tempMask & areaMask)
+
+  suitableHeights <- apply(suitableMask, 3, sum)
+  suitableHeights[is.na(suitableHeights)] <- 0
+
+  list(
+    nSuitableHeights = sum(suitableHeights != 0),
+    nSuitableVoxels = sum(suitableMask, na.rm = TRUE),
+    nSuitableLight = sum(lightMask, na.rm = TRUE),
+    nSuitableHum = sum(humMask, na.rm = TRUE),
+    nSuitableTemp = sum(tempMask, na.rm = TRUE),
+    nSuitableArea = sum(areaMask, na.rm = TRUE)
+  )
+}
 
 base_dir <- file.path("/Users/johanna/Uni/masterarbeit/data/modve_output/regua")
 
 species_distr <- read_csv(file.path(base_dir, "a5_species_distribution_cc_vs_no_cc.csv"))
 
+SurfaceBiomassScaling <- 100 # cm^2 per m^2
+
 # Get stats
 species_distr_stats <- species_distr %>%
   group_by(Scenario, SpeciesPool, SpeciesID, ForestID, TimeStep, Year) %>%
   summarize(Position = mean(Height, na.rm = TRUE),
-            Mass = mean(Mass, na.rm = TRUE),
             IQR = IQR(Height, na.rm = TRUE),
             Range = max(Height, na.rm = TRUE) - min(Height, na.rm = TRUE),
             .groups = "drop") %>%
@@ -40,6 +72,22 @@ summary_shift <- species_distr_stats %>%
   filter(last_year_alive >= 2050) %>%
   mutate(Shift = ifelse(diff > 0, "Upward", "Downward"))
 
+# ---- Get the theoretical niche specifications
+
+niches <- NULL
+for (sp in 1:10) {
+  sp_niches <- read_csv(file.path(base_dir, "a2_1", paste0("SpeciesPool", sp, ".csv")),
+                        show_col_types = FALSE) %>%
+    dplyr::select(-LightResponseA, -LightResponseB, -LightResponseC, -MinWind, -MaxWind, -OptimumWind,
+           -DispersalKernelWindEffect) %>%
+    mutate(SpeciesPool = sp)
+
+  if (is.null(niches)) {
+    niches <- sp_niches
+  } else {
+    niches <- rbind(niches, sp_niches)
+  }
+}
 
 # ---- Extract env. conditions
 
@@ -48,17 +96,35 @@ filtered_species_distr <- summary_shift %>%
   select(SpeciesPool, SpeciesID, last_year_alive, Shift, diff) %>%
   right_join(species_distr, ., by = c("SpeciesPool", "SpeciesID")) %>%
   filter(Year <= last_year_alive & Year >= last_year_alive - 20) %>%
-  drop_na(.) # Drop all species that only survived in the sim. with community
+  mutate(AreaOccupied = (Mass^(2/3)) / SurfaceBiomassScaling) # Area needed for individual
+
+# Get species traits including FN for potential voxel counting below
+species_traits <- filtered_species_distr %>%
+  select(SpeciesID, SpeciesPool, AreaOccupied) %>%
+  group_by(SpeciesID, SpeciesPool) %>%
+  summarize(MinAreaOccupied = min(AreaOccupied, na.rm = TRUE),
+            MaxAreaOccupied = max(AreaOccupied, na.rm = TRUE),
+            MeanAreaOccupied = mean(AreaOccupied, na.rm = TRUE)
+  ) %>%
+  ungroup(.) %>%
+  left_join(niches, ., by = c("SpeciesPool", "SpeciesID")) %>%
+  mutate(MinLightScaled = MinLight / 900,
+         MaxLightScaled = MaxLight / 900)
 
 # - 2. Loop over years and extract MC matrices and env. conditions
 scenario_dir <- list("CC" = "climdata_era5_cmip6_1981-2100_ssp245",
                      "No CC" = "climdata_era5_cmip6_1981-2100_ssp245_no_cc")
 species_env <- NA
+RealizedPotentialSpace <- NA
 for (scenario in c("CC", "No CC")) {
+  print(scenario)
   for (forest in 0:2) {
+    print(forest)
     species_forest <- filtered_species_distr %>% filter(ForestID == forest, Scenario == scenario)
 
     for (ts in sort(unique(species_forest$TimeStep))) {
+      print(ts)
+      print("------")
       species_locations <- species_forest %>% filter(TimeStep == ts)
 
       # Load mC matrix
@@ -68,10 +134,10 @@ for (scenario in c("CC", "No CC")) {
       substrate_area <- mh[,,, 1] # Get substrate area
 
       # For each individual, get the max non-zero value in substrate_area[X, Y, ]
-      species_locations$VegetationHeight <- mapply(function(x, y) {
+      species_locations$VegetationHeight <- mapply(function(x, y, areaNeeded) {
           layer_values <- substrate_area[x, y, ]
-          max_non_zero <- max(which(layer_values != 0))
-        }, species_locations$X, species_locations$Y)
+          max_non_zero <- max(which(layer_values >= areaNeeded))
+        }, species_locations$X, species_locations$Y, species_locations$AreaOccupied)
 
       # Get the env conditions at the species position
       species_locations[, c("Light", "Hum", "Temp")] <- t(mapply(function(x, y, z) {
@@ -103,35 +169,110 @@ for (scenario in c("CC", "No CC")) {
       # Specifiy scenario
       species_locations$Scenario <- scenario
 
+      # -- Get the number of occupied Voxels per species
+      occupiedSpace <- species_locations %>%
+        group_by(SpeciesPool, SpeciesID) %>%
+        summarize(nOccupiedVoxels = n_distinct(X, Y, Z),
+                  nOccupiedHeights = n_distinct(Z),
+                  .groups = "drop")
+
+      # -- Get the number of suitable voxels per species
+      currSpeciesTraits <- species_traits %>%
+        semi_join(species_locations, by = c("SpeciesID", "SpeciesPool")) %>%
+        distinct(SpeciesID, SpeciesPool, .keep_all = TRUE)
+
+      for (i in seq_len(nrow(currSpeciesTraits))) {
+        # Compute number of suitable heights/voxels
+        result <- compute_suitability(
+          mc, substrate_area, currSpeciesTraits, i
+        )
+
+        currSpeciesTraits[i, "nSuitableHeights"] <- result$nSuitableHeights
+        currSpeciesTraits[i, "nSuitableVoxels"] <- result$nSuitableVoxels
+        currSpeciesTraits[i, "nSuitableLight"] <- result$nSuitableLight
+        currSpeciesTraits[i, "nSuitableHum"] <- result$nSuitableHum
+        currSpeciesTraits[i, "nSuitableTemp"] <- result$nSuitableTemp
+        currSpeciesTraits[i, "nSuitableArea"] <- result$nSuitableArea
+      }
+
+      # Merge the two and add all meta info
+      currRealizedPotentialSpace <- currSpeciesTraits %>%
+        select(nSuitableHeights, nSuitableVoxels, nSuitableLight, nSuitableHum, nSuitableTemp, nSuitableArea, SpeciesID,
+               SpeciesPool) %>%
+        left_join(occupiedSpace, ., by = c("SpeciesID", "SpeciesPool")) %>%
+        mutate(TimeStep = ts, Forest = forest, Scenario = scenario)
+
       if (all(is.na(species_env))) {
         species_env <- species_locations
+        RealizedPotentialSpace <- currRealizedPotentialSpace
       } else {
         species_env <- rbind(species_locations, species_env)
+        RealizedPotentialSpace <- rbind(currRealizedPotentialSpace, RealizedPotentialSpace)
       }
     }
   }
 }
 
-# Now get the theoretical niche specifications
-niches <- NULL
-for (sp in 1:10) {
-  sp_niches <- read_csv(file.path(base_dir, "a2_1", paste0("SpeciesPool", sp, ".csv")),
-                        show_col_types = FALSE) %>%
-    dplyr::select(-LightResponseA, -LightResponseB, -LightResponseC, -MinWind, -MaxWind, -OptimumWind,
-           -DispersalKernelWindEffect) %>%
-    mutate(SpeciesPool = sp)
+#indiv_env_niches <- left_join(species_env, niches, by = c("SpeciesID", "SpeciesPool"))
+#write_csv(indiv_env_niches, file.path(DirectoryPlots, "a5_individuals_cc_vs_no_cc_niches_envCond_shift_v2.csv"))
 
-  if (is.null(niches)) {
-    niches <- sp_niches
-  } else {
-    niches <- rbind(niches, sp_niches)
-  }
-}
+# -- Summarize suitable/occupied voxels/heights as potential geographical range filling
+GeoPotRangeFilling <- RealizedPotentialSpace %>%
+  group_by(Scenario, SpeciesPool, SpeciesID) %>%
+  summarize(
+    GeoPotAreaRangeFilling = (sum(nOccupiedVoxels, na.rm = TRUE) / sum(nSuitableArea, na.rm = TRUE)) * 100,
+    GeoPotTempRangeFilling = (sum(nOccupiedVoxels, na.rm = TRUE) / sum(nSuitableTemp, na.rm = TRUE)) * 100,
+    GeoPotHumRangeFilling = (sum(nOccupiedVoxels, na.rm = TRUE) / sum(nSuitableHum, na.rm = TRUE)) * 100,
+    GeoPotLightRangeFilling = (sum(nOccupiedVoxels, na.rm = TRUE) / sum(nSuitableLight, na.rm = TRUE)) * 100,
+    GeoPotRangeFilling = (sum(nOccupiedVoxels, na.rm = TRUE) / sum(nSuitableVoxels, na.rm = TRUE)) * 100,
+    VerticalPotRangeFilling = (sum(nOccupiedHeights, na.rm = TRUE) / sum(nSuitableHeights, na.rm = TRUE)) * 100
+  ) %>%
+  ungroup(.)
 
-indiv_env_niches <- left_join(species_env, niches, by = c("SpeciesID", "SpeciesPool"))
-write_csv(indiv_env_niches, file.path(DirectoryPlots, "a5_individuals_cc_vs_no_cc_niches_envCond_shift_v2.csv"))
+# Test plot
+DirectoryPlots <- file.path("../../figs/a5_plots_test/cc_vs_no_cc")
+colors <- c('CC' = '#f7766e', 'No CC' = '#004aad')
+output_file2 <- file.path(DirectoryPlots, "boxplot_geo_range_filling_v3.pdf")
 
-# Species env. conditions in simulation with community
+geoPlt <- ggplot(GeoPotRangeFilling, aes(x = Scenario, y = GeoPotRangeFilling, fill = Scenario)) +
+  geom_boxplot(outlier.shape = 21, outlier.alpha = 0.5, notch = TRUE) +
+  scale_fill_manual(values = colors) +
+  labs(
+    x = "",
+    y = "(Geo)Range filling (%)",
+    fill = "Scenario"
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 15),
+    legend.position = "none"
+  )
+vertPlt <- ggplot(GeoPotRangeFilling, aes(x = Scenario, y = VerticalPotRangeFilling, fill = Scenario)) +
+  geom_boxplot(outlier.shape = 21, outlier.alpha = 0.5, notch = TRUE) +
+  scale_fill_manual(values = colors) +
+  labs(
+    x = "",
+    y = "(Vertical) Range filling (%)",
+    fill = "Scenario"
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 15),
+    legend.position = "none"
+  )
+
+pdf(output_file2, width = 7, height = 6)
+(geoPlt + vertPlt) +
+plot_layout(ncol = 1) &
+theme(
+  legend.position = "bottom",
+  legend.direction = "horizontal",
+  legend.key.width = unit(1.5, "cm")
+)
+dev.off()
+
+
+# -- Summarize env. conditions and potential conditions
 species_env_agg <- species_env %>%
   group_by(Scenario, SpeciesPool, SpeciesID, Shift) %>%
   summarize(AvgTempCond = mean(Temp, na.rm = TRUE),
@@ -154,8 +295,9 @@ species_env_agg <- species_env %>%
             AvgHeight = mean(VegetationHeight, na.rm = TRUE),
             .groups = "drop")
 
-# Merge realized and fundamental niches
-species_env_niches <- left_join(species_env_agg, niches, by = c("SpeciesID", "SpeciesPool"))
+# Merge realized and fundamental niches and geographical range filling
+species_env_niches <- left_join(species_env_agg, niches, by = c("SpeciesID", "SpeciesPool")) %>%
+  left_join(., GeoPotRangeFilling, by = c("Scenario", "SpeciesID", "SpeciesPool"))
 
 # ---- Plot realised vs theoretical niches
 
@@ -281,41 +423,45 @@ species_env_niches_c <- species_env_niches %>% # Constrain potential limits with
 # --- Compute range filling
 
 range_filling <- species_env_niches_c %>%
-  mutate(TempNicheFill = ((MaxTempCond - MinTempCond) / (MaxTemp - MinTemp)) * 100,
-         HumNicheFill = ((MaxHumCond - MinHumCond) / (MaxHum - MinHum)) * 100,
-         LightNicheFill = ((MaxLightCond - MinLightCond) / (MaxLight - MinLight)) * 100,
-         TempRangeFill = ((MaxTempCond - MinTempCond) / (MaxPotTemp - MinPotTemp)) * 100,
-         HumRangeFill = ((MaxHumCond - MinHumCond) / (MaxPotHum - MinPotHum)) * 100,
-         LightRangeFill = ((MaxLightCond - MinLightCond) / (MaxPotLight - MinPotLight)) * 100)
+  mutate(TempFNFill = ((MaxTempCond - MinTempCond) / (MaxTemp - MinTemp)) * 100,
+         HumFNFill = ((MaxHumCond - MinHumCond) / (MaxHum - MinHum)) * 100,
+         LightFNFill = ((MaxLightCond - MinLightCond) / (MaxLight - MinLight)) * 100,
+         #CombFNFill = (TempFNFill * HumFNFill * LightFNFill) / 10000,
+         TempPNFill = ((MaxTempCond - MinTempCond) / (MaxPotTemp - MinPotTemp)) * 100,
+         HumPNFill = ((MaxHumCond - MinHumCond) / (MaxPotHum - MinPotHum)) * 100,
+         LightPNFill = ((MaxLightCond - MinLightCond) / (MaxPotLight - MinPotLight)) * 100,
+
+  )
 
 # - Plot niche filling
 
 # Reshape data to long format for ggplot
 range_filling_long <- range_filling %>%
-  select(Scenario, TempNicheFill, HumNicheFill, LightNicheFill, TempRangeFill, HumRangeFill, LightRangeFill) %>%
+  select(Scenario, TempFNFill, HumFNFill, LightFNFill, TempPNFill, HumPNFill, LightPNFill) %>%
   pivot_longer(
-    cols = c(TempNicheFill, HumNicheFill, LightNicheFill, TempRangeFill, HumRangeFill, LightRangeFill),
+    cols = c(TempFNFill, HumFNFill, LightFNFill, TempPNFill, HumPNFill, LightPNFill),
     names_to = "Variable",
     values_to = "Fill"
   ) %>%
   mutate(
     Variable = recode(Variable,
-                      TempNicheFill = "Temperature niche fill",
-                      HumNicheFill = "Relative humidity niche fill",
-                      LightNicheFill = "Light niche fill",
-                      TempRangeFill = "Temperature range fill",
-                      HumRangeFill = "Relative humidity range fill",
-                      LightRangeFill = "Light range fill",
+                      TempFNFill = "Temperature niche fill",
+                      HumFNFill = "Relative humidity niche fill",
+                      LightFNFill = "Light niche fill",
+                      TempPNFill = "Temperature range fill",
+                      HumPNFill = "Relative humidity range fill",
+                      LightPNFill = "Light range fill",
     )
   )
 
-write_csv(range_filling_long, file.path(base_dir, "a5_niche_range_filling_cc_vs_no_cc_v2.csv"))
+#write_csv(range_filling_long, file.path(base_dir, "a5_niche_range_filling_cc_vs_no_cc_v2.csv"))
 
 # Define colors for scenarios
 colors <- c('CC' = '#f7766e', 'No CC' = '#004aad')
 
 # Create the boxplot
-output_file2 <- file.path(DirectoryPlots, "boxplot_niche_filling.pdf")
+DirectoryPlots <- file.path("../../figs/a5_plots_test/cc_vs_no_cc/position_shift")
+output_file2 <- file.path(DirectoryPlots, "boxplot_niche_filling_v2.pdf")
 pdf(output_file2, width = 7, height = 6)
 ggplot(range_filling_long, aes(x = Variable, y = Fill, fill = Scenario)) +
   geom_boxplot(outlier.shape = 21, outlier.alpha = 0.5, notch = TRUE) +
@@ -336,17 +482,17 @@ dev.off()
 
 # Reshape data to long format for ggplot
 range_filling_long <- range_filling %>%
-  select(Scenario, TempRangeFill, HumRangeFill, LightRangeFill) %>%
+  select(Scenario, TempPNFill, HumPNFill, LightPNFill) %>%
   pivot_longer(
-    cols = c(TempRangeFill, HumRangeFill, LightRangeFill),
+    cols = c(TempPNFill, HumPNFill, LightPNFill),
     names_to = "Variable",
-    values_to = "RangeFill"
+    values_to = "PNFill"
   ) %>%
   mutate(
     Variable = recode(Variable,
-                      TempRangeFill = "Temperature",
-                      HumRangeFill = "Relative humidity",
-                      LightRangeFill = "Light")
+                      TempPNFill = "Temperature",
+                      HumPNFill = "Relative humidity",
+                      LightPNFill = "Light")
   )
 
 # Define colors for scenarios
@@ -355,7 +501,7 @@ colors <- c('CC' = '#f7766e', 'No CC' = '#004aad')
 # Create the boxplot
 output_file2 <- file.path(DirectoryPlots, "boxplot_range_filling.pdf")
 pdf(output_file2, width = 7, height = 6)
-ggplot(range_filling_long, aes(x = Variable, y = RangeFill, fill = Scenario)) +
+ggplot(range_filling_long, aes(x = Variable, y = PNFill, fill = Scenario)) +
   geom_boxplot(outlier.shape = 21, outlier.alpha = 0.5, notch = TRUE) +
   scale_fill_manual(values = colors) +
   labs(
@@ -375,28 +521,28 @@ dev.off()
 # - Niche filling difference vs. shift
 
 range_diff <- range_filling %>%
-  select(SpeciesID, SpeciesPool, Scenario, AvgDiff, TempNicheFill, TempRangeFill,
-         HumNicheFill, HumRangeFill, LightNicheFill, LightRangeFill, MaxTemp, MaxHum, MinLight) %>%
+  select(SpeciesID, SpeciesPool, Scenario, AvgDiff, TempFNFill, TempPNFill,
+         HumFNFill, HumPNFill, LightFNFill, LightPNFill, MaxTemp, MaxHum, MinLight) %>%
   pivot_wider(
     names_from = Scenario,
-    values_from = c(TempNicheFill, TempRangeFill, HumNicheFill, HumRangeFill, LightNicheFill,
-                    LightRangeFill, MaxTemp, MaxHum, MinLight),
+    values_from = c(TempFNFill, TempPNFill, HumFNFill, HumPNFill, LightFNFill,
+                    LightPNFill, MaxTemp, MaxHum, MinLight),
     names_sep = "_"
   ) %>%
   mutate(
     # Compute differences (CC - NoCC)
-    Diff_TempNicheFill = TempNicheFill_CC - `TempNicheFill_No CC`,
-    Diff_TempRangeFill = TempRangeFill_CC - `TempRangeFill_No CC`,
-    Diff_HumNicheFill = HumNicheFill_CC - `HumNicheFill_No CC`,
-    Diff_HumRangeFill = HumRangeFill_CC - `HumRangeFill_No CC`,
-    Diff_LightNicheFill = LightNicheFill_CC - `LightNicheFill_No CC`,
-    Diff_LightRangeFill = LightRangeFill_CC - `LightRangeFill_No CC`,
+    Diff_TempFNFill = TempFNFill_CC - `TempFNFill_No CC`,
+    Diff_TempPNFill = TempPNFill_CC - `TempPNFill_No CC`,
+    Diff_HumFNFill = HumFNFill_CC - `HumFNFill_No CC`,
+    Diff_HumPNFill = HumPNFill_CC - `HumPNFill_No CC`,
+    Diff_LightFNFill = LightFNFill_CC - `LightFNFill_No CC`,
+    Diff_LightPNFill = LightPNFill_CC - `LightPNFill_No CC`,
   )
 
 # Compute correlartions
-cor.test(range_diff$Diff_TempNicheFill, range_diff$AvgDiff, use = "complete.obs")
-cor.test(range_diff$Diff_HumNicheFill, range_diff$AvgDiff, use = "complete.obs")
-cor.test(range_diff$Diff_LightNicheFill, range_diff$AvgDiff, use = "complete.obs")
+cor.test(range_diff$Diff_TempFNFill, range_diff$AvgDiff, use = "complete.obs")
+cor.test(range_diff$Diff_HumFNFill, range_diff$AvgDiff, use = "complete.obs")
+cor.test(range_diff$Diff_LightFNFill, range_diff$AvgDiff, use = "complete.obs")
 
 cor.test(range_diff$MaxTemp_CC, range_diff$AvgDiff, use = "complete.obs")
 
@@ -404,7 +550,7 @@ cor.test(range_diff$MaxTemp_CC, range_diff$AvgDiff, use = "complete.obs")
 output_file2 <- file.path(DirectoryPlots, "scatter_shift_vs_niche_fill_diff_temp.pdf")
 
 pdf(output_file2, width = 7, height = 6)
-ggplot(range_diff, aes(x = Diff_TempNicheFill, y = AvgDiff)) +
+ggplot(range_diff, aes(x = Diff_TempFNFill, y = AvgDiff)) +
   geom_point(size = 2, alpha = 0.7, color = "#004aad") +
   geom_hline(yintercept = 0, linetype = "dotted") +
   geom_vline(xintercept = 0, linetype = "dotted") +
@@ -423,7 +569,7 @@ dev.off()
 output_file2 <- file.path(DirectoryPlots, "scatter_shift_vs_niche_fill_diff_hum.pdf")
 
 pdf(output_file2, width = 7, height = 6)
-ggplot(range_diff, aes(x = Diff_HumNicheFill, y = AvgDiff)) +
+ggplot(range_diff, aes(x = Diff_HumFNFill, y = AvgDiff)) +
   geom_point(size = 2, alpha = 0.7, color = "#004aad") +
   geom_hline(yintercept = 0, linetype = "dotted") +
   geom_vline(xintercept = 0, linetype = "dotted") +
@@ -442,7 +588,7 @@ dev.off()
 output_file2 <- file.path(DirectoryPlots, "scatter_shift_vs_niche_fill_diff_light.pdf")
 
 pdf(output_file2, width = 7, height = 6)
-ggplot(range_diff, aes(x = Diff_LightNicheFill, y = AvgDiff)) +
+ggplot(range_diff, aes(x = Diff_LightFNFill, y = AvgDiff)) +
   geom_point(size = 2, alpha = 0.7, color = "#004aad") +
   geom_hline(yintercept = 0, linetype = "dotted") +
   geom_vline(xintercept = 0, linetype = "dotted") +
