@@ -25,6 +25,7 @@ compute_suitability <- function(mc, substrate_area, currSpeciesTraits, i) {
 
   suitableHeights <- apply(suitableMask, 3, sum)
   suitableHeights[is.na(suitableHeights)] <- 0
+  suitableColumns <- apply(suitableMask, c(1,2), any)  # TRUE if ANY height suitable at (X,Y)
 
   list(
     nSuitableHeights = sum(suitableHeights != 0),
@@ -32,7 +33,8 @@ compute_suitability <- function(mc, substrate_area, currSpeciesTraits, i) {
     nSuitableLight = sum(lightMask, na.rm = TRUE),
     nSuitableHum = sum(humMask, na.rm = TRUE),
     nSuitableTemp = sum(tempMask, na.rm = TRUE),
-    nSuitableArea = sum(areaMask, na.rm = TRUE)
+    nSuitableArea = sum(areaMask, na.rm = TRUE),
+    nSuitableColumns = sum(suitableColumns, na.rm = TRUE)
   )
 }
 
@@ -174,6 +176,7 @@ for (scenario in c("CC", "No CC")) {
         group_by(SpeciesPool, SpeciesID) %>%
         summarize(nOccupiedVoxels = n_distinct(X, Y, Z),
                   nOccupiedHeights = n_distinct(Z),
+                  nOccupiedColumns = n_distinct(X, Y),
                   .groups = "drop")
 
       # -- Get the number of suitable voxels per species
@@ -193,12 +196,13 @@ for (scenario in c("CC", "No CC")) {
         currSpeciesTraits[i, "nSuitableHum"] <- result$nSuitableHum
         currSpeciesTraits[i, "nSuitableTemp"] <- result$nSuitableTemp
         currSpeciesTraits[i, "nSuitableArea"] <- result$nSuitableArea
+        currSpeciesTraits[i, "nSuitableColumns"] <- result$nSuitableColumns
       }
 
       # Merge the two and add all meta info
       currRealizedPotentialSpace <- currSpeciesTraits %>%
-        select(nSuitableHeights, nSuitableVoxels, nSuitableLight, nSuitableHum, nSuitableTemp, nSuitableArea, SpeciesID,
-               SpeciesPool) %>%
+        select(nSuitableColumns, nSuitableHeights, nSuitableVoxels, nSuitableLight, nSuitableHum, nSuitableTemp,
+               nSuitableArea, SpeciesID, SpeciesPool) %>%
         left_join(occupiedSpace, ., by = c("SpeciesID", "SpeciesPool")) %>%
         mutate(TimeStep = ts, Forest = forest, Scenario = scenario)
 
@@ -214,20 +218,23 @@ for (scenario in c("CC", "No CC")) {
 }
 
 #indiv_env_niches <- left_join(species_env, niches, by = c("SpeciesID", "SpeciesPool"))
-#write_csv(indiv_env_niches, file.path(DirectoryPlots, "a5_individuals_cc_vs_no_cc_niches_envCond_shift_v2.csv"))
+#write_csv(indiv_env_niches, file.path(DirectoryPlots, "a5_individuals_cc_vs_no_cc_niches_envCond_shift_v3.csv"))
 
 # -- Summarize suitable/occupied voxels/heights as potential geographical range filling
 GeoPotRangeFilling <- RealizedPotentialSpace %>%
   group_by(Scenario, SpeciesPool, SpeciesID) %>%
   summarize(
-    GeoPotAreaRangeFilling = (sum(nOccupiedVoxels, na.rm = TRUE) / sum(nSuitableArea, na.rm = TRUE)) * 100,
-    GeoPotTempRangeFilling = (sum(nOccupiedVoxels, na.rm = TRUE) / sum(nSuitableTemp, na.rm = TRUE)) * 100,
-    GeoPotHumRangeFilling = (sum(nOccupiedVoxels, na.rm = TRUE) / sum(nSuitableHum, na.rm = TRUE)) * 100,
-    GeoPotLightRangeFilling = (sum(nOccupiedVoxels, na.rm = TRUE) / sum(nSuitableLight, na.rm = TRUE)) * 100,
-    GeoPotRangeFilling = (sum(nOccupiedVoxels, na.rm = TRUE) / sum(nSuitableVoxels, na.rm = TRUE)) * 100,
-    VerticalPotRangeFilling = (sum(nOccupiedHeights, na.rm = TRUE) / sum(nSuitableHeights, na.rm = TRUE)) * 100
+    GeoPotAreaRangeFill = (sum(nOccupiedVoxels, na.rm = TRUE) / sum(nSuitableArea, na.rm = TRUE)) * 100,
+    GeoPotTempRangeFill = (sum(nOccupiedVoxels, na.rm = TRUE) / sum(nSuitableTemp, na.rm = TRUE)) * 100,
+    GeoPotHumRangeFill = (sum(nOccupiedVoxels, na.rm = TRUE) / sum(nSuitableHum, na.rm = TRUE)) * 100,
+    GeoPotLightRangeFill = (sum(nOccupiedVoxels, na.rm = TRUE) / sum(nSuitableLight, na.rm = TRUE)) * 100,
+    GeoPotRangeFill = (sum(nOccupiedVoxels, na.rm = TRUE) / sum(nSuitableVoxels, na.rm = TRUE)) * 100,
+    VerticalPotRangeFill = (sum(nOccupiedHeights, na.rm = TRUE) / sum(nSuitableHeights, na.rm = TRUE)) * 100,
+    Geo2DRangeFill  = (sum(nOccupiedColumns) / sum(nSuitableColumns)) * 100,
   ) %>%
   ungroup(.)
+
+#write_csv(GeoPotRangeFilling, file.path(DirectoryPlots, "a5_cc_vs_no_cc_geo_pot_range_fillings_v1.csv"))
 
 # Test plot
 DirectoryPlots <- file.path("../../figs/a5_plots_test/cc_vs_no_cc")
@@ -296,8 +303,7 @@ species_env_agg <- species_env %>%
             .groups = "drop")
 
 # Merge realized and fundamental niches and geographical range filling
-species_env_niches <- left_join(species_env_agg, niches, by = c("SpeciesID", "SpeciesPool")) %>%
-  left_join(., GeoPotRangeFilling, by = c("Scenario", "SpeciesID", "SpeciesPool"))
+species_env_niches <- left_join(species_env_agg, niches, by = c("SpeciesID", "SpeciesPool"))
 
 # ---- Plot realised vs theoretical niches
 
@@ -420,41 +426,55 @@ species_env_niches_c <- species_env_niches %>% # Constrain potential limits with
     MinPotLight = pmax(MinPotLight, MinLight),
   )
 
-# --- Compute range filling
+# --- Compute niche filling and range size
 
 range_filling <- species_env_niches_c %>%
   mutate(TempFNFill = ((MaxTempCond - MinTempCond) / (MaxTemp - MinTemp)) * 100,
          HumFNFill = ((MaxHumCond - MinHumCond) / (MaxHum - MinHum)) * 100,
          LightFNFill = ((MaxLightCond - MinLightCond) / (MaxLight - MinLight)) * 100,
          #CombFNFill = (TempFNFill * HumFNFill * LightFNFill) / 10000,
-         TempPNFill = ((MaxTempCond - MinTempCond) / (MaxPotTemp - MinPotTemp)) * 100,
-         HumPNFill = ((MaxHumCond - MinHumCond) / (MaxPotHum - MinPotHum)) * 100,
-         LightPNFill = ((MaxLightCond - MinLightCond) / (MaxPotLight - MinPotLight)) * 100,
-
+         TempPNSize = MaxPotTemp - MinPotTemp,
+         HumPNSize = MaxPotHum - MinPotHum,
+         LightPNSize = MaxPotLight - MinPotLight,
+         TempPNFill = ((MaxTempCond - MinTempCond) / TempPNSize) * 100,
+         HumPNFill = ((MaxHumCond - MinHumCond) / HumPNSize) * 100,
+         LightPNFill = ((MaxLightCond - MinLightCond) / LightPNSize) * 100,
   )
+
+# Merge with geographical range filling table
+niche_range_filling <- inner_join(range_filling, GeoPotRangeFilling,
+                                            by = c("Scenario", "SpeciesPool", "SpeciesID"))
 
 # - Plot niche filling
 
 # Reshape data to long format for ggplot
-range_filling_long <- range_filling %>%
-  select(Scenario, TempFNFill, HumFNFill, LightFNFill, TempPNFill, HumPNFill, LightPNFill) %>%
+range_filling_long <- niche_range_filling %>%
+  select(Scenario, TempFNFill, HumFNFill, LightFNFill, TempPNFill, HumPNFill, LightPNFill, GeoPotRangeFill,
+         Geo2DRangeFill, VerticalPotRangeFill, ends_with("Size")) %>%
   pivot_longer(
-    cols = c(TempFNFill, HumFNFill, LightFNFill, TempPNFill, HumPNFill, LightPNFill),
+    cols = c(TempFNFill, HumFNFill, LightFNFill, TempPNFill, HumPNFill, LightPNFill, GeoPotRangeFill, Geo2DRangeFill,
+             VerticalPotRangeFill, ends_with("Size")),
     names_to = "Variable",
-    values_to = "Fill"
+    values_to = "Value"
   ) %>%
   mutate(
     Variable = recode(Variable,
-                      TempFNFill = "Temperature niche fill",
-                      HumFNFill = "Relative humidity niche fill",
-                      LightFNFill = "Light niche fill",
-                      TempPNFill = "Temperature range fill",
-                      HumPNFill = "Relative humidity range fill",
-                      LightPNFill = "Light range fill",
+                      TempFNFill = "Temperature FN filling",
+                      HumFNFill = "Relative humidity FN filling",
+                      LightFNFill = "Light FN filling",
+                      TempPNFill = "Temperature PN filling",
+                      HumPNFill = "Relative humidity PN filling",
+                      LightPNFill = "Light PN filling",
+                      TempPNSize = "Temperature PN size",
+                      HumPNSize = "Relative humidity PN size",
+                      LightPNSize = "Light PN size",
+                      GeoPotRangeFill = "3D range filling",
+                      Geo2DRangeFill = "Horizontal range filling",
+                      VerticalPotRangeFill = "Vertical range filling"
     )
   )
 
-#write_csv(range_filling_long, file.path(base_dir, "a5_niche_range_filling_cc_vs_no_cc_v2.csv"))
+write_csv(range_filling_long, file.path(base_dir, "a5_niche_range_filling_cc_vs_no_cc_v3.csv"))
 
 # Define colors for scenarios
 colors <- c('CC' = '#f7766e', 'No CC' = '#004aad')
