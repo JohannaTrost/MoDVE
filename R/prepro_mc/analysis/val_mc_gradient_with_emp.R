@@ -64,21 +64,24 @@ load_logger_data <- function(dir_name) {
   file_path <- file.path(emp_dir, dir_name, "mc_data.xlsx")
   file_path_temp <- file.path(emp_dir, dir_name, "temp.xlsx")
 
+  temp_df <- read_excel(file_path_temp) %>%  select("Date-Time (Brazil Standard Time)", "Temperature , °C")
+  light_df <- read_excel(file_path_temp) %>%  select("Date-Time (Brazil Standard Time)", "Light , lux")
+  data <- left_join(temp_df, light_df, by = "Date-Time (Brazil Standard Time)")
+
   if (file.exists(file_path)) {
     hum_df <- read_excel(file_path) %>% select("Date-Time (Brazil Standard Time)", "RH , %")
-    temp_df <- read_excel(file_path_temp) %>%  select("Date-Time (Brazil Standard Time)", "Temperature , °C")
-
-    data <- left_join(hum_df, temp_df, by = "Date-Time (Brazil Standard Time)")
+    data <- left_join(data, hum_df, by = "Date-Time (Brazil Standard Time)")
   } else {
-    data <- read_excel(file_path_temp) %>%  select("Date-Time (Brazil Standard Time)", "Temperature , °C")
     data["RH , %"] <- NA
   }
 
   data %>%
-    select("Date-Time (Brazil Standard Time)", "Temperature , °C", "RH , %") %>%
+    select("Date-Time (Brazil Standard Time)", "Light , lux", "Temperature , °C", "RH , %") %>%
     rename(obs_time = "Date-Time (Brazil Standard Time)",
            tair = "Temperature , °C",
-           relhum = "RH , %") %>%
+           relhum = "RH , %",
+           light = "Light , lux"
+    ) %>%
     mutate(
       obs_time = force_tz(as.POSIXct(obs_time), tzone = "America/Sao_Paulo"),
       obs_time_utc = with_tz(obs_time, tzone = "UTC"),
@@ -88,6 +91,7 @@ load_logger_data <- function(dir_name) {
     summarise(
       tair = mean(tair, na.rm = TRUE),
       relhum = mean(relhum, na.rm = TRUE),
+      light = mean(light, na.rm = TRUE),
       .groups = "drop"
     ) %>%
     rename(obs_time = obs_hour_utc)
@@ -95,7 +99,7 @@ load_logger_data <- function(dir_name) {
 
 # Load macroclimate data
 macro_data <- load_logger_data(macro_dir) %>%
-  rename(tair_macro = tair, relhum_macro = relhum)
+  rename(tair_macro = tair, relhum_macro = relhum, light_macro = light)
 
 # -- Plot emp. data
 
@@ -105,6 +109,7 @@ emp_data_list <- map(emp_dirs, load_logger_data)
 # Combine all into a single tibble by full_join by time
 repl_tair <- paste0("tair_", emp_dirs[length(emp_dirs)])
 repl_relhum <- paste0("relhum_", emp_dirs[length(emp_dirs)])
+repl_light <- paste0("light_", emp_dirs[length(emp_dirs)])
 
 emp_data_combined <- emp_data_list %>%
   reduce(full_join, by = "obs_time") %>%
@@ -112,7 +117,9 @@ emp_data_combined <- emp_data_list %>%
             str_replace, "(\\.\\w)+$", paste0("_", unlist(emp_dirs))) %>%
   rename_at(vars(starts_with("relhum")),
             str_replace, "(\\.\\w)+$", paste0("_", unlist(emp_dirs))) %>%
-  rename(!!repl_tair := "tair", !!repl_relhum := "relhum")
+  rename_at(vars(starts_with("light")),
+            str_replace, "(\\.\\w)+$", paste0("_", unlist(emp_dirs))) %>%
+  rename(!!repl_tair := "tair", !!repl_relhum := "relhum", !!repl_light := "light")
 
 names(emp_data_combined)
 
@@ -120,7 +127,9 @@ names(emp_data_combined)
 emp_data_long <- emp_data_combined %>%
   pivot_longer(
     cols = c(tair_JZ1, tair_JZ2, tair_JZ3, tair_JZ4, tair_JZ5,
-             relhum_JZ1, relhum_JZ2, relhum_JZ3, relhum_JZ4, relhum_JZ5),
+             relhum_JZ1, relhum_JZ2, relhum_JZ3, relhum_JZ4, relhum_JZ5,
+             light_JZ1, light_JZ2, light_JZ3, light_JZ4, light_JZ5
+    ),
     names_to = c("variable", "height"),
     names_sep = "_",
     values_to = "value"
@@ -129,6 +138,7 @@ emp_data_long <- emp_data_combined %>%
     variable = case_when(
       variable == "tair" ~ "Temperature (°C)",
       variable == "relhum" ~ "Relative Humidity (%)",
+      variable == "light" ~ "Light (lux)",
       TRUE ~ variable
     ),
     height = case_when(
@@ -151,7 +161,8 @@ height_colors <- c(
 )
 
 # Create a single plot with faceting
-combined_plot <- ggplot(emp_data_long, aes(x = obs_time, y = value, color = height, linetype = height)) +
+combined_plot <- ggplot(emp_data_long %>% filter(variable != "Light (lux)"),
+                        aes(x = obs_time, y = value, color = height, linetype = height)) +
   geom_line(size = 1.2) +
   scale_color_manual(values = height_colors) +
   scale_linetype_manual(values = rep(1, 5)) +  # Solid lines for all
@@ -183,7 +194,7 @@ emp_data <- emp_data_long %>%
     values_from = value
   ) %>%
   # Rename columns for clarity
-  rename("tair_emp" = "Temperature (°C)", "relhum_emp" = "Relative Humidity (%)") %>%
+  rename("tair_emp" = "Temperature (°C)", "relhum_emp" = "Relative Humidity (%)", "light_emp" = "Light (lux)") %>%
   mutate(logger = sub(".*\\(([A-Za-z0-9]+)\\)", "\\1", height)) %>%
   select(-height)
 
@@ -372,7 +383,7 @@ if (optimize) {
     grndparams       = grndparams,
     lat              = lat,
     lon              = lon,
-    emp_data         = emp_data,
+    emp_data         = emp_data %>% select(-light_emp),
     macro_data       = macro_data,
     control = DEoptim.control(
       itermax      = itermax,
@@ -555,12 +566,12 @@ plot_relhum <- ggplot(joined %>% filter(height == h)) +
   )
 
 # Print plots to a pdf file
-pdf(paste0("../../figs/mc_output/mc_emp_vs_sim_mc_regua_era5_2025_", h, "m_v5.pdf"), height = 5, width = 10)
-print((plot_airt + plot_relhum) +
-  plot_layout(guides = "collect") &
-  guides(color = guide_legend(ncol = 2)) &
-  theme(legend.position = "bottom"))
-dev.off()
+#pdf(paste0("../../figs/mc_output/mc_emp_vs_sim_mc_regua_era5_2025_", h, "m_v5.pdf"), height = 5, width = 10)
+#print((plot_airt + plot_relhum) +
+#  plot_layout(guides = "collect") &
+#  guides(color = guide_legend(ncol = 2)) &
+#  theme(legend.position = "bottom"))
+#dev.off()
 
 # ------------------ Plot profile
 
@@ -649,39 +660,178 @@ grad_temp_plt_all_hours <- ggplot(gradient_facet, aes(y = height)) +
     axis.title = element_text(size = 12)
   )
 
-pdf("../../figs/mc_output/mc_emp_vs_sim_regua_gradient_all_hours_era5_v2.pdf", height = 16, width = 20)
-print(grad_temp_plt_all_hours)
-dev.off()
+#pdf("../../figs/mc_output/mc_emp_vs_sim_regua_gradient_all_hours_era5_v2.pdf", height = 16, width = 20)
+#print(grad_temp_plt_all_hours)
+#dev.off()
 
 # ---- Plot gradient for specific day
 
-day <- 26
+for (day in c(26, 27, 28)) {
+  # Filter for specific day
+  gradient_single_day <- joined %>%
+    filter(date(obs_time) == as.Date(paste0("2025-09-", day))) %>%
+    mutate(time_label = factor(paste0(sprintf("%02d", hour(obs_time)), ":00"),
+                               levels = paste0(sprintf("%02d", hour_order), ":00")))
 
-# Filter for specific day
-gradient_single_day <- joined %>%
-  filter(date(obs_time) == as.Date(paste0("2025-09-", day))) %>%
-  mutate(time_label = factor(paste0(sprintf("%02d", hour(obs_time)), ":00"),
-                             levels = paste0(sprintf("%02d", hour_order), ":00")))
+  grad_temp_plt_single_day <- ggplot(gradient_single_day, aes(y = height)) +
+    geom_path(aes(x = tair, color = "Simulated microclimate"), size = 1) +
+    geom_path(aes(x = tair_emp, color = "Measured microclimate"), size = 1) +
+    geom_path(aes(x = tair_macro, color = "Measured macroclimate"), size = 1, linetype = "dashed") +
+    geom_path(aes(x = tair_macro_sim, color = "ERA5 macroclimate"), size = 1, linetype = "dashed") +
+    scale_color_manual(
+      name = "Temperature Gradient",
+      values = c("Measured microclimate"  = "#3F826D",
+                 "Measured macroclimate"  = "#3F826D",
+                 "Simulated microclimate" = "#FAC05E",
+                 "ERA5 macroclimate"     = "#FAC05E")
+    ) +
+    facet_wrap(~ time_label, ncol = 6) +
+    labs(
+      x = "Temperature (°C)",
+      y = "Height (m)",
+      title = paste0(day, " Sep 2025")
+    ) +
+    theme_bw() +
+    theme(
+      strip.text = element_text(size = 24),
+      legend.position = "bottom",
+      panel.grid.minor = element_blank(),
+      axis.text = element_text(size = 24),
+      axis.title = element_text(size = 28),
+      plot.title = element_text(size = 28),  # Double the title size
+      legend.text = element_text(size = 24),  # Double the legend text size
+      legend.title = element_blank()  # Double the legend title size
+    )
 
-grad_temp_plt_single_day <- ggplot(gradient_single_day, aes(y = height)) +
-  geom_path(aes(x = tair, color = "Simulated microclimate"), size = 1) +
-  geom_path(aes(x = tair_emp, color = "Measured microclimate"), size = 1) +
-  geom_path(aes(x = tair_macro, color = "Measured macroclimate"), size = 1, linetype = "dashed") +
-  geom_path(aes(x = tair_macro_sim, color = "CMIP6 macroclimate"), size = 1, linetype = "dashed") +
+
+  pdf(paste0("../../figs/mc_output/mc_emp_vs_sim_regua_gradient_single_day_", day, "era5_v2.pdf"), height = 16, width = 16)
+  print(grad_temp_plt_single_day)
+  dev.off()
+}
+
+# ------------ Plot overall profile
+
+  # Get light from forest sim
+  microhab_file <- paste0("/Users/johanna/Uni/masterarbeit/data/modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/a1_2/forest", forst, "/microhabitatMatrix", ts, ".rds") # Regua
+
+  # Reduce edge effects on vertical PAI avg. by choosing 3:23
+  sim_light_plot <- readRDS(microhab_file)[,,,3] * 900
+  #paii <- pai[x, y, 1:max(vegparams$h, 0.5)]
+  sim_light <- apply(sim_light_plot[,,1:max(vegparams$h, 0.5)], c(3), mean, na.rm = TRUE)
+  joined <- data.frame(light = sim_light[ceiling(unique(joined$height))],
+                       height = unique(joined$height)) %>%
+    left_join(joined, ., by = "height")
+
+# Average over days for 3 specific points in time (8am, 12am, 6pm)
+gradient_agg_with_light <- joined %>%
+  #filter(!date(obs_time) %in% as.Date(c("2025-09-25", "2025-09-26"))) %>%
+  mutate(time = hour(obs_time)) %>%
+  group_by(height, time) %>%
+  summarize(
+    relhum_emp_mean = mean(relhum_emp, na.rm = TRUE),
+    relhum_mean = mean(relhum, na.rm = TRUE),
+    relhum_macro_mean = mean(relhum_macro, na.rm = TRUE),
+    relhum_macro_sim_mean = mean(relhum_macro_sim, na.rm = TRUE),
+    tair_emp_mean = mean(tair_emp, na.rm = TRUE),
+    tair_mean = mean(tair, na.rm = TRUE),
+    tair_macro_mean = mean(tair_macro, na.rm = TRUE),
+    tair_macro_sim_mean = mean(tair_macro_sim, na.rm = TRUE),
+    light_emp_mean = mean(light_emp, na.rm = TRUE),
+    light_mean = mean(light, na.rm = TRUE),
+    light_macro_mean = mean(light_macro, na.rm = TRUE),
+    relhum_emp_sd = sd(relhum_emp, na.rm = TRUE),
+    relhum_sd = sd(relhum, na.rm = TRUE),
+    relhum_macro_sd = sd(relhum_macro, na.rm = TRUE),
+    relhum_macro_sim_sd = sd(relhum_macro_sim, na.rm = TRUE),
+    tair_emp_sd = sd(tair_emp, na.rm = TRUE),
+    tair_sd = sd(tair, na.rm = TRUE),
+    tair_macro_sd = sd(tair_macro, na.rm = TRUE),
+    tair_macro_sim_sd = sd(tair_macro_sim, na.rm = TRUE),
+    light_emp_sd = sd(light_emp, na.rm = TRUE),
+    light_sd = sd(light, na.rm = TRUE),
+    light_macro_sd = sd(light_macro, na.rm = TRUE),
+  )
+
+# ---- Plot gradient for all variables at 12
+
+# Filter for 12 o'clock only
+gradient_facet_12 <- gradient_agg_with_light %>%
+  filter(time == 12) %>%
+  mutate(time_label = "12:00")
+
+# Reshape the data for faceting by variable
+gradient_facet_12_long <- gradient_facet_12 %>%
+  pivot_longer(
+    cols = c(
+      tair_mean, tair_emp_mean, tair_sd, tair_emp_sd,
+      relhum_mean, relhum_emp_mean, relhum_sd, relhum_emp_sd,
+      light_mean, light_emp_mean, light_sd, light_emp_sd
+    ),
+    names_to = "variable",
+    values_to = "value"
+  ) %>%
+  mutate(
+    variable_type = case_when(
+      str_detect(variable, "tair_") ~ "Temperature",
+      str_detect(variable, "relhum_") ~ "Relative Humidity",
+      str_detect(variable, "light_") ~ "Light",
+      TRUE ~ NA_character_
+    ),
+    measurement_type = case_when(
+      str_detect(variable, "_mean$") ~ "Mean",
+      str_detect(variable, "_emp_mean$") ~ "Empirical Mean",
+      str_detect(variable, "_sd$") ~ "SD",
+      str_detect(variable, "_emp_sd$") ~ "Empirical SD",
+      TRUE ~ NA_character_
+    ),
+    variable = case_when(
+      str_detect(variable, "tair_mean$") ~ "Simulated Temperature",
+      str_detect(variable, "tair_emp_mean$") ~ "Measured Temperature",
+      str_detect(variable, "relhum_mean$") ~ "Simulated Relative Humidity",
+      str_detect(variable, "relhum_emp_mean$") ~ "Measured Relative Humidity",
+      str_detect(variable, "light_mean$") ~ "Simulated Light",
+      str_detect(variable, "light_emp_mean$") ~ "Measured Light",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(variable_type), !is.na(variable)) %>%
+  select(height, variable_type, variable, value)
+
+# Remove rows with NA in 'value' to ensure lines connect properly
+gradient_facet_12_long <- gradient_facet_12_long %>%
+  filter(!is.na(value))
+
+# Plot
+grad_temp_plt_12_facet <- ggplot(gradient_facet_12_long, aes(y = height, x = value, color = variable)) +
+  geom_path(size = 1) +
   scale_color_manual(
-    name = "Temperature Gradient",
-    values = c("Measured microclimate"  = "#3F826D",
-               "Measured macroclimate"  = "#3F826D",
-               "Simulated microclimate" = "#FAC05E",
-               "CMIP6 macroclimate"     = "#FAC05E")
+    name = "Measurement",
+    values = c(
+      "Simulated Temperature" = "#FAC05E",
+      "Measured Temperature" = "#3F826D",
+      "Simulated Relative Humidity" = "#FAC05E",
+      "Measured Relative Humidity" = "#3F826D",
+      "Simulated Light" = "#FAC05E",
+      "Measured Light" = "#3F826D"
+    )
   ) +
-  facet_wrap(~ time_label, ncol = 6) +
+  scale_fill_manual(
+    name = "Std. Err.",
+    values = c(
+      "Simulated Temperature" = "#FAC05E",
+      "Measured Temperature" = "#3F826D",
+      "Simulated Relative Humidity" = "#FAC05E",
+      "Measured Relative Humidity" = "#3F826D",
+      "Simulated Light" = "#FAC05E",
+      "Measured Light" = "#3F826D"
+    )
+  ) +
+  facet_wrap(~ variable_type, ncol = 3, scales = "free_x") +
   labs(
-    x = "Temperature",
+    x = "Value",
     y = "Height (m)",
-    title = paste0(day, " Sep 2025")
   ) +
-  theme_bw() +
+  theme_minimal() +
   theme(
     strip.text = element_text(size = 10),
     legend.position = "bottom",
@@ -690,6 +840,7 @@ grad_temp_plt_single_day <- ggplot(gradient_single_day, aes(y = height)) +
     axis.title = element_text(size = 12)
   )
 
-pdf(paste0("../../figs/mc_output/mc_emp_vs_sim_regua_gradient_single_day_", day, "era5_v1.pdf"), height = 16, width = 20)
-print(grad_temp_plt_single_day)
+# Display the plot
+pdf("../../figs/mc_output/mc_emp_vs_sim_regua_gradient_12_era5_with_light_v1.pdf", height = 4, width = 8)
+print(grad_temp_plt_12_facet)
 dev.off()

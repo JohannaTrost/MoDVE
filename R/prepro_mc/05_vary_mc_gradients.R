@@ -1,3 +1,5 @@
+library(ggplot2)
+library(dplyr)
 
 # Load matrix
 vars <- c("TotalSurfaceAreaOpt", "SurfaceAreaLossOpt", "LightNicheOpt", "AverageWeightedAngles",
@@ -46,6 +48,43 @@ for (ts in seq(start_ts, end_ts)) {
 
 # Plot gradients
 
-base_dir <- file.path("/Users/johanna/Uni/masterarbeit/data/modve_output/pirineus/scenarios")
+base_dir <- file.path("/Users/johanna/Uni/masterarbeit/data/modve_output/regua")
 
-path <- file.path(base_dir, "climdata_era5_cmip6_1906-2024_ssp245_119ts_0.5_mc_grad/a1_2") # TODO plot gradients
+path <- file.path(base_dir, "climdata_era5_cmip6_1981-2100_ssp245/a1_2")
+
+forest <- "forest0"
+
+mh <- readRDS(file.path(path, forest, "MicrohabitatMatrix199.rds"))
+
+veg_height <- sum(apply(mh[,,, 1], 3, sum) > 0)
+
+mc <- mh[,,, c(3, 4, 5)]
+mc[,,, 1] <- mc[,,, 1] * 900
+mc_mean <- data.frame(apply(mc, c(3, 4), mean)[1:veg_height,])
+names(mc_mean) <- c("mean_light", "mean_relhum", "mean_temp")
+mc_sd <- data.frame(apply(mc, c(3, 4), sd)[1:veg_height,])
+names(mc_sd) <- c("sd_light", "sd_relhum", "sd_temp")
+
+vertical_mc <- cbind(mc_mean, mc_sd) %>%
+  mutate(
+    upper_light = mean_light + 1.96 * sd_light,
+    upper_relhum = mean_relhum + 1.96 * sd_relhum,
+    upper_temp = mean_temp + 1.96 * sd_temp,
+    lower_light = mean_light - 1.96 * sd_light,
+    lower_relhum = mean_relhum - 1.96 * sd_relhum,
+    lower_temp = mean_temp - 1.96 * sd_temp,
+  ) %>%
+  select(-sd_relhum, -sd_temp) %>%
+  pivot_longer(
+    cols = -sd_light,
+    names_to = c(".value", "Variable"),
+    names_pattern = "(mean|upper|lower)_(.*)",
+    values_to = c("mean", "upper", "lower")
+  ) %>%
+  mutate(Variable = case_when(
+    Variable == "temp" ~ "Temperature",
+    Variable == "relhum" ~ "Relative humidity",
+    Variable == "light" ~ "Light",
+    TRUE ~ Variable
+  )) %>%
+  select(-sd_light)
