@@ -38,7 +38,7 @@ Create a file named `config.toml`. Use the following content as a template, repl
 # This parameter determines which type of microhabitat matrices are generated:
 # 1: real GroIMP forest with dynamics
 # 2: static GroIMP forest (only forest at timeStepStart is used)
-MicrohabitatType = 1
+microhabitatType = 1
 
 # Parameters of light model
 # Light extinction coefficient
@@ -56,8 +56,8 @@ SurfaceAreaLossOpt = 1
 LightConditionsOpt = 1
 AverageWeightedAngles = 0
 
-# Parameters that need to be specified if MicrohabitatType=1 or MicrohabitatType=2
-# Directory of GroIMP files (this directory is stored in the Microhabitat folder so that the
+# Parameters that need to be specified if microhabitat_type=1 or microhabitat_type=2
+# Directory of GroIMP files (this directory is stored in the microhabitat folder so that the
 # connection to the input GroIMP files is always clear)
 DirectoryGroIMP = "path/to/GroIMP/output/dir"
 # Directory to save results
@@ -148,7 +148,7 @@ SingleSpeciesModel = 0  # 1: Single species model, 0: Community model
 # Directory where model is save and directory where microhabitat matrices
 # are stored
 DirectoryModelMain = "path/to/output"
-DirectoryMicrohabitatMain = "path/to/microhabitat"
+DirectorymicrohabitatMain = "path/to/microhabitat"
 DirectorySpeciesPoolsMain = "path/to/species"
 
 # Choose species pools to use and number of replicates per species pool
@@ -177,7 +177,7 @@ Imax = 900
 Run the following command, replacing `path/to/toml` with the actual path to your `config.toml` file:
 
 ```bash
-Rscript A3.R -i "path/to/toml"
+Rscript 04_create_initial_distributions.R -i "path/to/toml"
 ```
 
 ## A4
@@ -195,14 +195,14 @@ Create a file named `config.toml`. Use the following content as a template, repl
 # RandomState = "path/to/random_state_seed.RData"
 
 # Input directories
-DirectoryMicrohabitat = "path/to/A1/output"
+Directorymicrohabitat = "path/to/A1/output"
 DirectorySpeciesPools = "path/to/A2/output"
 DirectoryModelMain = "path/to/A3/output"
 
 # Output directory
 DirectoryModelResults = "path/to/output"
 
-MicrohabitatType = 1  # Define which type of forest the microhabitat belongs to. 1: dynamic forest, 2: static forest, 3: uniform forest
+microhabitatType = 1  # Define which type of forest the microhabitat belongs to. 1: dynamic forest, 2: static forest, 3: uniform forest
 
 # Model parameters
 timeSteps = 39  # Model for timeSteps beginning at the time step given by the initial distribution
@@ -234,7 +234,7 @@ InitialTimeStep = 1  # Time step for which the Initial distribution is generated
 Run the following command, replacing `path/to/toml` with the actual path to your `config.toml` file:
 
 ```bash
-Rscript A5.R -i "path/to/toml"
+Rscript 06_run_model.R -i "path/to/toml"
 ```
 
 This script leverages parallel processing to efficiently process all possible pairs of species pools and replicates for each species. It automatically detects the number of available cores in the system and distributes the workload across them. Importantly, the loops are independent, meaning that the results of one loop do not affect the others. This ensures that the parallel execution produces the same results as a sequential one.

@@ -123,7 +123,7 @@ SpeciesPool <- read.csv(Input_file)
 NumberSpecies <- length(SpeciesPool$SpeciesID)
 
 ColumnHeaders <- c(colnames(SpeciesPool),
-                   c("X", "Y", "Z", "Mass", "Status", "IndividualID", "SurfaceAreaOccupied", "Age"))
+                   c("X", "Y", "Z", "Mass", "Status", "IndividualID", "Age"))
 
 # Get numbers of columns used in this script
 ColMinLight <- match("MinLight", ColumnHeaders)

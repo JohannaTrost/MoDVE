@@ -11,6 +11,12 @@ library(tidyr)
 library(circular)
 library(lubridate)
 
+# GLOBAL variables (to configure)
+REGION <- "regua"  # set to "regua" or "pirineus"
+
+# Directories
+data_dir <- "../modve_data"
+
 # Function to insert Feb 29 by extrapolation
 insert_feb29 <- function(df, year) {
   # Build Feb 29 sequence
@@ -73,11 +79,10 @@ dms_to_decimal <- function(dms) {
   return(sign * (parts[1] + parts[2] / 60 + parts[3] / 3600))
 }
 
-region <- "regua"  # "regua" or "pirineus"
-if (region == "regua") {
+if (REGION == "regua") {
   # -- REGUA
 
-  out <- "/Users/johanna/Uni/masterarbeit/data/mc_input/regua"
+  out <- file.path(data_dir, "mc_input", "regua")
   dir.create(file.path(out))
 
   # Define the center point - 22°23′44.75″S, 42°44′15.78″W
@@ -87,10 +92,10 @@ if (region == "regua") {
   center_proj <- st_transform(center_coords, crs = 31983)
   center_coords_m <- st_coordinates(center_proj)
 
-} else if (region == "pirineus") {
+} else if (REGION == "pirineus") {
   # -- Pirineus
 
-  out <- "/Users/johanna/Uni/masterarbeit/data/mc_input/pirineus"
+  out <- file.path(data_dir, "mc_input", "pirineus")
   dir.create(file.path(out))
 
   # Define the center point
@@ -112,30 +117,30 @@ ceiled_box <- as.polygons(ce)
 crs(ceiled_box) <- crs(extent_vect)  # Set CRS to match original
 
 # - Prep climate data
-# 2006, 2008, 2017, 2023
-# 2092, 2078, 2042, 2089
-# -> era5 here: 2024, 2022, 2021, 2020
-#era5_yrs <- c(2006, 2008, 2017, 2023, 2024, 2022, 2021, 2020)
-#cmip6_yrs <- c(2006, 2008, 2017, 2023, 2092, 2078, 2042, 2089)
+# List of years for "aligning" ERA5 and CMIP6
+era5_2025_2100 <- rep(seq(2020, 2024), 16)[((16*5)-75):(16*5)] # for 2025-2100 repeat 2020-2024 16 times
+era5_yrs <- c(seq(1980, 2024), era5_2025_2100)
+cmip6_yrs <- seq(1980, 2100)
 
-#era5_yrs <- setdiff(seq(1981, 2024), c(2006, 2008, 2017, 2023, 2001)) # missing: 2001
-era5_yrs <- rep(seq(2020, 2024), 16)[((16*5)-75):(16*5)] # 2025-2100 repeat 2020-2024
-cmip6_yrs <- seq(2025, 2100)
-
-for (i in 1:length(era5_yrs)) {
+for (i in seq_along(era5_yrs)) { # Download each year
 
   era5_year <- era5_yrs[i]
   cmip6_year <- cmip6_yrs[i]
 
   cat(paste0("Processing climate data for year ", cmip6_year, "\n"))
 
-  climdata_baf <- readRDS(paste0("/Users/johanna/Uni/masterarbeit/data/mc_input/climate/era5_processed/era5_climdata_", era5_year, ".RDS"))
+  climdata_baf <- readRDS(
+    file.path(data_dir, "mc_input", "climate", "era5_processed", paste0("era5_climdata_", era5_year, ".RDS"))
+  )
   if (cmip6_year < 2015) {
     experimt <- "historical"
   } else {
     experimt <- "ssp245"
   }
-  cmip_baf <- rast(paste0("/Users/johanna/Uni/masterarbeit/data/mc_input/climate/cmip6_ceda/baf_ensemble_day_", experimt, "_", cmip6_year, ".nc"))
+  cmip_baf <- rast(
+    file.path(data_dir, "mc_input", "climate", "cmip6_ceda",
+              paste0("baf_ensemble_day_", experimt, "_", cmip6_year, ".nc"))
+  )
 
   # Unwrap all PackedSpatRasters in the list
   climdata_baf_unpacked <- lapply(climdata_baf, terra::unwrap)
@@ -176,9 +181,6 @@ for (i in 1:length(era5_yrs)) {
 
   # Extract data at that cell
   extracted_cmip6 <- terra::extract(cmip_baf, nearest_xy)
-
-  # Remove ID column (first column) if it exists
-  # data_wide <- extracted_cmip6[, -1]
 
   # Convert to long df
   cmip6_long <- extracted_cmip6 %>%
