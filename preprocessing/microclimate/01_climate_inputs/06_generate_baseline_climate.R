@@ -5,13 +5,17 @@ library(dplyr)
 library(lubridate)
 library(readr)
 
-# --- 3. Scenario: 119 years until 2100 without CC - REGUA
+# --- Scenario: 119 years until 2100 without CC - REGUA
 
 region <- "regua"
-out_dir <- file.path("/Users/johanna/Uni/masterarbeit/data/mc_input", region, "scenarios")
+data_dir <- file.path("../modve_data")
+figs_dir <- file.path("../modve_figs")
+out_dir <- file.path(data_dir, "mc_input", region, "scenarios")
 climdata <- read_csv(file.path(out_dir, "climdata_era5_cmip6_1981-2100_ssp245.csv"))
-# Hourly Linear Detrending for Temperature Data
-# This code removes long-term climate trends while preserving diurnal and seasonal cycles
+
+if (!dir.exists(figs_dir)) {
+  dir.create(figs_dir, recursive = TRUE)
+}
 
 # Function to perform hourly linear detrending
 detrend_hourly_mc <- function(data, mc_col = "temp", time_col = "obs_time",
@@ -34,7 +38,7 @@ detrend_hourly_mc <- function(data, mc_col = "temp", time_col = "obs_time",
   detrended_data <- data_with_time %>%
     group_by(day_hour, month, day, hour) %>%
     mutate(
-      temp_detrended = {
+      detrended = {
         # Skip if insufficient data points (need at least 3 points for meaningful trend)
         if (n() < 3 || sum(!is.na(!!sym(mc_col))) < 3) {
           !!sym(mc_col)
@@ -46,11 +50,11 @@ detrend_hourly_mc <- function(data, mc_col = "temp", time_col = "obs_time",
             !!sym(mc_col)
           } else {
             # Fit linear trend: temperature ~ year
-            temp_values <- !!sym(mc_col)
+            values <- !!sym(mc_col)
             year_values <- year
 
             # Fit trend only on valid data
-            valid_temp <- temp_values[valid_indices]
+            valid_temp <- values[valid_indices]
             valid_years <- year_values[valid_indices]
 
             trend_model <- lm(valid_temp ~ valid_years)
@@ -62,58 +66,28 @@ detrend_hourly_mc <- function(data, mc_col = "temp", time_col = "obs_time",
             mean_temp <- mean(valid_temp[valid_years %in% baseline_years], na.rm = TRUE)
 
             # Detrend by removing trend and adding back the mean
-            temp_values - predicted_trend + mean_temp
-          }
-        }
-      },
-      temp_trend = {
-        # Calculate the removed trend
-        if (n() < 3 || sum(!is.na(!!sym(mc_col))) < 3) {
-          NA_real_
-        } else {
-          valid_indices <- !is.na(!!sym(mc_col))
-
-          if (sum(valid_indices) < 3) {
-            NA_real_
-          } else {
-            temp_values <- !!sym(mc_col)
-            year_values <- year
-
-            valid_temp <- temp_values[valid_indices]
-            valid_years <- year_values[valid_indices]
-
-            trend_model <- lm(valid_temp ~ valid_years)
-            predicted_trend <- predict(trend_model, newdata = data.frame(valid_years = year_values))
-            mean_temp <- mean(valid_temp[valid_years %in% baseline_years], na.rm = TRUE)
-
-            predicted_trend - mean_temp
+            values - predicted_trend + mean_temp
           }
         }
       }
     ) %>%
     ungroup()
 
-  # Clean up temporary variables and return
-  result <- detrended_data %>%
-    select(-year, -month, -day, -hour, -day_of_year, -day_hour) %>%
-    # Reorder columns to put detrended temp after original temp
-    relocate(temp_detrended, .after = temp) %>%
-    relocate(temp_trend, .after = temp_detrended)
-
-  return(detrended_data$temp_detrended)
+  return(detrended_data$detrended)
 }
 
 # Apply the detrending function to your data
 temp_detrended <- detrend_hourly_mc(climdata)
 relhum_detrended <- detrend_hourly_mc(climdata, mc_col = "relhum")
+
 # Add detrended columns to the original data frame
-climdata_detrended2 <- climdata
-climdata_detrended2$relhum_detrended <- relhum_detrended
-climdata_detrended2$temp_detrended <- temp_detrended
+climdata_detrended <- climdata
+climdata_detrended$relhum_detrended <- relhum_detrended
+climdata_detrended$temp_detrended <- temp_detrended
 
 # Summary statistics to verify the detrending
 print("\nSummary of original vs detrended temperature:")
-summary_stats <- climdata_detrended2 %>%
+summary_stats <- climdata_detrended %>%
   summarise(
     original_temp_mean = mean(temp, na.rm = TRUE),
     original_temp_sd = sd(temp, na.rm = TRUE),
@@ -124,7 +98,7 @@ summary_stats <- climdata_detrended2 %>%
 
 print(summary_stats)
 
-# Final check: verify that long-term trend has been removed
+# Verify that long-term trend has been removed
 # Calculate linear trend in annual means for both original and detrended data
 trend_check <- annual_comparison %>%
   summarise(
@@ -138,10 +112,10 @@ print(paste("Detrended data trend:", round(trend_check$detrended_trend_slope, 4)
 
 # -- Plot data
 
-climdata_detrended2 <- read_csv(file.path(out_dir, "climdata_era5_cmip6_1981-2100_ssp245_no_cc.csv"))
+climdata_detrended <- read_csv(file.path(out_dir, "climdata_era5_cmip6_1981-2100_ssp245_no_cc.csv"))
 
 # ---- Annual statistics for temperature ----
-annual_mc <- climdata_detrended2 %>%
+annual_mc <- climdata_detrended %>%
   mutate(year = lubridate::year(obs_time)) %>%
   group_by(year) %>%
   summarise(
@@ -241,9 +215,8 @@ p_hum <- ggplot(annual_mc, aes(x = year)) +
     axis.text = element_text(size = 15)
   )
 
-
 # ---- Save to PDF ----
-pdf("../../figs/mc_input/compare_temp_relhum_cmip6_annual_cc_vs_no_cc_1981-2100_119ts_regua_v2.pdf",
+pdf(file.path(figs_dir, "compare_temp_relhum_cmip6_annual_cc_vs_no_cc_1981-2100_119ts_regua.pdf"),
     width = 10, height = 5)
 
 (p_temp | p_hum) +
@@ -252,25 +225,9 @@ pdf("../../figs/mc_input/compare_temp_relhum_cmip6_annual_cc_vs_no_cc_1981-2100_
 
 dev.off()
 
-p_hum_ncc <- ggplot(annual_mc, aes(x = year, y = mean_relhum_detrended)) +
-  # Detrended data
-  geom_ribbon(aes(ymin = mean_relhum_detrended - sd_relhum_detrended,
-                  ymax = mean_relhum_detrended + sd_relhum_detrended),
-              fill = "coral", alpha = 0.2) +
-  geom_line(color = "coral", size = 1) +
-  geom_point(color = "coral", size = 1) +
-  labs(x = "Year",
-       y = "Relative Humidity (%)") +
-  theme_minimal(base_size = 14)
-
-pdf("../../figs/mc_input/compare_relhum_cmip6_annual_no_cc_1981-2100_119ts_regua_v1.pdf",
-    width = 8, height = 8)
-print(p_hum_ncc)
-dev.off()
-
-# -- SAve data
-climdata_detrended2["temp"] <- climdata_detrended2["temp_detrended"]
-climdata_detrended2["relhum"] <- climdata_detrended2["relhum_detrended"]
-climdata_detrended2 <- climdata_detrended2 %>%
+# -- Save data
+climdata_detrended["temp"] <- climdata_detrended["temp_detrended"]
+climdata_detrended["relhum"] <- climdata_detrended["relhum_detrended"]
+climdata_detrended <- climdata_detrended %>%
   select(-temp_detrended, -relhum_detrended)
-write_csv(climdata_detrended2, file.path(out_dir, "climdata_era5_cmip6_1981-2100_ssp245_no_cc.csv"))
+write_csv(climdata_detrended, file.path(out_dir, "climdata_era5_cmip6_1981-2100_ssp245_no_cc.csv"))
