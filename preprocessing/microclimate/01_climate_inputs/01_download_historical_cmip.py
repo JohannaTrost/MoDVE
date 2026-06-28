@@ -2,7 +2,7 @@
 """
 CMIP6 Climate Data Downloader CLI
 
-Downloads and processes CMIP6 climate data from CEDA for specified years and variables.
+Downloads and processes CMIP6 climate data from CEDA for specified years and variables. Based on TODO
 """
 
 import argparse
