@@ -9,7 +9,7 @@ library(readr)
 
 region <- "regua"
 data_dir <- file.path("../modve_data")
-figs_dir <- file.path("../modve_figs")
+figs_dir <- file.path("..", "modve_figs", "mc_input")
 out_dir <- file.path(data_dir, "mc_input", region, "scenarios")
 climdata <- read_csv(file.path(out_dir, "climdata_era5_cmip6_1981-2100_ssp245.csv"))
 
