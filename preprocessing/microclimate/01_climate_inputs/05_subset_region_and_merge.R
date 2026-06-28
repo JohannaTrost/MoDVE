@@ -11,6 +11,8 @@ library(tidyr)
 library(circular)
 library(lubridate)
 library(tidyr)
+library(ggplot2)
+library(patchwork)
 
 # GLOBAL variables (to configure)
 REGION <- "regua"  # set to "regua" or "pirineus"
@@ -264,6 +266,8 @@ era5_2025_2100 <- rep(seq(2020, 2024), 16)[((16*5)-75):(16*5)] # for 2025-2100 r
 era5_yrs <- c(seq(1980, 2024), era5_2025_2100)
 cmip6_yrs <- seq(1980, 2100)
 
+climdata <- NA # Collect all years of preprocessed macroclimate data
+
 for (i in seq_along(era5_yrs)) { # Download each year
 
   era5_year <- era5_yrs[i]
@@ -272,7 +276,7 @@ for (i in seq_along(era5_yrs)) { # Download each year
   cat(paste0("Processing climate data for year ", cmip6_year, "\n"))
 
   # Prep ERA5 data
-  climdata_regua <- extract_era5(data_dir, era5_year, lon, lat)
+  climdata_era5 <- extract_era5(data_dir, era5_year, lon, lat)
 
   # Prep CMIP6 data
   cmip6_long <- extract_cmip6(data_dir, cmip6_year, lon, lat)
@@ -283,7 +287,7 @@ for (i in seq_along(era5_yrs)) { # Download each year
   cmip6_hourly <- cmip62hourly(cmip6_long)
 
   # Add a diurnal cycle to temperature and relative humidity
-  clim_aliged <- add_era5_diurnal_cycle(climdata_regua, cmip6_hourly, cmip6_year)
+  clim_aliged <- add_era5_diurnal_cycle(climdata_era5, cmip6_hourly, cmip6_year)
 
   # Merge CMIP6 with remaining ERA5 data
   clim_aligned <- clim_aligned %>%
@@ -305,3 +309,86 @@ for (i in seq_along(era5_yrs)) { # Download each year
   cat(paste0("Saved climate data for year ", cmip6_year, " in",
              paste(out, paste0("climdata_era5_cmip6_", cmip6_year, ".csv"), sep = "/"), "\n"))
 }
+
+
+# ---------------- Generate scenarios for sensitivity analysis and CC comparisons ---------------- #
+
+
+# --- 1. Scenario: 119 years until 2024 - PIRINEUS
+
+in_dir <- file.path(data_dir, "pirineus")
+out_dir <- file.path(data_dir, "pirineus", "scenarios")
+
+for (year in 1981:2024) {
+  file <- paste(in_dir, paste0("climdata_era5_cmip6_", year, ".csv"), sep = "/")
+  climdata_year <- read_csv(file)
+
+  if (year == 1981) {
+    climdata_all <- climdata_year
+  } else {
+    climdata_all <- bind_rows(climdata_all, climdata_year)
+  }
+}
+
+climdata_all <- climdata_all %>% select(-windspeed_anom)
+
+# Check if there are NAs
+sum(is.na(climdata_all))
+
+n_years_missing <- 119 - (2024 - 1981 + 1) # no. years missing for 119 time series
+
+# Repeat first 5 years 15 times adding 75 to the time series to get 119 years
+climdata_present_ssp245 <- climdata_all %>%
+  filter(year(obs_time) %in% 1981:1985) %>%
+  mutate(
+    # Store original row count before expansion
+    original_rows = n()
+  ) %>%
+  slice(rep(1:n(), times = 16)) %>%
+  mutate(
+    # Create sequence of target years (1911-1985)
+    rep_group = rep(1:16, each = first(original_rows)),
+    target_year_base = 1906 + (rep_group - 1) * 5,
+    original_year = year(obs_time),
+    target_years = target_year_base + (original_year - 1981),
+
+    # Replace the year component while keeping month, day, hour, etc.
+    obs_time = make_datetime(
+      year = target_years,
+      month = month(obs_time),
+      day = day(obs_time),
+      hour = hour(obs_time),
+      min = minute(obs_time),
+      sec = second(obs_time)
+    )
+  ) %>%
+  select(-original_rows, -rep_group, -target_year_base, -original_year, -target_years)
+
+# Now combine climdata_present_ssp245 with climdata_all (from 1986 to 2024)
+climdata_present <-
+  bind_rows(climdata_present_ssp245,
+            climdata_all %>% filter(year(obs_time) >= 1986)) %>%
+  arrange(obs_time)
+
+# Save scenario for sensitivity analysis with time series until present
+write_csv(climdata_present, file.path(out_dir, "climdata_era5_cmip6_1906-2024_ssp245_119ts.csv"))
+
+# --- 2. Scenario: 119 years until 2100 with CC - REGUA
+
+in_dir <- file.path("/Users/johanna/Uni/masterarbeit/data/mc_input/regua")
+out_dir <- file.path("/Users/johanna/Uni/masterarbeit/data/mc_input/regua/scenarios")
+
+for (year in 1981:2100) {
+  file <- paste(in_dir, paste0("climdata_era5_cmip6_", year, ".csv"), sep = "/")
+  climdata_year <- read_csv(file)
+
+  if (year == 1981) {
+    climdata_all <- climdata_year
+  } else {
+    climdata_all <- bind_rows(climdata_all, climdata_year)
+  }
+}
+climdata_all <- climdata_all %>% select(-windspeed_anom)
+
+# Save SSP2-4.5 scenario
+write_csv(climdata_all, file.path(out_dir, "climdata_era5_cmip6_1981-2100_ssp245.csv"))
