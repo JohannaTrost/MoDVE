@@ -1,19 +1,24 @@
+# ------
+# Vsualize MC simulations at Pirineus plotting time series for different heights
+
 library(dplyr)
 library(ggplot2)
 library(tidyr)
 library(patchwork)  # for arranging plots vertically
 
-
-indir <- "/Users/johanna/Uni/masterarbeit/data/mc_output/pirineus/scenarios/climdata_era5_cmip6_1906-2024_ssp245_119ts/mc_matrices"
+# CONFIGURE directories
+# /path/to/<year>_<region>_mc_matrix.rds
+indir <- "../modve_data/mc_output/pirineus/scenarios/climdata_era5_cmip6_1906-2024_ssp245_119ts/mc_matrices"
+veg_path <- "../modve_data/mc_input/pirineus"
+out_file <- "../modve_figs/mc_output/temp_rh_by_height_1906_2024_pirineus.pdf"
 
 first <- 1906
 last <- 2024
 
-# Find mx height across all years
-veg_path <- "/Users/johanna/Uni/masterarbeit/data/mc_input/pirineus"
+# Find max height across all years
 max_hgt <- -Inf
 for (i in 80:119) {
-  veg <- readRDS(file.path(veg_path, paste0("vegp_mof3d_ptm_", i, "_v4.RDS")))
+  veg <- readRDS(file.path(veg_path, paste0("vegp_mof3d_ptm_", i, ".RDS")))
   h <- terra::unwrap(veg$h)
   max_hgt_year <- global(h, "max", na.rm = TRUE)[[1]] + 1
   if (max_hgt_year > max_hgt) {
@@ -29,53 +34,8 @@ for (year in first:last) {
   mc_matrix_ts[,, 1:min(dim(mc_matrix_year)[3], max_hgt), , (year-first+1)] <- mc_matrix_year[,, 1:min(dim(mc_matrix_year)[3], max_hgt),]
 }
 
-temp_avg <- apply(mc_matrix_ts[,,,1,], 4, mean, na.rm=TRUE)
-temp_sd <- apply(mc_matrix_ts[,,,1,], 4, sd, na.rm=TRUE)
-rh_avg <- apply(mc_matrix_ts[,,,7,], 4, mean, na.rm=TRUE)
-rh_sd <- apply(mc_matrix_ts[,,,7,], 4, sd, na.rm=TRUE)
-
-# --- Plot time series
-
 # Build time vector (1906 to 1950, 45 years)
 years <- first:(first + length(first:last) - 1)
-
-# Prepare data frames
-df_temp <- data.frame(
-  year = years,
-  mean = temp_avg,
-  sd = temp_sd
-)
-
-df_rh <- data.frame(
-  year = years,
-  mean = rh_avg,
-  sd = rh_sd
-)
-
-# Plot Temperature
-p_temp <- ggplot(df_temp, aes(x = year, y = mean)) +
-  geom_line(color = "red") +
-  geom_ribbon(aes(ymin = mean - sd, ymax = mean + sd),
-              fill = "red", alpha = 0.3) +
-  labs(title = "Temperature (1906–2024)",
-       y = "Temperature",
-       x = "Year") +
-  theme_minimal()
-
-# Plot Relative Humidity
-p_rh <- ggplot(df_rh, aes(x = year, y = mean)) +
-  geom_line(color = "blue") +
-  geom_ribbon(aes(ymin = mean - sd, ymax = mean + sd),
-              fill = "blue", alpha = 0.3) +
-  labs(title = "Relative Humidity (1906–2024)",
-       y = "Relative Humidity",
-       x = "Year") +
-  theme_minimal()
-
-# Arrange vertically
-pdf("../../figs/mc_output/temp_1906_2024_pirineus.pdf")
-print(p_temp / p_rh)
-dev.off()
 
 # --- Define height bins (assuming 3rd dimension = height levels)
 
@@ -116,6 +76,6 @@ p_rh_h <- ggplot(df_rh_h, aes(x = year, y = mean, color = height_bin, fill = hei
   theme_minimal()
 
 # Save both plots
-pdf("../../figs/mc_output/temp_rh_by_height_1906_2024_pirineus.pdf")
+pdf(out_file)
 print(p_temp_h / p_rh_h)
 dev.off()
