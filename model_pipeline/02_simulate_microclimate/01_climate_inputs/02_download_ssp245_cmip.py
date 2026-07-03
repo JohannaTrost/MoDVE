@@ -146,8 +146,6 @@ for year in download_range:
                         ds[var]
                         .reindex(time=datetime_range)
                         .interpolate_na(dim='time', method='linear')
-                        #.ffill(dim='time')  # Fill forward to cover the end TODO check if necessary
-                        #.bfill(dim='time')  # Optional: fill backwards at the start
                     )
                     # Assign interpolated values back to a dataset (if needed)
                     ds = var_filled.to_dataset(name=var)
