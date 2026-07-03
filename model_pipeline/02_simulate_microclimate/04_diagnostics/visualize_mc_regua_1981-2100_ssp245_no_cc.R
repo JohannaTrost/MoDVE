@@ -1,5 +1,5 @@
 # ------
-# Visualize MC simulations at Pirineus plotting time series for different heights
+# Visualize MC simulations at REGUA plotting time series for different heights
 
 library(dplyr)
 library(ggplot2)
@@ -8,14 +8,14 @@ library(patchwork)  # for arranging plots vertically
 
 # CONFIGURE directories
 # /path/to/<year>_<region>_mc_matrix.rds
-indir <- "../modve_data/mc_output/pirineus/scenarios/climdata_era5_cmip6_1906-2024_ssp245_119ts/mc_matrices"
-veg_path <- "../modve_data/mc_input/pirineus"
-out_file <- "../modve_figs/mc_output/temp_rh_by_height_1906_2024_pirineus.pdf"
+indir <- "../modve_data/mc_output/regua/scenarios/climdata_era5_cmip6_1981-2100_ssp245_no_cc/rep1/mc_matrices"
+veg_path <- "../modve_data/mc_input/regua/rep1"
+out_file <- "../modve_figs/mc_output/temp_rh_by_height_1981–2100_no_cc_regua.pdf"
 
-first <- 1906
-last <- 2024
+first <- 1981
+last <- 2100
 
-# Find max height across all years
+# Find mx height across all years
 max_hgt <- -Inf
 for (i in 80:119) {
   veg <- readRDS(file.path(veg_path, paste0("vegp_mof3d_ptm_", i, ".RDS")))
@@ -27,12 +27,27 @@ for (i in 80:119) {
 }
 
 mc_matrix_ts <- array(NA, dim = c(50, 50, max_hgt, 14, last-first+1))
+actual_max_hgt <- -Inf
 
 for (year in first:last) {
-  print(year)
-  mc_matrix_year <- readRDS(file.path(indir, paste0(year, "_pirineus_mc_matrix.rds")))
-  mc_matrix_ts[,, 1:min(dim(mc_matrix_year)[3], max_hgt), , (year-first+1)] <- mc_matrix_year[,, 1:min(dim(mc_matrix_year)[3], max_hgt),]
+  mc_matrix_year <- readRDS(file.path(indir, paste0(year, "_regua_mc_matrix.rds")))
+  hgt <- min(dim(mc_matrix_year)[3], max_hgt)
+  mc_matrix_ts[,, 1:hgt, , (year-first+1)] <- mc_matrix_year[,, 1:min(dim(mc_matrix_year)[3], max_hgt),]
+
+  # COunt NAs per year
+  orig_nas <- sum(is.na(mc_matrix_year))
+  res_nas <- sum(is.na(mc_matrix_ts[,, 1:hgt, , (year-first+1)]))
+  if (orig_nas > 0 || res_nas > 0) {
+    print(paste("Year:", year, "Original NAs:", orig_nas, "Result NAs:", res_nas))
+  }
+  if (hgt > actual_max_hgt) {
+    actual_max_hgt <- hgt
+  }
 }
+
+# Check the number of NAs in the matrix
+print(paste("Total NAs in temp:", (sum(is.na(mc_matrix_ts[,,,1,])) / prod(dim(mc_matrix_ts[,,,1,]))) * 100, "%"))
+print(paste("Total NAs in relhum:", (sum(is.na(mc_matrix_ts[,,,7,])) / prod(dim(mc_matrix_ts[,,,7,]))) * 100, "%"))
 
 # Build time vector (1906 to 1950, 45 years)
 years <- first:(first + length(first:last) - 1)
@@ -66,7 +81,7 @@ df_rh_h   <- get_height_bin_means(7)
 p_temp_h <- ggplot(df_temp_h, aes(x = year, y = mean, color = height_bin, fill = height_bin)) +
   geom_line() +
   geom_ribbon(aes(ymin = mean - sd, ymax = mean + sd), alpha = 0.2, color = NA) +
-  labs(title = "Temperature by Height (1906–2024)", y = "Temperature", x = "Year") +
+  labs(title = "Temperature by Height (1981–2100)", y = "Temperature", x = "Year") +
   theme_minimal()
 
 p_rh_h <- ggplot(df_rh_h, aes(x = year, y = mean, color = height_bin, fill = height_bin)) +
