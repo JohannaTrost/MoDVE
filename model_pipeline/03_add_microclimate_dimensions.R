@@ -1,32 +1,33 @@
-#' Add microclimate data to microhabitat matrices (script entry point)
+#' Add microclimate data to microhabitat matrices
 #'
-#' This script integrates selected microclimate variables (humidity,
-#' temperature, wind) into time-dependent microhabitat matrices.
-#' It is intended to be executed as a standalone script.
+#' This script integrates selected microclimate variables (humidity, temperature, wind)
+#' into time-dependent microhabitat matrices. It is intended to be executed as a standalone script.
 #'
 #' @details
-#' The script expects one command-line argument specified with -i or --input:
-#' \itemize{
-#' \item \code{configFile}: path to a configuration file readable by
-#'   \code{read.config()}
-#' }
-#' The configuration file should define the following parameters:
-#' \itemize{
-#' \item timeStepStart first simulation timestep
-#' \item timeStepEnd last simulation timestep
-#' \item yearStart starting calendar year
-#' \item region region identifier for microclimate files
-#' \item Directorymicrohabitat input microhabitat directory
-#' \item Directorymicroclimate input microclimate directory
-#' \item Directorynew_microhabitat output directory
-#' \item TotalSurfaceAreaOpt include total surface area
-#' \item SurfaceAreaLossOpt include surface area loss
-#' \item LightNicheOpt include light niche variables
-#' \item AverageWeightedAngles include weighted angle averages
-#' \item HumNicheOpt include humidity niche
-#' \item TempNicheOpt include temperature niche
-#' \item WindNicheOpt include wind niche
-#' }
+#' Usage: Rscript model_pipeline/03_add_microclimate_dimensions.R --config config.toml
+#'
+#' Example config.toml
+#'
+#' timeStepStart = 1                               # first simulation timestep
+#' timeStepEnd = 3                                 # last simulation timestep
+#' yearStart = 1980                                # starting calendar year
+#' region = "DE"                                   # region identifier for microclimate files
+#' Directorymicrohabitat = "/path/to/microhabitat/"    # input microhabitat directory
+#' Directorymicroclimate = "/path/to/microhabitat_mc/" # input microclimate directory
+#' Directorynew_microhabitat = "/path/to/output/"  # output directory
+#' TotalSurfaceAreaOpt = 1                         # {0, 1} include total surface area
+#' SurfaceAreaLossOpt = 1                          # {0, 1} include surface area loss
+#' LightNicheOpt = 1                               # {0, 1} include light niche variables
+#' AverageWeightedAngles = 0                       # {0, 1} include weighted angle averages
+#' HumNicheOpt = 1                                 # {0, 1} include humidity niche
+#' TempNicheOpt = 1                                # {0, 1} include temperature niche
+#' WindNicheOpt = 1                                # {0, 1} include wind niche
+#'
+#' Output:
+#' [microhabitatMatrix<timeStepStart>.rds, ..., microhabitatMatrix<timeStepEnd>.rds]
+#' With matrices xDim X yDim X zDim X nVariables (including microclimate variables)
+#' Forest parameter files (Forest_param_global.txt, Forest_param_pass0.txt, dimPlot.rds)
+#' are copied to the output directory.
 #'
 NULL
 

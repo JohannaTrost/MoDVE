@@ -1,11 +1,40 @@
+#' Generate microhabitat matrices from MoF3D output
+#'
+#' This script integrates forest structure and light conditions from MoF3D
+#' into time-dependent microhabitat matrices.
+#' It is intended to be executed as a standalone script.
+#'
+#' @details
+#' Usage: Rscript model_pipeline/01_generate_microhabitat.R --config config.toml
+#'
+#' Example config.toml
+#'
+#' microhabitatType = 1                            # {1, 2} 1: dynamic forest, 2: static forest (forest at timeStepStart)
+#' kL = 0.6                                        # light extinction coefficient
+#' DistVoxToConsider = 8                           # no. rings around voxel for light model
+#' TotalSurfaceAreaOpt = 1                         # {0, 1} include total surface area
+#' SurfaceAreaLossOpt = 1                          # {0, 1} include surface area loss
+#' LightNicheOpt = 1                               # {0, 1} include light condidions
+#' AverageWeightedAngles = 0                       # {0, 1} include weighted angle averages
+#' DirectoryGroIMP = "/path/to/groimp/"            # with MoF3D output "Results/" and "Model/"
+#' DirectorySaveMain = "/path/to/output/directory" # e.g. "../modve_data/modve_output/microhabitat"
+#' ReplicateForest = 0                             # forest replicate {0, 1, 2}
+#' timeStepStart = 1                               # first simulation timestep
+#' timeStepEnd = 3                                 # last simulation timestep
+#'
+#' Output:
+#' [microhabitatMatrix<timeStepStart>.rds, ..., microhabitatMatrix<timeStepEnd>.rds]
+#' With matrices xDim X yDim X zDim X nVariables,
+#' Forest parameter files (Forest_param_global.txt, Forest_param_pass0.txt, dimPlot.rds)
+#' are copied to the output directory.
+#'
+NULL
 
-# Create microhabitat matrices
 source("utils.R")
 
 library(data.table)
 
 config <- parse_config()
-#config <- read.config(file="tests/config_a1_1.toml")
 
 # ------------------- Parameters ----------------------- #
 # Parameters that need to be specified/checked before running this script
@@ -128,11 +157,9 @@ if (microhabitatType == 1 || microhabitatType == 2) {
         if (i != timeStepStart) {
             ShootsBegin <- ShootsEnd
             ShootsEnd <- read.table(file.path(src_dir, shootFileNameNew), sep="\t", header=TRUE, skip=1)
-            # ShootsEnd <- readr::read_tsv(file.path(src_dir, shootFileNameNew), skip=1, show_col_types=FALSE)
 
             TrunksBegin <- TrunksEnd
             TrunksEnd <- read.table(file.path(src_dir, trunkFileNameNew), sep="\t", header=TRUE, skip=8)
-            # TrunksEnd <- readr::read_tsv(file.path(src_dir, trunkFileNameNew), skip=8, show_col_types=FALSE)
         } else {
             ShootsBegin <- read.table(file.path(src_dir, shootFileNameOld), sep="\t", header=TRUE, skip=1)
             ShootsEnd <- read.table(file.path(src_dir, shootFileNameNew), sep="\t", header=TRUE, skip=1)
@@ -302,8 +329,7 @@ if (microhabitatType == 1 || microhabitatType == 2) {
             # Copy light conditions
             Mat_light_per_cell_Copy <- Mat_light_per_cell
 
-            # Calculate final light conditions by accounting for the light
-            # conditions in adjacent voxels
+            # Calculate final light conditions by accounting for the light conditions in adjacent voxels
             for (x in int_seq(from=corridor, to=dimX-corridor, by=1)) {
                 for (y in int_seq(from=corridor, to=dimY-corridor, by=1)) {
                     for (z in seq_len(dimZ)) {
@@ -326,9 +352,7 @@ if (microhabitatType == 1 || microhabitatType == 2) {
 
         }
 
-        # Store information in microhabitat matrix and save matrix for this
-        # timestep
-        # possibly only 5 dimensions to save space
+        # Store information in microhabitat matrix and save matrix for this timestep
         microhabitat <- array(rep(0, dimPlot[1] * dimPlot[2] * dimPlot[3] * (MatrixDimension+1)),
                               dim=c(dimPlot[1], dimPlot[2], dimPlot[3], (MatrixDimension+1)))
 
@@ -366,9 +390,6 @@ if (microhabitatType == 1 || microhabitatType == 2) {
 
         end_time <- Sys.time()
         print(end_time - start_time)
-
-        # flush.console()
-        # stop("stop")
     }
 
     # Save dimensions of plot in seperate file

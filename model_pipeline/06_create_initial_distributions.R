@@ -1,6 +1,59 @@
-# Create the initial epiphyte distrubution depending on the epiphyte traits and the initial microhabitat matrix
+#' Generate Initial Epiphyte Distribution
+#'
+#' This script creates the initial distribution of epiphytes based on species traits
+#' and the initial microhabitat matrix. It supports both single-species and community models,
+#' and can place individuals either in the most suitable voxel or randomly within suitable voxels.
+#' The output is saved as CSV files containing the initial epiphyte matrix for each species pool and replicate.
+#'
+#' @details
+#' Usage: Rscript model_pipeline/06_generate_initial_distribution.R --config config.toml
+#'
+#' Example config.toml
+#'
+#' seed = 42                                      # RNG seed (integer or NULL for random)
+#' SingleSpeciesModel = 0                         # {0, 1} 0: Community model, 1: Single species model
+#' DirectoryModelMain = "/path/to/model/distribution/"  # Directory to save initial epiphyte matrices
+#' DirectorymicrohabitatMain = "/path/to/microhabitat_mc/" # Directory containing microhabitat matrices
+#' DirectorySpeciesPoolsMain = "/path/to/SpeciesPools/" # Directory containing species pool CSV files
+#' numSpeciesPools = c(1, 10)                     # Range of species pool IDs to process
+#' replicatePerSpeciesPool = 1                    # Number of replicates per species pool
+#' TimeStep = 1                                    # Timestep for which the initial distribution is generated
+#' MethodVoxel = 0                                # {0, 1} 0: Random voxel selection, 1: Voxel with highest surface area
+#' ScalingPerHa = 0                               # {0, 1} 0: Absolute number of individuals, 1: Scale per hectare
+#' IndividualsPerSpecies = 100                   # Number of individuals per species
+#' PercentageMaturePerSpecies = 50               # Percentage of individuals that are mature
+#' SurfaceBiomassScaling = 100                   # Scaling factor for surface area (cm^2 per m^2)
+#' Imax = 900                                    # Maximum light intensity for scaling
+#' microhabitatVariableFlags = c(1, 1, 1, 0, 1, 1, 0) # Flags for microhabitat variables
+#'
+#' Output:
+#' [ID_SpeciesP_<pool>_Rep_<replicate>.csv]      # Initial epiphyte matrix for each species pool and replicate
+#'
+NULL
+
 source("utils.R")
 
+#' Identify suitable voxels for a species
+#'
+#' This function determines which voxels in the microhabitat matrix are suitable for a given species
+#' based on its niche requirements (light, humidity, temperature, (wind)). A voxel is considered suitable
+#' if it meets all the species' minimum and maximum thresholds for the active microhabitat variables.
+#'
+#' @param microhabitat 4D numeric array containing microhabitat variables \code{[x, y, z, variables]}.
+#' @param microhabitat_index_list named list mapping variable names to their indices in the microhabitat array.
+#' @param microhabitat_var_names named vector of flags indicating which microhabitat variables are active.
+#' @param SpeciesPool data frame containing species trait information, including niche thresholds.
+#' @param numSpecies integer, the index of the species in the SpeciesPool for which to find suitable voxels.
+#'
+#' @return A vector of linear indices corresponding to the suitable voxels in the microhabitat matrix.
+#'
+#' @examples
+#' microhabitat <- array(runif(1000), dim = c(10, 10, 10, 1))
+#' microhabitat_index_list <- c(TotalSurfaceAreaOpt = 1, LightNicheOpt = 2)
+#' microhabitat_var_names <- c(TotalSurfaceAreaOpt = 1, LightNicheOpt = 1)
+#' SpeciesPool <- data.frame(MinLight = c(0.1, 0.2), MaxLight = c(0.9, 0.8))
+#' ComputeSuitableVoxels(microhabitat, microhabitat_index_list, microhabitat_var_names, SpeciesPool, 1)
+#'
 ComputeSuitableVoxels <- function(microhabitat,
                                   microhabitat_index_list,
                                   microhabitat_var_names,
@@ -45,8 +98,21 @@ ComputeSuitableVoxels <- function(microhabitat,
   return(which(SuitableMask))
 }
 
-# Growth function. Used here to approximate the age of the individuals
-# MassFunctionOfAge=@(MaxMass,K,Age) (MaxMass*(1-exp(-K*(Age))));
+#' Calculate age from mass using growth rate
+#'
+#' This function approximates the age of an individual based on its mass, maximum mass, and growth rate.
+#' It uses the inverse of the Betalanffy growth curve formula to derive age from mass.
+#' The Betalanffy growth curve is defined as: \code{Mass = MaxMass * (1 - exp(-K * Age))}.
+#'
+#' @param MaxMass numeric, the maximum mass of the species (in grams).
+#' @param Mass numeric, the current mass of the individual (in grams).
+#' @param K numeric, the growth rate constant for the species.
+#'
+#' @return A numeric value representing the age of the individual (in years).
+#'
+#' @examples
+#' AgeFunctionOfMass(100, 50, 0.1)
+#'
 AgeFunctionOfMass <- function(MaxMass, Mass, K) {
     return(-log(1 - (Mass / MaxMass)) / K)
 }
@@ -124,16 +190,6 @@ NumberSpecies <- length(SpeciesPool$SpeciesID)
 
 ColumnHeaders <- c(colnames(SpeciesPool),
                    c("X", "Y", "Z", "Mass", "Status", "IndividualID", "Age"))
-
-# Get numbers of columns used in this script
-ColMinLight <- match("MinLight", ColumnHeaders)
-ColMaxLight <- match("MaxLight", ColumnHeaders)
-ColMinHum <- match("MinHum", ColumnHeaders)
-ColMaxHum <- match("MaxHum", ColumnHeaders)
-ColMinTemp <- match("MinTemp", ColumnHeaders)
-ColMaxTemp <- match("MaxTemp", ColumnHeaders)
-ColMinWind <- match("MinWind", ColumnHeaders)
-ColMaxWind <- match("MaxWind", ColumnHeaders)
 
 # Get number of total individuals for each replicate
 TotalIndividuals <- NumberSpecies * IndividualsPerSpecies
@@ -337,14 +393,6 @@ if (SingleSpeciesModel == 0) {
                 NumIndRand <- RandNumInd[i]
 
                 # Find all suitable voxels for this individual
-                MinLightInd <- IntitalEpiphyteMatrix[NumIndRand, ColMinLight]
-                MaxLightInd <- IntitalEpiphyteMatrix[NumIndRand, ColMaxLight]
-                MinHumInd <- IntitalEpiphyteMatrix[NumIndRand, ColMinHum]
-                MaxHumInd <- IntitalEpiphyteMatrix[NumIndRand, ColMaxHum]
-                MinTempInd <- IntitalEpiphyteMatrix[NumIndRand, ColMinTemp]
-                MaxTempInd <- IntitalEpiphyteMatrix[NumIndRand, ColMaxTemp]
-                MinWindInd <- IntitalEpiphyteMatrix[NumIndRand, ColMinWind]
-                MaxWindInd <- IntitalEpiphyteMatrix[NumIndRand, ColMaxWind]
                 AreaNeededInd <- IntitalEpiphyteMatrix[NumIndRand, SizeSpeciesPool[2] + 7]
 
                 # - 1. Get the postions of all voxels fullfilling the

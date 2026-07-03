@@ -16,6 +16,8 @@ indir <- file.path("../modve_data/modve_output/regua/scenarios/climdata_era5_cmi
 scenario <- paste0("climdata_era5_cmip6_1906-2024_ssp245_119ts_", grad_weight, "_mc_grad")
 outdir <- file.path("../modve_data/modve_output/regua/scenarios", scenario, "microhabitat_mc", "rep0")
 
+# -----
+
 dir.create(outdir, recursive = TRUE)
 
 # ----- Flags for microhabitat matrix variables

@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
 # Merge all cells into one microclimate matrix
-# Usage: Rscript preprocessing/microclimate/03_simulation/02_merge_cells.R --config config.toml [--verbose]
+# Usage: Rscript model_pipeline/02_simulate_microclimate/03_simulation/02_merge_cells.R --config config.toml [--verbose]
 
 # Example config.toml
 #

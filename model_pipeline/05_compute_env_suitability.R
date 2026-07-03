@@ -1,3 +1,37 @@
+#' Environmental Suitability Model
+#'
+#' This script simulates the environmental suitability for epiphyte communities by calculating
+#' suitability scores for each species based on microhabitat variables (light, humidity, temperature, (wind)).
+#' It processes species and species pools in parallel. Use singleStep argument to compute unscaled suitability for each
+#' single time step first before running the script again without the argument for scaling.
+#' Suitability scores are saved as HDF5 files for further analysis.
+#'
+#' @details
+#' Usage: Rscript model_pipeline/05_compute_suitability.R config.toml [singleStep]
+#'
+#' Example config.toml
+#'
+#' Directorymicrohabitat = "/path/to/microhabitat_mc/" # Directory containing microhabitat matrices
+#' DirectorySpeciesPools = "/path/to/SpeciesPools/"    # Directory containing species pool CSV files
+#' DirectoryOutput = "/path/to/EnvSuitability/"        # Directory to save suitability scores
+#' timeSteps = 10                                      # Number of timesteps to simulate
+#' InitialTimeStep = 1                                 # First timestep to process
+#' numSpeciesPools = c(1, 10)                          # Range of species pool IDs to process
+#' LightResponseFct = "Parabolic"                      # Light response function ("Parabolic" or "Yan and Hunt")
+#' Imax = 1000                                         # Maximum light intensity for scaling
+#' LightNicheOpt = 1                                   # {0, 1} Include light niche in suitability calculation
+#' HumNicheOpt = 1                                     # {0, 1} Include humidity niche in suitability calculation
+#' TempNicheOpt = 1                                    # {0, 1} Include temperature niche in suitability calculation
+#' WindNicheOpt = 0                                    # {0, 1} Include wind niche in suitability calculation
+#' microhabitatVariableFlags = c(1, 1, 1, 0, 1, 1, 0)  # Flags for microhabitat variables
+#'
+#' Output:
+#' [ID_SpeciesP_<pool>_TimeStep<t>.h5]             # Unscaled suitability scores for each species pool and timestep
+#' [ScaledSuitability_<pool>_TimeStep<t>.h5]       # Scaled suitability scores (0-1) for each species pool and timestep
+#' [GlobalMaxSuitability_<pool>.h5]                # Global maximum suitability scores for scaling
+#'
+NULL
+
 options(warn=-1)  # Suppress warnings
 options(digits.secs=3)  # 3 decimal digits for seconds
 
@@ -12,13 +46,33 @@ library("doParallel")
 # BiocManager::install("rhdf5")
 library("rhdf5")
 
-
-# Parabolic Optimum function
+#' Model species' light response curves with parabolic response function
+#'
+#' @param a numeric, the quadratic coefficient of the parabola.
+#' @param b numeric, the linear coefficient of the parabola.
+#' @param c numeric, the constant term of the parabola.
+#' @param x numeric vector, the input values (e.g., light intensity) for which to compute the parabola.
+#'
+#' @return A numeric vector of the same length as \code{x}, containing the computed parabolic values.
+#'
 Parabol <- function(a, b, c, x) {
     return((a * x^2) + (b * x) + c)
 }
 
-
+#' Calculate environmental suitability score
+#'
+#' Computes a suitability score for a species based on its minimum, maximum, and optimum
+#' environmental variable values. The score is calculated using a power function that peaks
+#' at the optimum value and declines toward the minimum and maximum bounds.
+#'
+#' @param MinEnvVar numeric, the minimum value of the environmental variable for the species.
+#' @param MaxEnvVar numeric, the maximum value of the environmental variable for the species.
+#' @param OptEnvVar numeric, the optimum value of the environmental variable for the species.
+#' @param EnvVar numeric vector, the environmental variables for which to compute suitability.
+#'
+#' @return A numeric vector of suitability scores, with values between 0 and 1.
+#'         Invalid or out-of-range values are set to 0.
+#'
 SuitabilityScore <- function (MinEnvVar, MaxEnvVar, OptEnvVar, EnvVar) {
 
     # Pre-compute denominators
@@ -35,7 +89,16 @@ SuitabilityScore <- function (MinEnvVar, MaxEnvVar, OptEnvVar, EnvVar) {
     return(suitability)  # shape: e.g. [50, 50, 60, 100, 2]
 }
 
-
+#' Main function for computing environmental suitability
+#'
+#' Computation of suitability scores for epiphyte species across all timesteps and species pools with parallel
+#' processing across species pools and species. Suitability scores are saved as HDF5 files.
+#'
+#' @note
+#' In single-step mode (\code{singleStep} provided), only unscaled suitability scores are computed for the given timestep.
+#' In full simulation mode, suitability scores are loaded and scaled by the global maximum for each species.
+#'
+#' @export
 main <- function() {
     # Detect the number of CPU cores and register the parallel backend
     # Note: detectCores() will detect the total number of cores on a HPC node,
@@ -147,7 +210,7 @@ main <- function() {
 
             for (j in seq_along(EnvScoreVars)) {
                 envVarIdx <- allEnvVarsIdx[j]
-                envVar <- c(microhabitat[, , , envVarIdx])
+                envVar <- microhabitat[, , , envVarIdx]
                 VarName <- strsplit(names(envVarIdx), split='NicheOpt', fixed=TRUE)[[1]]
 
                 for (i in seq_len(nrow(SpeciesPool))) {
@@ -244,7 +307,7 @@ main <- function() {
                 })
             }
 
-            # - 2. Recompute suitability scores for each time step and scale them
+            # - 2. Load suitability scores for each time step and scale them
             print(paste0("Recompute combined scores and scale them for species pool ", numPool, " ..."))
 
             for (step in 0:timeSteps) {
@@ -278,7 +341,7 @@ main <- function() {
                 denom[is.na(denom) | denom == 0] <- NA_real_
                 scaledSuitability <- sweep(EnvSuitability, 4, denom, "/")
 
-                # MEMORY FIX 5: Remove original data as soon as possible
+                # Remove original data to free space
                 rm(EnvSuitability)
                 gc()
 

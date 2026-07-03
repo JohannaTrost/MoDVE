@@ -1,52 +1,108 @@
-# Create species matrices
+#' Generate trait matrices for artificial species pools
+#'
+#' This script creates species trait matrices, including ecological niches (light, humidity, temperature, (wind)),
+#' growth, recruitment, and dispersal traits. It supports both random and correlated trait generation.
+#' The output is saved as CSV files for each species pool.
+#'
+#' @details
+#' Usage: Rscript model_pipeline/04_generate_species_matrices.R --config config.toml
+#'
+#' Example config.toml
+#'
+#' seed = 42                                       # RNG seed (integer or NULL for random)
+#' MainOutputDirectory = "/path/to/SpeciesPools/"  # Directory to save species trait matrices
+#' Directorymicrohabitat = "/path/to/microhabitat_mc/" # Directory containing microhabitat matrices
+#' numSpeciesPools = 1                            # Number of species pools to generate
+#' NumberOfSpecies = 10                           # Number of species per pool
+#' initialTimeStep = 1                            # First simulation timestep
+#' timeSteps = 10                                 # Total number of timesteps
+#' CorrelationMassRecruitment = 1                 # {0, 1} Correlation between mass and recruitment
+#' InterceptAgeMaturity = 2                     # Intercept for age-maturity relationship
+#' ScalingAgeMaturity = 0.25                      # Scaling factor for age-maturity (metabolic theory)
+#' MaxMassRangeCorr = [2, 3000]                   # Mass range for correlated traits (g)
+#' AgeAtMaturityDevCorr = 0.25                    # Relative deviation from mean age of maturity
+#' RecruitmentNormalizeAtSize1Corr = 70           # Factor for reproductive biomass to recruits
+#' RecruitmentInvestmentRelMeanCorr = 0.1         # Mean annual reproductive investment (correlated)
+#' RecruitmentInvestmentRelDevCorr = 0.25         # Relative deviation from mean reproductive investment
+#' RecruitmentIncMaxCorr = 0                      # Maximum recruitment increase (correlated)
+#' MaxMassRandom = [2, 3000]                     # Mass range for random traits (g)
+#' MaxMassLogScaleRandom = 1                      # {0, 1} Use log scale for random mass
+#' AgeAtMaturityRandom = [1, 1]                  # Age at maturity range (years)
+#' RecruitmentNormalizeAtSize1Random = [1, 20]   # Random reproductive biomass factor
+#' RecruitmentInvestmentRelMeanRandom = [0.07, 0.12] # Random mean reproductive investment
+#' RecruitmentIncRandom = [0, 0]                 # Random recruitment increase
+#' MassAtMaturityRelativeRandom = [0.5, 0.7]     # Relative mass at maturity
+#' DispersalKernelRandom = [0.03, 0.5]           # Dispersal kernel range
+#' DispersalKernelAsymmetryRandom = [0.5, 0.95]  # Dispersal kernel asymmetry range
+#' kL = 0.6                                       # Light extinction coefficient
+#' Imax = 900                                     # Maximum light intensity
+#' LAI = 6                                        # Leaf area index
+#' HeightBreadthRandom = [0.15, 0.7]             # Relative height range for niches
+#' HumBreadthRandom = [35, 92]                   # Relative humidity range (%)
+#' TempBreadthRandom = [18, 27]                  # Temperature range (°C)
+#' LightBreadthRandom = [100, 850]               # In lux, if 1 then use height to estimate light
+#' WindBreadthRandom = [0, 11]                   # Wind speed range (m/s)
+#' microhabitatVariableFlags = [1, 1, 1, 0, 1, 1, 0] # Flags for microhabitat variables
+#'
+#' Output:
+#' [SpeciesPool1.csv, ..., SpeciesPoolN.csv]     # Species trait matrices for each pool
+#' TraitRanges.csv                               # Ranges of traits used for generation
+#'
+NULL
+
 source("utils.R")
 
 library("dplyr")
 
-sampleEnvironment <- function(dimPlot, timeVals, numNiches) {
-    
-        # Define the ranges
-        xVals <- 1:dimPlot[1]
-        yVals <- 1:dimPlot[2]
-        zVals <- 1:dimPlot[3]
-
-        # Total number of possible combinations
-        totalCombs <- length(xVals) * length(yVals) * length(zVals) * length(timeVals)
-
-        # Sample unique indices
-        sampleIndices <- sample(totalCombs, numNiches)
-
-        # Convert sampled indices to actual combinations using array indexing
-        getCombination <- function(index) {
-          timeIndex <- ((index - 1) %% length(timeVals)) + 1
-          zIndex <- (((index - 1) %/% length(timeVals)) %% length(zVals)) + 1
-          yIndex <- ((((index - 1) %/% length(timeVals)) %/% length(zVals)) %% length(yVals)) + 1
-          xIndex <- ((((index - 1) %/% length(timeVals)) %/% length(zVals)) %/% length(yVals)) + 1
-
-          c(x = xVals[xIndex],
-            y = yVals[yIndex],
-            z = zVals[zIndex],
-            time = timeVals[timeIndex])
-        }
-
-        # Apply the index-to-combination conversion
-        result <- t(sapply(sampleIndices, getCombination))
-
-        return(as.data.frame(result))
-}
-
-
+#' Calculate age at maturity based on metabolic theory
+#'
+#' This function computes the age at maturity for a species using a metabolic scaling relationship
+#' between mass and age. The formula is: \code{InterceptAgeMaturity * (Mass^ScalingAgeMaturity)}.
+#'
+#' @param InterceptAgeMaturity numeric, the intercept of the metabolic scaling relationship.
+#' @param ScalingAgeMaturity numeric, the scaling exponent for age-maturity relationship.
+#' @param Mass numeric, the mass of the species (in grams).
+#'
+#' @return A numeric value representing the age at maturity (in years).
+#'
+#' @examples
+#' AgeMaturityMetabolic(0.1, 0.25, 100)
+#'
 AgeMaturityMetabolic <- function(InterceptAgeMaturity, ScalingAgeMaturity, Mass) {
     return(InterceptAgeMaturity * (Mass^ScalingAgeMaturity))
 }
 
-
+#' Convert height to light availability
+#'
+#' This function converts a species' height to light availability using a negative exponential model, based on the
+#' light extinction coefficient (\code{kL}), leaf area index (\code{LAI}), and maximum light intensity (\code{Imax}).
+#'
+#' @param Height numeric, the height of the species (relative or absolute).
+#' @param kL numeric, the light extinction coefficient.
+#' @param LAI numeric, the leaf area index.
+#' @param Imax numeric, the maximum light intensity (lux).
+#'
+#' @return A numeric value representing the light availability at the given height.
+#'
 Height2Light <- function(Height, kL, LAI, Imax) {
     # Convert height to light
     return(Imax * exp(-kL * LAI * (1 - Height)))
 }
 
-
+#' Validate and adjust niche value ranges
+#'
+#' This function ensures that minimum, optimum, and maximum values for ecological niches (light, humidity,
+#' temperature, (wind)) are logically consistent (i.e., \code{Min < Opt < Max}). If inconsistencies are found,
+#' it adjusts the values and issues a warning.
+#'
+#' @param Niches data frame containing columns for niche values (e.g., \code{MinHum}, \code{OptHum}, \code{MaxHum}).
+#'
+#' @return A data frame with adjusted niche values, ensuring \code{Min < Opt < Max} for all variables.
+#'
+#' @examples
+#' Niches <- data.frame(MinHum = c(20, 30), OptHum = c(40, 35), MaxHum = c(60, 50))
+#' CheckNicheValues(Niches)
+#'
 CheckNicheValues <- function(Niches) {
     # Humidity
     idx <- Niches$MinHum >= Niches$OptHum
@@ -98,7 +154,6 @@ set.seed(seed, kind="Mersenne-Twister")  # integer for fixed seed or NULL for ra
 
 # Parameters that need to be specified/checked before running this script
 MainOutputDirectory <- config$MainOutputDirectory
-PathUniqueEnvVarCombs <- config$PathUniqueEnvVarCombs
 Directorymicrohabitat <- config$Directorymicrohabitat
 
 # Folder to save species trait matrices
@@ -155,7 +210,6 @@ DispersalKernelRandom <- config$DispersalKernelRandom  # The higher this values,
 DispersalKernelAsymmetryRandom <- config$DispersalKernelAsymmetryRandom  # The trait describes the relative proportion of seed dispersed below the mother (i.e. 0.5=> symmetric dispersal kernel)
 
 # microclimate parameters
-Random <- config$Random  # Flag to indicate if random MC niches
 HeightBreadthRandom <- config$HeightBreadthRandom  # Relative height
 LightBreadthRandom <- config$LightBreadthRandom
 HumBreadthRandom <- config$HumBreadthRandom  # Relative humidity

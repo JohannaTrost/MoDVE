@@ -2,7 +2,7 @@
 
 # microclimate Simulation CLI with TOML Configuration
 # - Runs Micropoint (https://github.com/ilyamaclean/micropoint.git) and aggregates output to yearly
-# Usage: Rscript preprocessing/microclimate/03_simulation/01_simulate_mc.R --config config.toml [--verbose]
+# Usage: Rscript model_pipeline/02_simulate_microclimate/03_simulation/01_simulate_mc.R --config config.toml [--verbose]
 
 # Example config.toml
 #

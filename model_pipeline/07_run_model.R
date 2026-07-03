@@ -1,3 +1,46 @@
+#' Epiphyte demography model
+#'
+#' This script simulates the development of an entire epiphyte community over time.
+#' It models dispersal, growth, recruitment, and mortality of epiphytes based on microhabitat conditions,
+#' species traits, and environmental suitability scores. It uses parallel processing across species pools and forests.
+#'
+#' @details
+#' Usage: Rscript model_pipeline/07_epiphyte_ibm.R --config config.toml
+#'
+#' Example config.toml
+#'
+#' Directorymicrohabitat = "/path/to/microhabitat_mc/" # Directory containing microhabitat matrices
+#' DirectorySpeciesPools = "/path/to/SpeciesPools/"    # Directory containing species pool CSV files
+#' DirectoryModelMain = "/path/to/model/distributions/" # Directory containing initial epiphyte distributions
+#' DirectoryModelResults = "/path/to/model/communities/" # Directory to save model results
+#' DirectoryEnvScores = "/path/to/EnvSuitability/"    # Directory containing environmental suitability scores
+#' microhabitatType = 1                                # {1, 2, 3} 1: dynamic forest, 2: static forest, 3: uniform forest
+#' timeSteps = 100                                     # Number of timesteps to simulate
+#' StopCriterionHa = 3000000                           # Individuals per hectare to stop simulation
+#' numSpeciesPools = c(1, 10)                          # Range of species pool IDs to process
+#' replicatePerSpeciesPool = 3                         # Number of replicates per species pool
+#' SurfaceBiomassScaling = 100                         # Scaling factor for surface area (cm^2 per m^2)
+#' Imax = 900                                          # Maximum light intensity for scaling
+#' CompetitionMethod = 1                               # {1, 2} 1: Size-based competition, 2: Random competition
+#' UseWindDispersal = 1                                # {0, 1} Use wind dispersal
+#' MortalityMethod = 1                                 # {0, 1} 0: Random mortality, 1: Mass-scaled mortality
+#' MortRateRandom = 0.01                               # Random mortality rate
+#' MortRateMass = 0.01                                 # Mass-scaled mortality rate
+#' MortRateMassScaling = -0.25                         # Scaling exponent for mass-scaled mortality
+#' EnvVarFlags = c(1, 1, 1, 0)                         # Flags for environmental variables (Light, Hum, Temp, Wind)
+#' microhabitatVariableFlags = c(1, 1, 1, 0, 1, 1, 0)  # Flags for microhabitat variables
+#' InitialTimeStep = 1                                 # First timestep to process
+#' seed = 42                                           # RNG seed (integer or NULL for random)
+#' RandomState = NULL                                  # Path to saved random state file (optional)
+#'
+#' Output:
+#' [IndividualMatrixTimeStep<t>.csv]                # Epiphyte matrix for each timestep
+#' [SpeciesSummary.csv]                             # Summary statistics for each species and timestep
+#' [CommunitySummary.csv]                           # Summary statistics for the entire community
+#' [random_state_seed.RData]                        # Saved random number generator state
+#'
+NULL
+
 options(warn=-1)  # Suppress warnings
 options(digits.secs=3)  # 3 decimal digits for seconds
 
@@ -14,6 +57,30 @@ library(rhdf5)
 
 ###############################################################################
 
+#' Compute normalized dispersal probability matrix
+#'
+#' This function calculates a normalized probability matrix for seed dispersal from a central point
+#' (e.g., a mature individual) to all other voxels in a 3D grid. The probability is based on:
+#' - Distance from the central point (negative exponential decay).
+#' - Species-specific dispersal kernel parameters.
+#' - Wind speed (if provided) and species-specific wind dispersal effect.
+#' - Dispersal asymmetry (higher probability of downward dispersal).
+#'
+#' @param centralPoint numeric vector of length 3, the \code{[x, y, z]} coordinates of the central point.
+#' @param dimPlot numeric vector of length 3, the dimensions of the plot \code{[x, y, z]}.
+#' @param dimX integer, the x-dimension of the dispersal matrix.
+#' @param dimY integer, the y-dimension of the dispersal matrix.
+#' @param dimZ integer, the z-dimension of the dispersal matrix.
+#' @param NumberOfSpecies integer, the number of species in the species pool.
+#' @param SpeciesPool data frame containing species traits, including dispersal kernel parameters.
+#' @param WindSpeed 3D numeric array (optional), the wind speed in each voxel. If \code{NULL}, wind dispersal is ignored.
+#'
+#' @return A 4D numeric array of shape \code{[dimX, dimY, dimZ, NumberOfSpecies]} containing
+#'         the normalized dispersal probabilities for each species.
+#'
+compute_prob_matrix_norm <- function(centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool, WindSpeed = NULL) {
+    # Function body
+}
 compute_prob_matrix_norm <- function(centralPoint, dimPlot, dimX, dimY, dimZ, NumberOfSpecies, SpeciesPool, WindSpeed = NULL) {
     # Erzeugen der Distanzmatrix mit allen Distanzen zum
     DistanceMatrix <- array(rep(0, dimX * dimY * dimZ), dim=c(dimX, dimY, dimZ))
@@ -90,36 +157,72 @@ compute_prob_matrix_norm <- function(centralPoint, dimPlot, dimX, dimY, dimZ, Nu
     return(ProbabilityMatrixNormalized)
 }
 
-# Functions used in the model
-
-# Bertalanffy Growth
+#' Calculate growth rate using Bertalanffy growth model
+#'
+#' This function computes the growth rate of an individual based on its current mass,
+#' maximum mass, and growth rate constant (\code{K}). The growth rate is derived from the
+#' Bertalanffy growth model: \code{dM/dt = K * (MaxMass - Mass)}.
+#'
+#' @param MaxMass numeric, the maximum mass of the species (in grams).
+#' @param Mass numeric, the current mass of the individual (in grams).
+#' @param K numeric, the growth rate constant for the species.
+#'
+#' @return A numeric value representing the growth rate (mass increase per timestep).
+#'
 GrowthRate <- function(MaxMass, Mass, K) {
     return(K * (MaxMass - Mass))
 }
 
-# Parabolic Optimum function
+#' Parabolic response function
+#'
+#' Computes the value of a parabolic function defined by coefficients \code{a}, \code{b}, and \code{c}
+#' for a given input \code{x}. This is used to model species' light response curves.
+#'
+#' @param a numeric, the quadratic coefficient of the parabola.
+#' @param b numeric, the linear coefficient of the parabola.
+#' @param c numeric, the constant term of the parabola.
+#' @param x numeric vector, the input values (e.g., light intensity) for which to compute the parabola.
+#'
+#' @return A numeric vector of the same length as \code{x}, containing the computed parabolic values.
+#'
 Parabol <- function(a, b, c, x) {
     return((a * x^2) + (b * x) + c)
 }
 
-
-SuitabilityScore <- function (MinEnvVar, MaxEnvVar, OptEnvVar, EnvVar) {
-
-    # Pre-compute denominators
-    MaxOptDiff <- MaxEnvVar - OptEnvVar
-    OptMinDiff <- OptEnvVar - MinEnvVar
-
-    # Compute suitability only for valid entries
-    num <- (MaxEnvVar - EnvVar) / MaxOptDiff
-    denom <- (EnvVar - MinEnvVar) / OptMinDiff
-    expo  <- OptMinDiff / MaxOptDiff
-
-    suitability <- num * denom^expo
-
-    return(suitability)  # shape: e.g. [50, 50, 60, 100, 2]
-}
-
-
+#' Simulate dispersal and recruitment of epiphytes
+#'
+#' This function simulates the dispersal of seeds from mature individuals and the recruitment
+#' of new individuals based on:
+#' - Dispersal probability matrices for each species.
+#' - Environmental suitability (light, humidity, temperature, (wind)).
+#' - Available surface area in each voxel.
+#' - Species-specific recruitment traits (e.g., recruitment investment, mass at maturity).
+#'
+#' @param NumberOfSpecies integer, the number of species in the species pool.
+#' @param E data frame, the current epiphyte matrix containing individual traits and status.
+#' @param microhabitat 4D numeric array, the microhabitat matrix containing environmental variables.
+#' @param SurfaceBiomassScaling numeric, the scaling factor for surface area (cm^2 per m^2).
+#' @param dimPlot numeric vector of length 3, the dimensions of the plot \code{[x, y, z]}.
+#' @param centralPoint numeric vector of length 3, the central point for dispersal calculations.
+#' @param InterceptRecruitment numeric, the intercept for the recruitment function.
+#' @param SlopeRecruitment numeric, the slope for the recruitment function.
+#' @param ProbabilityMatrixNormalized 4D numeric array, the normalized dispersal probability matrix for each species.
+#' @param SpeciesPool data frame, the species pool containing trait information.
+#' @param MaxIndividualID integer, the current maximum individual ID in the epiphyte matrix.
+#' @param Inds named list, the indices of active microhabitat variables.
+#' @param EnvVarFlags numeric vector, flags indicating which environmental variables are active.
+#'
+#' @return A list containing:
+#' \itemize{
+#'   \item \code{IntialNumberIndividuals}: Vector of initial individual counts per species.
+#'   \item \code{NumberRecruitsPerSpecies}: Vector of recruit counts per species.
+#'   \item \code{InitialNumberSpecies}: Integer, the initial number of species.
+#'   \item \code{IntialNumberIndividualsTotal}: Integer, the total initial number of individuals.
+#'   \item \code{E}: Updated epiphyte matrix with new recruits.
+#'   \item \code{PotentialRecruitment}: Data frame with potential recruitment values per species.
+#'   \item \code{MaxIndividualID}: Updated maximum individual ID.
+#' }
+#'
 dispersal <- function(NumberOfSpecies,
                       E,
                       microhabitat,
@@ -278,7 +381,22 @@ dispersal <- function(NumberOfSpecies,
     return(disp_items)
 }
 
-
+#' Create pairs of species pool and replicate indices
+#'
+#' This function generates a data frame of all combinations of species pool indices and replicate indices
+#' for use in parallel processing loops. Each row represents a unique (species pool, replicate) pair.
+#'
+#' @param numSpeciesPools numeric vector of length 2, the range of species pool indices \code{[start, end]}.
+#' @param replicatePerSpeciesPool integer, the number of replicates per species pool.
+#'
+#' @return A data frame with columns \code{numPool} and \code{r}, containing all combinations of
+#'         species pool and replicate indices.
+#'
+#' @examples
+#' numSpeciesPools <- c(1, 3)
+#' replicatePerSpeciesPool <- 2
+#' create_pairs(numSpeciesPools, replicatePerSpeciesPool)
+#'
 create_pairs <- function(numSpeciesPools, replicatePerSpeciesPool){
     N <- (numSpeciesPools[2] - numSpeciesPools[1] + 1) * replicatePerSpeciesPool
     pairs <- data.frame(matrix(0, nrow=N, ncol=2))
@@ -296,7 +414,22 @@ create_pairs <- function(numSpeciesPools, replicatePerSpeciesPool){
     return(pairs)
 }
 
-
+#' Save the random number generator state
+#'
+#' This function saves the current state of the random number generator (RNG) to a file.
+#' This allows for reproducible random number generation across script runs.
+#'
+#' @param savefile character, the path to the file where the RNG state will be saved.
+#'
+#' @return No return value. The RNG state is saved to the specified file.
+#'
+#' @note
+#' The function will stop with an error if \code{set.seed()} has not been called prior to calling this function.
+#'
+#' @examples
+#' set.seed(123)
+#' save_rng("random_state.RData")
+#'
 save_rng <- function(savefile) {
     if (exists(".Random.seed")) {
         oldseed <- get(".Random.seed", .GlobalEnv)
@@ -307,14 +440,50 @@ save_rng <- function(savefile) {
     save("oldseed", "oldRNGkind", file=savefile)
 }
 
-
+#' Restore the random number generator state
+#'
+#' This function restores the random number generator (RNG) state from a previously saved file.
+#' This ensures reproducible random number generation across script runs.
+#'
+#' @param savefile character, the path to the file containing the saved RNG state.
+#'
+#' @return No return value. The RNG state is restored from the specified file.
+#'
+#' @note
+#' The file must have been created using \code{save_rng()}.
+#'
+#' @examples
+#' restore_rng("random_state.RData")
+#'
 restore_rng <- function(savefile) {
     load(savefile)
     do.call("RNGkind", as.list(oldRNGkind))
     assign(".Random.seed", oldseed, .GlobalEnv)
 }
 
-
+#' Main function for the epiphyte demography model
+#'
+#' Simulation of epiphyte community development over time, including:
+#' \itemize{
+#'   \item Parallel processing setup.
+#'   \item Loading configuration and input data (microhabitat matrices, species pools, initial distributions).
+#'   \item Computing dispersal probability matrices.
+#'   \item Simulating dispersal, growth, and mortality for each timestep.
+#'   \item Saving results (individual matrices, species summaries, community summaries).
+#' }
+#'
+#' @details
+#' The function:
+#' \itemize{
+#'   \item Detects available CPU cores and sets up parallel processing.
+#'   \item Parses the configuration file and initializes the random number generator.
+#'   \item Loads plot dimensions, trait ranges, and microhabitat matrices.
+#'   \item Simulates dispersal, growth, recruitment, and mortality for each timestep.
+#'   \item Saves epiphyte matrices, species summaries, and community summaries for each timestep.
+#'   \item Removes dead individuals from the epiphyte matrix at the end of each timestep.
+#' }
+#'
+#' @export
 main <- function() {
     # Detect the number of CPU cores and register the parallel backend
     # Note: detectCores() will detect the total number of cores on a HPC node,
@@ -494,7 +663,7 @@ main <- function() {
     # Internally, the foreach package employs the L'Ecuyer-CMRG RNG algorithm for reliable random
     # number generation, ensuring reproducible results even in parallel computing environments.
     output <- foreach (pair_idx=seq_len(nrow(pairs)),
-                       .export=c("compute_prob_matrix_norm", "int_seq", "dispersal", "GrowthRate", "Parabol", "SuitabilityScore")) %dorng% {
+                       .export=c("compute_prob_matrix_norm", "int_seq", "dispersal", "GrowthRate", "Parabol")) %dorng% {
         numPool <- pairs$numPool[pair_idx]
         r <- pairs$r[pair_idx]
 
