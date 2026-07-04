@@ -1,10 +1,8 @@
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import seaborn as sns
 import matplotlib
-from matplotlib.pyplot import xlabel
 
 matplotlib.use("MacOSX")
 from pathlib import Path

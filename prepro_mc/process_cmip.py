@@ -1,7 +1,5 @@
 import pandas as pd
 from glob import glob
-from pathlib import Path
-import numpy as np
 import xarray as xr
 import seaborn as sns
 import matplotlib.pyplot as plt

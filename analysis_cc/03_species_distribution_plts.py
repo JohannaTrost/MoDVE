@@ -5,7 +5,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.ticker as mticker
-from scipy.stats import alpha
 
 matplotlib.use("MacOSX")
 

@@ -2,13 +2,8 @@
 import pandas as pd
 from pathlib import Path
 import matplotlib
-from matplotlib.pyplot import ylabel
-from scipy.stats import entropy
 import matplotlib.pyplot as plt
-import seaborn as sns
-from matplotlib.patches import Patch
 from scipy.ndimage import gaussian_filter1d
-from matplotlib.lines import Line2D
 matplotlib.use("MacOSX")
 
 from scipy.signal import savgol_filter

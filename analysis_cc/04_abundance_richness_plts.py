@@ -7,9 +7,6 @@ import seaborn as sns
 from matplotlib.patches import Patch
 from matplotlib.ticker import MaxNLocator
 
-from matplotlib.lines import Line2D
-from setuptools.command.rotate import rotate
-
 matplotlib.use("MacOSX")
 
 # Set overall font scale
