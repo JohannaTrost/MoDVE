@@ -1,0 +1,71 @@
+Type: Project
+Package: MoDVE
+Title: An integrated approach to modeling microclimate niches of vascular epiphytes
+Description: Simulation pipeline for agent-based mechanistic modeling of epiphyte demography.
+Version: 0.1.0
+Authors@R: 
+    person("Johanna", "Trost", "trost.j@protonmail.com", role = c("aut")),
+    person("Zachary", "Chu", role = c("aut", "ths"))
+    person("Juliano", "Sarmento Cabral", role = c("ths"))
+    person("Carsten", "Dormann", role = c("ths"))
+    person("Thomas", "Kappas", role = c("aut"))
+Description: What the package does (one paragraph).
+License: GPL-3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Depends:
+    R (>= 4.3.1),
+Imports:
+    sf,
+    terra,
+    dplyr,
+    tidyr,
+    readr,
+    ggplot2,
+    patchwork,
+    microclimf,
+    microclimdata,
+    micropoint,
+    rgee,
+    luna,
+    ncdf4,
+    foreach,
+    doParallel,
+    doRNG,
+    lubridate,
+    circular,
+    vegan,
+    lme4,
+    nlme,
+    lmerTest,
+    glmmTMB,
+    DHARMa,
+    performance,
+    randomForest,
+    optparse,
+    RcppTOML,
+    configr,
+    DEoptim,
+    data.table,
+    fs,
+    purrr,
+    readxl,
+    tidyverse,
+    viridis,
+    lattice,
+    ggpubr,
+    factoextra,
+    permute,
+    merTools,
+    MASS,
+    car,
+    ade4,
+    progressr,
+    furrr,
+    future,
+    parallel,
+    doFuture,
+    httr
+Remotes:
+    BiocManager/rhdf5
