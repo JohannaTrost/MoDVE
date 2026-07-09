@@ -1,242 +1,153 @@
-# MoDVE
+# MoDVE: An integrated approach to modeling microclimate niches of vascular epiphytes
+A simulation pipline for agent-based mechanistic modeling of epiphyte demography in a neotropical lowland forest. The repository includes a step by step pipeline, for simulating microclimate with Micropoint (Maclean, 2025), integrating forest structure and light conditions from forest model outputs of MoF3D (Petter et al., 2021a). It builds upon the epiphyte model by Petter et al. (2021b) introducing temperature and humidity niche axes.
 
-MoF3D generates the 3D forest for epiphytes to inhabit, growing across multiple timesteps.
+Key components: 
+* Modeling pipline
+* TODO
 
-MoDVE scripts:
+## Overview
+This project aims at providing insights into vascular epiphyte community dynamics in response to changes in relative humidity and temperature. Comparing a non-climate-change with the SSP2-4.5 scenario sheds light on a potential future pathway for canopy-dwelling species in terms of species richness and species distribution along the vertical forest profile, which can provide relatively steep relative humidity and temperature gradients. 
 
-A1- converts the MoF3D output into readable microhabitat matrices for each timestep for the epiphytes to inhabit. The epiphytes depend on the amount of substrate (i.e. branch) and the amount of light in each voxel of the microhabitat matrix.
+This repository provides a full modeling pipeline and the following post-hoc analyses and experiments: 
+* Degenerate sensitivity analysis
+* Comparison to the mid-domain effect expecation of species richness
+* Comparison between a non-climate-change and climate change scenario
+* Analysis of interspecific competition effects along the forest profile.
 
-A2- generates several pools of epiphyte species with random traits
+## Table of Contents
+- [Installation](#installation)
+- [Usage](#usage)
+- [Contributing](#contributing)
+- [License](#license)
 
-A3- distributes these randomly generated epiphytes in forest in the initial timestep.
+## Installation
+For running the modeling pipline an R version >= 4.3.1 is required. 
+For downloading CMIP6 data and for several post-simulation scripts python >= 3.11 is required. 
 
-A4- simulates these communities of random species growing in the forest microhabitats in the subsequent timesteps
+1. Clone the repository: git clone https://github.com/JohannaTrost/MoDVE.git
+2. Then navigate to the repository folder: cd MoDVE
+3. Open a R console and install required R libraries:
+```r   
+install.packages("devtools")
+devtools::install_deps(".")
+```
+4. Open a terminal and install Python packages (if needed):
+```bash
+pip install . -r requirements.txt
+```
 
-B1- selects for viable/realistic species to include in the final simulation- i.e. species that won't heavily dominate the community, or rapidly go extinct. It then generates new pools of these realistic species to use.
+## Usage
 
-B2- distributes these selected species in the forest in the initial timestep.
+### Model pipeline walkthrough
 
-B3- simulates these communities growing the forest microhabitats of the subsequent timesteps.
+Here, we demonstrate how to use the model pipeline using the example of simulating epiphytes over 20 years at the forest site REGUA using the SSP2-4.5 climate scenario based on CMIP6 data.
 
-# R Scripts
+#### 0. Download input data from Zenodo
+First, download the necessary input data from Zenodo: 
+```bash
+TODO
+```
 
-Install the following packages:
+#### 1. Generate microhabitat
+Then, generate the microhabitat matrices from the MoF3D forest output or find the corresponding files in `../modve_data_zenodo/microhabitat`.
+Open a terminal and `cd` into the project folder (MoDVE). Then, execute the script:
+```bash
+Rscript model_pipeline/01_generate_microhabitat.R --config ../modve_data_zenodo/cfgs/01_config.toml
+```
+This produces 4D matrices (xDim X yDim X zDim X nVariables) for each time step in `../modve_output/microhabitat`: `microhabitatMatrix80.rds`, ..., `microhabitatMatrix100.rds`, and forest parameter files (`Forest_param_global.txt`, `Forest_param_pass0.txt`, `dimPlot.rds`).
+
+#### 2. Simulate microclimate
+
+In the following scripts, any configurable variables and parameters can be found preceeding the initial library imports. This step can also be skipped, as the resulting microclimate simulations are also available on Zenodo (TODO link) in the directory `modve_data_zenodo/mc_output`.
+
+##### 2.1 Climate input
+
+1. Download CMIP6 data:
+   * Register at the CEDA Archive ![https://catalogue.ceda.ac.uk/uuid/c107618f1db34801bb88a1e927b82317/](https://catalogue.ceda.ac.uk/uuid/c107618f1db34801bb88a1e927b82317/)
+   * Generate an access token
+   * Execute CMIP6 downloader for historical and SSP2-4.5 data:
+  ```bash
+  cd model_pipeline/02_simulate_microclimate/01_climate_inputs
+  python 01_cmip6_downloader.py --help
+  python 01_cmip6_downloader.py -f 1981 -l 2014 -o ../modve_data/mc_input/climate/cmip6_ceda --scenario historical --token-file <path/to/token.txt>
+  python 01_cmip6_downloader.py -f 2015 -l 2100 -o ../modve_data/mc_input/climate/cmip6_ceda --scenario ssp245 --token <your token>
+  ```
+This will produce the files `baf_ensemble_day_<scenario>_<year>.nc` and `baf_<var>_<scenario>_<year>.nc` with `year` 1981-2100, `scenario` either historical or ssp245, and `var` including daily precipitation (pr_day), wind (sfcWind), relative humidity (hurs), pressure (ps_day), and temperature (tas).
+
+2. Download ERA5 data:
+```bash
+for year in {1981..2025}; do
+  Rscript 02_era5_downloader.R ../modve_data/mc_input/climate/era5_raw year
+end
+```
+3. Process ERA5 data:
+```bash
+Rscript 03_prepro_era5.R ../modve_data/mc_input/climate/era5_raw ../modve_data/mc_input/climate/era5_processed $(seq 1981 2025)
+```
+4. Execute R scripts step by step to select a subregion and merge ERA5 and CMIP6 data for complete hourly variables (`04_subset_region_and_merge.R`), detrend the climate change data (SSP2-4.5) for a baseline scenario (`05_generate_baseline_climate.R`) and clean the resulting data sets (`06_clean_data.R`). Note that any configurable variables will be listed after loading required libraries. 
+
+##### 2.2 Vegetatation, soil, and albedo
+
+1. Vegetation:
+  * Generate a Google Earth Enginge (GEE) project, initialize it and configure the respective variables in the script `model_pipeline/02_simulate_microclimate/02_surface_inputs/01_vegetation.R`
+  * Walk through the script downloading landcover and vegetation height with GEE and generating vegeation inputs.
+2. Albedo: Use the script `model_pipeline/02_simulate_microclimate/02_surface_inputs/02_albedo.R` to download and visualize MODIS RGB and CIR data stored in `../modve_data/mc_input/albedo` and `../modve_figs`.
+3. Soil: Generate soil and leaf reflectance data and rasters with soil parameters with `model_pipeline/02_simulate_microclimate/02_surface_inputs/03_soil.R`
+4. Crop soil and vegetation to 50 m x 50 m rasters for either the REGUA or Pirineus forest stand in the Atlatnic forest and process list of rasters to specific format required by Micropoint with `model_pipeline/02_simulate_microclimate/02_surface_inputs/04_format_subregion.R`
+5. Replace vegetation height and PAI with data from MoF3D simulations with `model_pipeline/02_simulate_microclimate/02_surface_inputs/05_mc_input_mof3d.R` 
+
+##### 2.3 Simulation with Micropoint 
+
+#### 3. Add microclimate to microhabitat matrices
+Add the simulated microclimate variables to the microhabitat matrices or find the corresponding files in `../modve_data_zenodo/microhabitat_mc`.
+```bash
+Rscript model_pipeline/03_add_microclimate_dimensions.R --config ../modve_data_zenodo/cfgs/03_config.toml
+```
+New `microhabitatMatrix<t>.rds` files will be in `../modve_output/microhabitat_mc` (with `t` = time step). 
+
+#### 4. Draw species
+Next, generate the species for each species pool. To reproduce our results please use the species pools in `../modve_data_zenodo/species_pools`.
 
 ```bash
-Rscript -e 'install.packages("optparse", repos="http://cran.uk.r-project.org")'
-Rscript -e 'install.packages("configr", repos="http://cran.uk.r-project.org")'
-Rscript -e 'install.packages("foreach", repos="http://cran.uk.r-project.org")'
-Rscript -e 'install.packages("doParallel", repos="http://cran.uk.r-project.org")'
-Rscript -e 'install.packages("doRNG", repos="http://cran.uk.r-project.org")'
+Rscript model_pipeline/04_create_species_pools.R --config ../modve_data_zenodo/cfgs/04_config.toml
 ```
 
-## A1
-
-Create a file named `config.toml`. Use the following content as a template, replacing the placeholder values with your data:
-
-```toml
-# This parameter determines which type of microhabitat matrices are generated:
-# 1: real GroIMP forest with dynamics
-# 2: static GroIMP forest (only forest at timeStepStart is used)
-microhabitatType = 1
-
-# Parameters of light model
-# Light extinction coefficient
-kL = 0.6
-# How many rings around focal voxel to consider in light model
-# (5 voxels in x and y direction)
-DistVoxToConsider = 8
-
-# Choose the forest parameters that shall be calculated and stored in the microhabitat matrix
-# (this list can be extended for possible new applications of the epiphyte model)
-# 1: use this variable
-# 0: do not use it
-TotalSurfaceAreaOpt = 1
-SurfaceAreaLossOpt = 1
-LightConditionsOpt = 1
-AverageWeightedAngles = 0
-
-# Parameters that need to be specified if microhabitat_type=1 or microhabitat_type=2
-# Directory of GroIMP files (this directory is stored in the microhabitat folder so that the
-# connection to the input GroIMP files is always clear)
-DirectoryGroIMP = "path/to/GroIMP/output/dir"
-# Directory to save results
-DirectorySaveMain = "path/to/output/dir"
-
-ReplicateForest = 0
-
-# start and end timestep
-timeStepStart = 1
-timeStepEnd = 40
-```
-
-Run the following command, replacing `path/to/toml` with the actual path to your `config.toml` file:
+#### 5. Precompute environmental suitability
+First, compute environmental suitability scores (0-1) for each scenario, species, voxel, forest and time step: 
 
 ```bash
-Rscript A1.R -i "path/to/toml"
+Rscript model_pipeline/05_compute_env_suitability.R --config ../modve_data_zenodo/cfgs/05_config.toml
 ```
 
-## A2
-
-Create a file named `config.toml`. Use the following content as a template, replacing the placeholder values with your data:
-
-```toml
-# Seed for random number generator (integer, optional)
-# Comment it out to use a random seed instead
-#seed = 42
-
-MainOutputDirectory = "path/to/output/dir"
-
-# Define number of species in species pool and total number of species pools to be created
-numSpeciesPools = 100
-NumberOfSpecies = 100
-
-# The following option defines if correlations between traits are consider or not
-CorrelationMassRecruitment = 1  # Correlation between the mass and the recruitment
-
-InterceptAgeMaturity = 2
-ScalingAgeMaturity = 0.25  # Scaling factor according to metabolic theory
-
-# If correlations are choosen, the following parameters define the shape of the correlations
-# 1. Correlations if CorrelationMassAgeOfMaturity=1
-MaxMassRangeCorr = [2, 3000]  # maximum mass of species/functional types (g)
-AgeAtMaturityDevCorr = 0.25  # relative deviation from mean age of maturity
-
-# 2. Correlations if CorrelationMassRecruitment=1
-RecruitmentNormalizeAtSize1Corr = 70  # Factor converting the reproductive biomass to potential recruits
-RecruitmentInvestmentRelMeanCorr = 0.1  # Anual investment in reproduction in relation to vegetative biomass (decrease due to correlation with mass)
-RecruitmentInvestmentRelDevCorr = 0.25  # The relative deviation from the mean recruitment
-RecruitmentIncMaxCorr = 0
-
-# Parameters of light model (needed to convert the height nicht and the light niche, these values do not have to
-# be the same as used in the microhabitat matrices)
-kL = 0.6  # light extinction coefficient
-Imax = 900  # maximum light intensity
-LAI = 6  # leaf area index
-
-# Define trait (ranges) if random species pool(SpeciesPoolType=0) is choose
-# If no correlations between traits are choosen (CorrelationMassAgeOfMaturity=0 || CorrelationMassRecruitment=0), traits are randomly choosen from the following ranges
-MaxMassRandom = [2, 3000]  # maximum mass of species/functional types (g)
-MaxMassLogScaleRandom = 1  # define if the mass is choosen based on the log scale (MaxMassLogScale=1) or on the normal scale (MaxMassLogScale=0)
-AgeAtMaturityRandom = [1, 1]  # age at which maturity is reaches (years)
-RecruitmentNormalizeAtSize1Random = [1, 20]  # This parameter regulates the range of recruitment in thise cases
-RecruitmentInvestmentRelMeanRandom = [0.07, 0.12]  # Not that the effective recruitment is RecruitmentNormalizeAtSize1Random*RecruitmentInvestmentRelMeanRandom
-RecruitmentIncRandom = [0, 0]
-MassAtMaturityRelativeRandom = [0.5, 0.7]  # Relative mass in relation to maximum Size
-HeightBreadthRandom = [0.15, 0.7]  # Relative height
-DispersalKernelRandom = [0.03, 0.5]  # The higher this values, the more local is the dispersal
-DispersalKernelAsymmetryRandom = [0.5, 0.95]  # The trait describes the relative proportion of seed dispersed below the mother (i.e. 0.5=> symmetric dispersal kernel)
-```
-
-Run the following command, replacing `path/to/toml` with the actual path to your `config.toml` file:
+Suitability scores will be stored in `../modve_output/EnvSuitability/ID_SpeciesP_<pool>_TimeStep<t>.h5` (with `t` = time step, `pool` = no. species pool).
+Second, scale the suitability scores across space, time, scenario, and forest for each time step (using the additional `singleStep` argument):
 
 ```bash
-Rscript A2.R -i "path/to/toml"
+for singleStep in {80..100}; do
+  Rscript model_pipeline/05_compute_env_suitability.R --config ../modve_data_zenodo/cfgs/05_config.toml *singleStep*
+end
 ```
 
-## A3
+This will first compute the global maximum suitabilities for each species and species pool and save it in `../modve_output/EnvSuitability/GlobalMaxSuitability_<pool>.h5`. Then, the suitability scores will be scaled for the given time step (`singleStep`) and written to `../modve_output/EnvSuitability/ScaledSuitability_<pool>TimeStep<t>.h5`. The corresponding file with unscaled scores will be deleted thereafter.
 
-Create a file named `config.toml`. Use the following content as a template, replacing the placeholder values with your data:
-
-```toml
-# Seed for random number generator (integer, optional)
-# Comment it out to use a random seed instead
-#seed = 42
-
-SingleSpeciesModel = 0  # 1: Single species model, 0: Community model
-
-# Directory where model is save and directory where microhabitat matrices
-# are stored
-DirectoryModelMain = "path/to/output"
-DirectorymicrohabitatMain = "path/to/microhabitat"
-DirectorySpeciesPoolsMain = "path/to/species"
-
-# Choose species pools to use and number of replicates per species pool
-numSpeciesPools = [99, 100]  # Start and end number of  species pools
-replicatePerSpeciesPool = 1  # Number of replicates per species pool
-TimeStep = 1  # Time step for which the Initial distribution is generated
-
-# The suitable voxel can either be the voxel
-# with the highest available surface area (MethodVoxel=1)
-# or a random voxel (MethodVoxel=0)
-MethodVoxel = 0
-
-# Define how many individuals per species are used, and how many of them are initially mature
-# This variable defines if the NumberSpecies are total numbers irrespective
-# of the model area (ScalingPerHa=0), or if the NumberSpecies or given per
-# hectar and are scaled to the model area (ScalingPerHa=1)
-ScalingPerHa = 0
-IndividualsPerSpecies = 100
-PercentageMaturePerSpecies = 50
-
-# This parameter set the scaling between the
-SurfaceBiomassScaling = 100  # cm^2 per m^2
-Imax = 900
-```
-
-Run the following command, replacing `path/to/toml` with the actual path to your `config.toml` file:
+#### 6. Initialize the spatial epiphyte distribution
+For the starting point of the simulation, distribute epiphyte individuals for all species across the 3D forest stand according to suitable environmental factors. To reproduce our results please use the distributions in `../modve_data_zenodo/distribution`.
 
 ```bash
-Rscript 04_create_initial_distributions.R -i "path/to/toml"
+Rscript model_pipeline/06_create_initial_distributions.R --config ../modve_data_zenodo/cfgs/06_config.toml
 ```
 
-## A4
+The initial distribution will be saved at `../modve_output/ID_SpeciesP_<pool>_Rep_<replicate>.csv` (with `pool` = no. species pool, `replicate` = no. replicate simulation of the species pool, i.e. the same species pool with different random initial distributions).
 
-Create a file named `config.toml`. Use the following content as a template, replacing the placeholder values with your data:
-
-```toml
-# Seed for random number generator (integer, optional)
-# Comment it out to use a random seed instead
-# seed = 42
-
-# If a file path is provided, the random state will be loaded from that file,
-# ensuring exact replication of previous results.
-# In this case, any specified seed will be disregarded.
-# RandomState = "path/to/random_state_seed.RData"
-
-# Input directories
-Directorymicrohabitat = "path/to/A1/output"
-DirectorySpeciesPools = "path/to/A2/output"
-DirectoryModelMain = "path/to/A3/output"
-
-# Output directory
-DirectoryModelResults = "path/to/output"
-
-microhabitatType = 1  # Define which type of forest the microhabitat belongs to. 1: dynamic forest, 2: static forest, 3: uniform forest
-
-# Model parameters
-timeSteps = 39  # Model for timeSteps beginning at the time step given by the initial distribution
-
-# Density of individuals per ha at which to stop the simulationof the community and
-# move to the next replicate (to prevent exploding communities)
-StopCriterionHa = 3000000  # Individuals per ha
-
-# Choose species pools to use and number of replicates per species pool
-numSpeciesPools = [99, 100]  # Start and end number of  species pools (if the species pools do not exist, they are automatically skipped)
-replicatePerSpeciesPool = 1  # Number of replicates per species pool  (if the replicates do not exist, they are automatically skipped)
-
-SurfaceBiomassScaling = 100  # cm^2 per m^2
-Imax = 900  # maximum light above canopy
-
-# Competition Methods; defines which individuals are removed in voxels which
-# are entirely filled. 1:size (small individuals are outcompetet by larger ones); 2:random competition
-CompetitionMethod = 1
-
-# Mortality method (complete random or scaling with mass according to metabolic theory);
-MortalityMethod = 1  # 0: random mortality; 1: scaling with mass to the exponent -1/4
-MortRateRandom = 0.1
-MortRateMass = 0.1
-MortRateMassScaling = -0.25  # widely used scaling fator
-
-InitialTimeStep = 1  # Time step for which the Initial distribution is generated in A3
-```
-
-Run the following command, replacing `path/to/toml` with the actual path to your `config.toml` file:
+#### 7. Simulate epiphyte communities
+Finally, simulate epiphyte communities over 20 time steps (1980 ti 2000):
 
 ```bash
-Rscript 06_run_model.R -i "path/to/toml"
+Rscript model_pipeline/07_run_model.R --config ../modve_data_zenodo/cfgs/07_config.toml
 ```
 
-This script leverages parallel processing to efficiently process all possible pairs of species pools and replicates for each species. It automatically detects the number of available cores in the system and distributes the workload across them. Importantly, the loops are independent, meaning that the results of one loop do not affect the others. This ensures that the parallel execution produces the same results as a sequential one.
+Epiphyte communities will be saved in `../modve_output/communities` and include epiphyte matrices for each time step t (`IndividualMatrixTimeStep<t>.csv`), summary statistics for each species and time step (`SpeciesSummary.csv`), summary statistics for the entire community (`CommunitySummary.csv`) and optionally the random number generator state (`random_state_seed.RData`).
 
-To ensure reproducibility, set the random `seed` or provide a previously saved `RandomState`. This guarantees that the same random numbers are generated each time the script is run, leading to identical results. If both a seed and a saved state are provided, the seed is ignored and only the saved state is used. If neither a seed nor a saved state is provided, a random seed will be used, leading to different results each time the script is executed. In any case, the random state is stored to allow for the reproduction of the same results later.
+## License
+This project is licensed under the GPL-3 License - see the [LICENSE.md](LICENSE.md) file for details.
+
