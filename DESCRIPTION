@@ -66,6 +66,9 @@ Imports:
     future,
     parallel,
     doFuture,
-    httr
-Remotes:
-    BiocManager/rhdf5
+    httr,
+    rhdf5,
+    tools,
+    stringr,
+    mcera5
+
