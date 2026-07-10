@@ -30,16 +30,16 @@ def open_opendap_xarray(url, token):
     return ds
 
 
-def create_date_arrays():
+def create_date_arrays(first, last):
     """Create date arrays for different calendar types."""
-    date_range = pd.date_range(start="1981-01-01", end="2014-12-31", freq="D")
+    date_range = pd.date_range(start=f"{first}-01-01", end=f"{last}-12-31", freq="D")
 
     dates_gregorian = date_range.strftime("%Y-%m-%d").to_numpy()
     filtered_range = date_range[
         ~((date_range.month == 2) & (date_range.day == 29))]
     dates_no_leap_days = filtered_range.strftime("%Y-%m-%d").to_numpy()
 
-    years = range(1981, 2015)
+    years = range(first, last)
     months = range(1, 13)
     days = range(1, 31)  # 30 days per month
     dates_360days = np.asarray([
@@ -84,7 +84,7 @@ def get_model_configurations():
 
 
 def process_year(year, out_dir, token, models, calendars, micropoint_vars,
-        dates_gregorian, dates_no_leap_days, area):
+        dates_gregorian, dates_no_leap_days, area, scenario_path, scenario, default_first_year, default_last_year):
     """Process climate data for a single year."""
     print(f"Processing year: {year}")
 
@@ -126,7 +126,7 @@ def process_year(year, out_dir, token, models, calendars, micropoint_vars,
     for var in models.keys():
         print(f"  Processing variable: {var}")
 
-        output_path = out_dir / f"baf_{var}_day_historical_{year}.nc"
+        output_path = out_dir / f"baf_{var}_day_{scenario}_{year}.nc"
 
         if output_path.exists():
             print(f"    {output_path} already exists, loading...")
@@ -144,8 +144,9 @@ def process_year(year, out_dir, token, models, calendars, micropoint_vars,
 
                 url = (
                     f"dap2://dap.ceda.ac.uk/thredds/dodsC/badc/evoflood/data/"
-                    f"Downscaled_CMIP6_Climate_Data/{var}/Historical/"
-                    f"Global_{var}_Downscaled_{model}_1981-2014_compressed.nc?"
+                    f"Downscaled_CMIP6_Climate_Data/{var}/{scenario_path}/"
+                    f"Global_{var}_Downscaled_{model}_{default_first_year}-{default_last_year}_"
+                    f"{'' if scenario_path == 'Historical' else 'ssp245_'}compressed.nc?"
                     f"{var}{subset_str}"
                 )
 
@@ -194,7 +195,8 @@ def process_year(year, out_dir, token, models, calendars, micropoint_vars,
 
     # Save ensemble dataset
     cmip_ensemble_ds = xr.merge(cmip_ensemble)
-    ensemble_output_path = out_dir / f"baf_ensemble_day_historical_{year}.nc"
+
+    ensemble_output_path = out_dir / f"baf_ensemble_day_{scenario}_{year}.nc"
     cmip_ensemble_ds.to_netcdf(ensemble_output_path, mode='w', format='NETCDF4')
     print(f"  Saved ensemble data to {ensemble_output_path}")
 
@@ -233,9 +235,17 @@ Examples:
     )
 
     parser.add_argument(
+        "-s", "--scenario",
+        type=str,
+        choices=["historical", "ssp245"],
+        required=True,
+        help="Scenario to download: 'historical' or 'ssp245'"
+    )
+
+    parser.add_argument(
         "-t", "--token",
         type=str,
-        help="CEDA authentication token (if not provided, will use default)"
+        help="CEDA authentication token"
     )
 
     parser.add_argument(
@@ -275,15 +285,18 @@ Examples:
     args = parser.parse_args()
 
     # Validate arguments
-    if args.first_year > args.last_year:
-        print("Error: first-year must be less than or equal to last-year",
+    if args.scenario == "historical":
+        default_first_year, default_last_year = 1981, 2014
+    else:  # ssp245
+        default_first_year, default_last_year = 2015, 2100
+
+    if args.first_year < default_first_year or args.last_year > default_last_year:
+        print(f"Error: Years must be between {default_first_year} and {default_last_year} for {args.scenario} scenario",
               file=sys.stderr)
         sys.exit(1)
 
-    if args.first_year < 1981 or args.last_year > 2014:
-        print("Error: Years must be between 1981 and 2014 (data availability)",
-              file=sys.stderr)
-        sys.exit(1)
+    scenario = args.scenario
+    scenario_path = "Historical" if scenario == "historical" else "SSP245"
 
     # Handle token
     if args.token_file:
@@ -297,11 +310,8 @@ Examples:
     elif args.token:
         token = args.token
     else:
-        # Default token from original script
-        token = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI4ZjhmaUpyaUtDY3hmaHhzdU5vazVEekdJdFZ4amhhTWNJa05ZX2U4MnhJIn0.eyJleHAiOjE3NTUyNDczNTksImlhdCI6MTc1NDk4ODE1OSwianRpIjoiMTY5OGMyM2QtYTNmOC00NjFjLTgzMzItMjNkMWViMGFmMTEzIiwiaXNzIjoiaHR0cHM6Ly9hY2NvdW50cy5jZWRhLmFjLnVrL3JlYWxtcy9jZWRhIiwic3ViIjoiMmQxZTEzNGYtN2FjNi00YWQ4LTg1YjQtNmMyMmNkNzg0Y2RmIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoic2VydmljZXMtcG9ydGFsLWNlZGEtYWMtdWsiLCJzZXNzaW9uX3N0YXRlIjoiYmIxOTg4YzctYzdhZi00YTM5LWIxOTktZGY3MWZjMDhhY2ZkIiwiYWNyIjoiMSIsInNjb3BlIjoiZW1haWwgb3BlbmlkIHByb2ZpbGUgZ3JvdXBfbWVtYmVyc2hpcCIsInNpZCI6ImJiMTk4OGM3LWM3YWYtNGEzOS1iMTk5LWRmNzFmYzA4YWNmZCIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiSm9oYW5uYSBUcm9zdCIsInByZWZlcnJlZF91c2VybmFtZSI6Imp0MjgxIiwibG9jYWxlIjoiZW4iLCJnaXZlbl9uYW1lIjoiSm9oYW5uYSIsImZhbWlseV9uYW1lIjoiVHJvc3QiLCJlbWFpbCI6ImpvaGFubmEudHJvc3QuMTk5N0BnbWFpbC5jb20ifQ.ZlVOLVtfiOGFVcTTlcQifpGJclJ7bDFMcAA3yBZavxwTjZD08fPvvLFpmqTwBYKdvQKpHUO2Z4fZZ5lNa5jsruk4Tv9ML1ObHRRHfqPy0_9IFwlA90Neip-xPN2uYaDh3v0jm-YqKUOUdsXkT2f2dxO6_1C4wTZ29VhsQ9BQZgeeqL7SKeLzVlHYzJv-4WHyff-eIerhULksO3SV_sWgwPvHYuOyFdagD7IWrpSkaC0ZFIU2-AJ6T4TDEYywrjGYGiS7OXkOYdYBt3jN8iPnVxtxG0aJ2tOLa3tC3CBtkbV7DEW3zZ3SSpEyBtT5HsV3AUn9n8zzuh325iW_716JCw"
-        print(
-            "Warning: Using default token. Consider providing your own token.",
-            file=sys.stderr)
+        # Throw error
+        raise ValueError("Missing token file or token argument")
 
     # Create output directory
     out_dir = Path(args.out_dir)
@@ -319,14 +329,14 @@ Examples:
 
     # Get configurations
     models, calendars, micropoint_vars = get_model_configurations()
-    dates_gregorian, dates_no_leap_days, dates_360days = create_date_arrays()
+    dates_gregorian, dates_no_leap_days, dates_360days = create_date_arrays(default_first_year, default_last_year)
 
     # Process each year
     for year in range(args.first_year, args.last_year + 1):
         try:
             process_year(
-                year, out_dir, token, models, calendars, micropoint_vars,
-                dates_gregorian, dates_no_leap_days, area
+                year, out_dir, token, models, calendars, micropoint_vars, dates_gregorian, dates_no_leap_days, area,
+                scenario_path, scenario, default_first_year, default_last_year
             )
         except Exception as e:
             print(f"Error processing year {year}: {e}", file=sys.stderr)
