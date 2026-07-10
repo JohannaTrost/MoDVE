@@ -17,13 +17,13 @@ library(tidyverse)
 library(patchwork)
 
 # CONFIGURE paths (if necessary)
-in_dir_regua <- file.path("..", "modve_data", "mc_input", "regua")
-in_dir <- file.path("..", "modve_data", "mc_input")
+in_dir_regua <- file.path("..", "modve_data_zenodo", "mc_input", "regua")
+in_dir <- file.path("..", "modve_data_zenodo", "mc_input")
 veg_path <- file.path(in_dir_regua, "rep0", paste0("vegp_mof3d_ptm_123.RDS"))
 soil_path <- paste(in_dir_regua, "soil.RDS", sep = "/")
 clim_path <- file.path(in_dir, "climate", "era5_processed", "era5_climdata_2024.csv") # ERA5
-microhab_path <- "../modve_data/modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/microhabitat_mc/rep0/microhabitatMatrix123.rds" # Regua
-emp_path <- "../modve_data/empirical/Datalogger 400m elevation REGUA understory Trilha Verde"
+microhab_path <- "../modve_data_zenodo/modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/microhabitat_mc/rep0/microhabitatMatrix123.rds" # Regua
+emp_path <- "../modve_data_zenodo/empirical/Datalogger 400m elevation REGUA understory Trilha Verde"
 out_file <- "../modve_figs/mc_output/mc_emp_vs_sim_regua_era5_2024.pdf"
 
 # Extract data from raster at given coordinate

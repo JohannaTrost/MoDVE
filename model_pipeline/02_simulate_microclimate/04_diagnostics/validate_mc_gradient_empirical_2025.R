@@ -22,14 +22,14 @@ library(progressr)
 library(foreach)
 
 # CONFIGURE paths
-emp_dir <- file.path("../modve_data/empirical/300_500 REGUA")
+emp_dir <- file.path("../modve_data_zenodo/empirical/300_500 REGUA")
 figs_out <- file.path("../modve_figs/mc_output")
-in_dir <- file.path("..", "modve_data", "mc_input")
-in_dir_regua <- file.path("..", "modve_data", "mc_input", "regua")
+in_dir <- file.path("..", "modve_data_zenodo", "mc_input")
+in_dir_regua <- file.path("..", "modve_data_zenodo", "mc_input", "regua")
 veg_path <- file.path(in_dir_regua, "rep0", paste0("vegp_mof3d_ptm_124.RDS"))
 soil_path <- paste(in_dir_regua, "soil.RDS", sep = "/")
 clim_path <- file.path(in_dir, "climate", "era5_processed", "era5_climdata_2025.csv") # ERA5
-mh_dir <- file.path("../modve_data/modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/microhabitat_mc") # Regua
+mh_dir <- file.path("../modve_data_zenodo/modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/microhabitat_mc") # Regua
 
 format_time <- function(secs) {
   secs <- max(0L, round(secs))
