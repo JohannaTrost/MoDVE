@@ -1,6 +1,19 @@
 #!/usr/bin/env Rscript
 
 # ------ Download and process meteorological data - Command Line Version
+# Usage:
+# model_pipeline/02_simulate_microclimate/01_climate_inputs/03_prepro_era5.R path/to/raw/era5 path/to/processed/output year1 year2 ...
+
+library(sf)
+library(terra)
+library(mcera5)
+library(ncdf4)
+library(tools)
+library(ggplot2)
+library(patchwork)
+library(stringr)
+library(microclimf)
+library(microclimdata)
 
 # Parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -19,11 +32,7 @@ cat("Input directory:", dirin, "\n")
 
 dir.create(dirout)
 
-# Read all available remaining args
-# and convert them to integers for year range
-# 2006, 2008, 2017, 2023
-# 2092, 2078, 2042, 2089
-# -> era5 here: 2024, 2022, 2021, 2020
+# Read all available remaining args and convert them to integers for year range
 years <- c()
 for (arg in args[3:length(args)]) {
   if (grepl("^\\d{4}$", arg)) {  # Check if the argument is a valid year
@@ -44,25 +53,6 @@ cat("Years provided:", paste(years, collapse = ", "), "\n")
 # windspeed - wind speed at reference height (m/s)
 # winddir - wind direction in degrees
 # precip - hourly precipitation (mm).
-
-# -- Install and load libraries
-
-cat("Loading required libraries...\n")
-
-# Check and install required packages
-required_packages <- c("sf", "terra", "mcera5", "ncdf4", "tools", "ggplot2", "patchwork")
-# needs install from github "microclimf", "microclimdata"
-
-for (pkg in required_packages) {
-  if (!require(pkg, character.only = TRUE, quietly = TRUE)) {
-    cat("Installing package:", pkg, "\n")
-    install.packages(pkg, repos = "https://cran.r-project.org/")
-    library(pkg, character.only = TRUE)
-  }
-}
-library(stringr)
-library(microclimf)
-library(microclimdata)
 
 # -- Helper functions
 
@@ -272,118 +262,6 @@ for (i in seq_along(years)) {
     cat("Error processing data for year", year, ":", e$message, "\n")
   })
 
-  # Optional: Create plots (commented out for command line efficiency)
-  # Uncomment the following section if you want to generate plots
-
-  # cat("Creating plots...\n")
-  #
-  # roi <- ext(-42.9, -42.2, -22.8, -22.2)
-  #
-  # # Example palettes
-  # pal_temp <- colorRampPalette(c("white", "red"))(255)
-  # pal_relhum <- colorRampPalette(c("white", "blue"))(255)
-  # pal_pres <- terrain.colors(255)
-  # pal_swdown <- heat.colors(255)
-  # pal_difrad <- heat.colors(255)
-  # pal_lwdown <- heat.colors(255)
-  # pal_windspeed <- colorRampPalette(c("white", "darkgreen"))(255)
-  # pal_winddir <- colorRampPalette(c("white", "purple"))(255)
-  # pal_precip <- colorRampPalette(c("white", "blue", "darkblue"))(255)
-  #
-  # # Variable name to palette mapping
-  # var_pal <- list(
-  #   temp = pal_temp,
-  #   relhum = pal_relhum,
-  #   pres = pal_pres,
-  #   swdown = pal_swdown,
-  #   difrad = pal_difrad,
-  #   lwdown = pal_lwdown,
-  #   windspeed = pal_windspeed,
-  #   winddir = pal_winddir,
-  #   precip = pal_precip
-  # )
-  #
-  # # Plotting function
-  # plot_clim_var_roi <- function(r, title, pal, roi) {
-  #   r_unwr <- unwrap(r)
-  #   r_crop <- crop(r_unwr, roi)
-  #   r_mean <- mean(r_crop, na.rm = TRUE)
-  #   r_df <- as.data.frame(r_mean, xy = TRUE, na.rm = TRUE)
-  #   colnames(r_df)[3] <- "value"
-  #
-  #   ggplot(r_df, aes(x = x, y = y, fill = value)) +
-  #     geom_raster() +
-  #     scale_fill_gradientn(colours = pal, name = title) +
-  #     coord_equal() +
-  #     theme_minimal() +
-  #     labs(title = title) +
-  #     theme(axis.text = element_blank(), axis.ticks = element_blank())
-  # }
-  #
-  # # Loop over all variables
-  # tryCatch({
-  #   plots <- lapply(names(era5climdata), function(varname) {
-  #     plot_clim_var_roi(era5climdata[[varname]], varname, var_pal[[varname]], roi)
-  #   })
-  #
-  #   # Save combined plot
-  #   combined_plot <- wrap_plots(plots, ncol = 3)
-  #   plot_file <- file.path(climate_dir, paste0("era5_plots_", year, ".png"))
-  #   ggsave(plot_file, combined_plot, width = 15, height = 10)
-  #   cat("Saved plots to:", plot_file, "\n")
-  # }, error = function(e) {
-  #   cat("Error creating plots for year", year, ":", e$message, "\n")
-  # })
-}
-
 cat("\n=== Processing complete! ===\n")
 cat("Output directory:", dirout, "\n")
 cat("Processed", total_years, "years of ERA5 climate data.\n")
-#
-# # List years with missing months
-#
-# # List all .nc files
-# dirin <- "/Users/johanna/Uni/masterarbeit/data/mc_input/climate/era5_raw/nc_files"
-# path <- file.path(dirin, "test")
-#
-# for (year in seq(1981, 2024)) {
-#   missing_months <- c()
-#   for (month in seq(1, 12)){
-#     month_str <- sprintf("%02d", month)
-#     f <- file.path(path, paste0(year, "_", month_str, ".nc"))
-#     if (!file.exists(f)) {
-#       missing_months <- c(missing_months, month)
-#     }
-#   }
-#   if (length(missing_months) == 12) {
-#     cat(year, "missing", "\n")
-#   } else if (length(missing_months) == 0) {
-#     cat(year, "complete", "\n")
-#   } else {
-#     cat(year, missing_months, "\n")
-#   }
-# }
-
-# # Extract available years from folder
-# files <- list.files(file.path(dirin))
-# library(stringr)
-# years <- str_extract(files, "(?<=__)[0-9]{4}")
-# unique(years)
-
-#
-# files_with_month <- grep("__[0-9]{4}_[0-9]+\\.nc$", files, value = TRUE)
-# trailing <- sub(".*__([0-9]{4}_[0-9]+)\\.nc$", "\\1", files_with_month)
-#
-# # Step 2: split into year + month
-# parts <- do.call(rbind, strsplit(trailing, "_"))
-# year <- parts[,1]
-# month <- parts[,2]
-#
-# # Step 3: check against valid_list
-# is_valid <- mapply(function(y, m) {
-#   y %in% names(era5_months) && m %in% era5_months[[y]]
-# }, year, month)
-#
-# # Step 4: filter
-# filtered_files <- files[is_valid]
-# filtered_files

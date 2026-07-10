@@ -6,7 +6,7 @@ library(microclimf)
 library(terra)
 
 # CONFIGURE parameters
-REGION <- "regua"
+REGION <- "regua" # "regua" or "pirineus"
 pai_index <- 4 # Index of PAI in microhabitat matrix
 min_pai <- 13 # We assume a minimum PAI at every cell with vegetation cover (change if required)
 start <- 80 # First time step to consider for vegp from MoF3D
@@ -24,7 +24,7 @@ matrix2raster <- function(matrix, ref_rast, name) {
 # Directories
 figs_dir <- file.path("..", "modve_figs", "mc_input")
 data_dir <- file.path("..", "modve_data")
-in_dir <- file.path(data_dir, REGION)
+in_dir <- file.path(data_dir, "mc_input", REGION)
 out_dir <- file.path("..", "modve_output")
 microhab_dir <- file.path(out_dir, REGION, "microhabitat")
 

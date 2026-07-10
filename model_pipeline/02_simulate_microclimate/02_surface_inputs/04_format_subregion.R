@@ -11,7 +11,6 @@ library(tidyr)
 library(circular)
 library(lubridate)
 
-
 # CONFIGURE Region
 REGION <- "regua"
 # Center point of forest stand
@@ -23,6 +22,13 @@ lon <- dms_to_decimal("42°44′15.78″W")
 # Center point of forest stand
 # lat <- dms_to_decimal("22°26′46.74″S")
 # lon <- dms_to_decimal("42°30′06.16″W")
+
+# Directories
+figs_dir <- file.path("..", "modve_figs", "mc_input")
+data_dir <- file.path("..", "modve_data")
+veg_dir <- file.path(data_dir, "mc_input", "vegetation")
+soil_dir <- file.path(data_dir, "mc_input", "soil")
+out <- file.path(data_dir, "mc_input", REGION)
 
 # Function to crop Spatratser object to given region
 terra_crop <- function(data, ext, res = NULL) {
@@ -65,13 +71,6 @@ dms_to_decimal <- function(dms) {
   sign <- ifelse(grepl("[SW]", dms), -1, 1)
   return(sign * (parts[1] + parts[2] / 60 + parts[3] / 3600))
 }
-
-# Directories
-figs_dir <- file.path("..", "modve_figs", "mc_input")
-data_dir <- file.path("..", "modve_data")
-veg_dir <- file.path(data_dir, "mc_input", "vegetation")
-soil_dir <- file.path(data_dir, "mc_input", "soil")
-out <- file.path(data_dir, REGION)
 
 if(!dir.exists(out)) {
   dir.create(file.path(out))

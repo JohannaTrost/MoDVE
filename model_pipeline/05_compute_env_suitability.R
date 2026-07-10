@@ -12,7 +12,7 @@
 #' Example config.toml
 #'
 #' Directorymicrohabitat = "/path/to/microhabitat_mc/" # Directory containing microhabitat matrices
-#' DirectorySpeciesPools = "/path/to/SpeciesPools/"    # Directory containing species pool CSV files
+#' DirectorySpeciesPools = "/path/to/species_pools/"    # Directory containing species pool CSV files
 #' DirectoryOutput = "/path/to/EnvSuitability/"        # Directory to save suitability scores
 #' timeSteps = 10                                      # Number of timesteps to simulate
 #' InitialTimeStep = 1                                 # First timestep to process

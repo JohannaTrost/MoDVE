@@ -1,7 +1,9 @@
 #!/usr/bin/env Rscript
 
 # Merge all cells into one microclimate matrix
-# Usage: Rscript model_pipeline/02_simulate_microclimate/03_simulation/02_merge_cells.R --config config.toml [--verbose]
+# Usage: Rscript model_pipeline/02_simulate_microclimate/03_simulation/02_merge_cells.R --config config.toml --year <y> --timestep <t> [--verbose]
+#    year: Year of the simulation [1981, 2100]
+#    timestep: Time step [80, 199]
 
 # Example config.toml
 #
@@ -16,8 +18,6 @@
 #     # Simulation metadata
 #     region = "regua"  # "regua" or "pirineus"
 #     rep = 1           # Replicate forest number one of {0, 1, 2}
-#     year = 2023       # Year of the simulation [1981, 2100]
-#     ts = 80           # Time step [80, 199]
 
 suppressPackageStartupMessages({
   library(optparse)
@@ -31,6 +31,10 @@ suppressPackageStartupMessages({
 
 option_list <- list(
   make_option(c("-c", "--config"), type = "character", help = "Path to TOML config file (no default)"),
+  make_option(c("-y", "--year"), type = "integer",
+              help = "Year for which cells will be merged (must be within simulated years) (no default)"),
+  make_option(c("-t", "--timestep"), type = "integer",
+              help = "Time step that corresponds to year (no default)")
 )
 
 opt_parser <- OptionParser(option_list = option_list)
@@ -40,6 +44,10 @@ if (is.null(opt$config)) {
   print_help(opt_parser)
   quit(status = 1)
 }
+
+year <- if (!is.null(opt$year)) opt$year else stop("Error: 'year' must be provided in opt.")
+# Conversion from year to corresponding ts: year - 1900 - 1 (e.g. year=1981 -> ts=80)
+ts <- if (!is.null(opt$timestep)) opt$timestep else stop("Error: 'timestep' must be provided in opt.")
 
 # ----------------------------
 # Load config
@@ -71,8 +79,8 @@ mc_in_dir <- if (!is.na(rep)) file.path(mc_dir, region, paste0("rep", rep), year
 # ----------------------------
 # Extract maximum vegetation height
 # ----------------------------
-vegp_path <- if (!is.na(rep)) file.path(veg_dir, paste0("rep", rep), paste0("vegp_mof3d_ptm_", ts, ".RDS"))
-                 else file.path(veg_dir, paste0("vegp_mof3d_ptm_", ts, ".RDS"))
+vegp_path <- if (!is.na(rep)) file.path(veg_dir, region, paste0("rep", rep), paste0("vegp_mof3d_ptm_", ts, ".RDS"))
+                 else file.path(veg_dir, region, paste0("vegp_mof3d_ptm_", ts, ".RDS"))
 vegp_reg  <- readRDS(vegp_path)
 max_hgt   <- max(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE) + 1
 

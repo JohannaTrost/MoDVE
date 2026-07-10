@@ -1,8 +1,13 @@
 library(terra)
 library(microclimdata)
 
-# Authenticat
-data(credentials) # See
+# Authenticate
+data(credentials)
+
+# Directories
+figs_dir <- file.path("..", "modve_figs", "mc_input")
+data_dir <- file.path("..", "modve_data")
+out_dir <- file.path(data_dir, "mc_input", "albedo")
 
 # Function for downloading RGB and CIR
 modis_rgb_cir_download <- function(r, tme, pathout, credentials) {
@@ -140,12 +145,6 @@ rgb_cir_process <- function(r, pathin) {
 
   return(out)
 }
-
-
-# Directories
-figs_dir <- file.path("..", "modve_figs", "mc_input")
-data_dir <- file.path("..", "modve_data")
-out_dir <- file.path(data_dir, "mc_input", "albedo")
 
 if (!dir.exists(out_dir)) {
   dir.create(out_dir, recursive = TRUE)

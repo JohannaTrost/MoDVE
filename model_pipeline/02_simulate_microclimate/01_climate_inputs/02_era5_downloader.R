@@ -1,13 +1,13 @@
 #!/usr/bin/env Rscript
 
-# ------ Download and process meteorological data - Command Line Version
+# ------ Download and process meteorological data
 
 # Parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
 if (length(args) != 2) {
-  cat("Usage: Rscript 03_download_era5.R <output_directory> <year>\n")
-  cat("Example: Rscript 03_download_era5.R /path/to/output/directory 2042\n")
+  cat("Usage: Rscript 02_era5_downloader.R <output_directory> <year>\n")
+  cat("Example: Rscript 02_era5_downloader.R /path/to/output/directory 2024\n")
   quit(status = 1)
 }
 
@@ -25,9 +25,7 @@ cat("Output directory:", dirout, "\n")
 year <- args[2]  # Year to download, e.g., "2024"
 
 # ERA5 data month and year that are to be downloaded
-era5_months <- list(
-  "2025" = 1:12
-)
+era5_months <- 1:12
 
 # obs_time – UTC POSIXlt object of observation times for each climate variable, 2017-01-01 00:00:00
 # temp – temperatures (deg C)
@@ -111,10 +109,9 @@ cat("Downloading ERA5 data...\n")
 # Download ERA5 data
 req <- era5_download(r, tme, credentials, file_prefix, dirout)
 
-
 # Check files month by month
 year_str <- as.character(year)  # current year as string
-months_to_check <- era5_months[[year_str]]
+months_to_check <- era5_months
 
 for (month in months_to_check) {
   month_str <- sprintf("%02d", month)

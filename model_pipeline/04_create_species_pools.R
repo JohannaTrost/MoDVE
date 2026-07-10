@@ -10,7 +10,7 @@
 #' Example config.toml
 #'
 #' seed = 42                                       # RNG seed (integer or NULL for random)
-#' MainOutputDirectory = "/path/to/SpeciesPools/"  # Directory to save species trait matrices
+#' MainOutputDirectory = "/path/to/species_pools/"  # Directory to save species trait matrices
 #' Directorymicrohabitat = "/path/to/microhabitat_mc/" # Directory containing microhabitat matrices
 #' numSpeciesPools = 1                            # Number of species pools to generate
 #' NumberOfSpecies = 10                           # Number of species per pool

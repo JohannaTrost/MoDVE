@@ -14,7 +14,7 @@
 #' SingleSpeciesModel = 0                         # {0, 1} 0: Community model, 1: Single species model
 #' DirectoryModelMain = "/path/to/model/distribution/"  # Directory to save initial epiphyte matrices
 #' DirectorymicrohabitatMain = "/path/to/microhabitat_mc/" # Directory containing microhabitat matrices
-#' DirectorySpeciesPoolsMain = "/path/to/SpeciesPools/" # Directory containing species pool CSV files
+#' DirectorySpeciesPoolsMain = "/path/to/species_pools/" # Directory containing species pool CSV files
 #' numSpeciesPools = c(1, 10)                     # Range of species pool IDs to process
 #' replicatePerSpeciesPool = 1                    # Number of replicates per species pool
 #' TimeStep = 1                                    # Timestep for which the initial distribution is generated

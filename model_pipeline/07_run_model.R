@@ -5,12 +5,12 @@
 #' species traits, and environmental suitability scores. It uses parallel processing across species pools and forests.
 #'
 #' @details
-#' Usage: Rscript model_pipeline/07_epiphyte_ibm.R --config config.toml
+#' Usage: Rscript model_pipeline/07_run_model.R --config config.toml
 #'
 #' Example config.toml
 #'
 #' Directorymicrohabitat = "/path/to/microhabitat_mc/" # Directory containing microhabitat matrices
-#' DirectorySpeciesPools = "/path/to/SpeciesPools/"    # Directory containing species pool CSV files
+#' DirectorySpeciesPools = "/path/to/species_pools/"    # Directory containing species pool CSV files
 #' DirectoryModelMain = "/path/to/model/distributions/" # Directory containing initial epiphyte distributions
 #' DirectoryModelResults = "/path/to/model/communities/" # Directory to save model results
 #' DirectoryEnvScores = "/path/to/EnvSuitability/"    # Directory containing environmental suitability scores
@@ -856,7 +856,7 @@ main <- function() {
             ###############################################################################
 
             ###############################################################################
-            # Mortality TODO check on cluster where problme is
+            # Mortality
             vars <- c("LightSuitable", "HumSuitable", "TempSuitable", "WindSuitable")
             vars <- vars[as.logical(EnvVarFlags)]
             for (i in seq_len(nrow(E))) {
