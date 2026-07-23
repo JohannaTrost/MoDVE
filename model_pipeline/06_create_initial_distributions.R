@@ -12,7 +12,7 @@
 #'
 #' seed = 42                                      # RNG seed (integer or NULL for random)
 #' SingleSpeciesModel = 0                         # {0, 1} 0: Community model, 1: Single species model
-#' DirectoryModelMain = "/path/to/model/distribution/"  # Directory to save initial epiphyte matrices
+#' DirectoryModelMain = "/path/to/model/distribution/forest<forestReplicate>"  # Dir. to save initial epiphyte matrices
 #' DirectorymicrohabitatMain = "/path/to/microhabitat_mc/" # Directory containing microhabitat matrices
 #' DirectorySpeciesPoolsMain = "/path/to/species_pools/" # Directory containing species pool CSV files
 #' numSpeciesPools = c(1, 10)                     # Range of species pool IDs to process

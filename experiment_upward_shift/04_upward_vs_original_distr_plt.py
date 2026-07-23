@@ -1,3 +1,7 @@
+# -----
+# Visually compare vertical shift under climate change for community with and without competition
+# (Assume execution from project root directory)
+
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -7,22 +11,21 @@ import matplotlib.pyplot as plt
 matplotlib.use("MacOSX")
 
 scenarios = ["climdata_era5_cmip6_1981-2100_ssp245_no_cc", "climdata_era5_cmip6_1981-2100_ssp245"]
-base_dir = Path("/Users/johanna/Uni/masterarbeit/data/modve_output/regua") # /a5/forest0/
-DirectoryPlots = Path("../../figs/a5_plots_test/cc_vs_no_cc/position_shift")
+base_dir = Path("../modve_data/modve_output/regua") # /a5/forest0/
+DirectoryPlots = Path("../modve_figs/upward_shift_experiment")
 
 DirectoryPlots.mkdir(exist_ok=True)
 
 # ------------------ Original community
 
-species_shift = pd.read_csv(base_dir / "a5_species_shift_cc_vs_no_cc_last20_yrs_past_2050.csv")
+species_shift = pd.read_csv(base_dir / "species_shift_upwards_cc_vs_no_cc.csv")
 species_shift.rename(columns={"diff": "AvgDiff", "diff_sem": "SdDiff"}, inplace=True)
 species_shift.drop(columns=["initial_diff", "last_year_alive"], inplace=True)
-species_shift = species_shift[species_shift["AvgDiff"] >= species_shift["AvgDiff"].quantile(0.75)]
 
 # ------------------ Upward community
 
 # Process upward shift of species of upward species simulation
-upward_shift_spec = pd.read_csv(base_dir / "a5_upward_shifted_species_distribution_cc_vs_no_cc.csv")
+upward_shift_spec = pd.read_csv(base_dir / "upward_shifted_species_distribution_cc_vs_no_cc.csv")
 
 # Assuming species_distr is a pandas DataFrame
 upward_shift_spec_stats = (

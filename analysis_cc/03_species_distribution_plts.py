@@ -45,9 +45,9 @@ species_distr["Height"] = species_distr["Z"] - 0.5
 # Filter individuals that are alive
 species_distr = species_distr[species_distr["Status"] == 1]
 
-species_distr.to_csv(base_dir / "a5_species_distribution_cc_vs_no_cc.csv", index=False)
+species_distr.to_csv(base_dir / "species_distribution_cc_vs_no_cc.csv", index=False)
 
-species_distr = pd.read_csv(base_dir / "a5_species_distribution_cc_vs_no_cc.csv")
+species_distr = pd.read_csv(base_dir / "species_distribution_cc_vs_no_cc.csv")
 
 # --- Plot position and range for each replicate (sp, forest) --- #
 
