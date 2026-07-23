@@ -1,3 +1,7 @@
+# -----
+# Visualize vertical diversity as smooth vertical profile and over time
+# comparing climate change and baseline
+
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -5,6 +9,7 @@ import matplotlib
 from scipy.stats import entropy
 import seaborn as sns
 from matplotlib.patches import Patch
+import matplotlib.ticker as mticker
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter1d
 import imageio
@@ -57,7 +62,7 @@ base_dir = Path("/Users/johanna/Uni/masterarbeit/data/modve_output/regua") # /a5
 DirectoryPlots = Path("../../figs/a5_plots_test/cc_vs_no_cc")
 
 # Load data
-data = pd.read_csv(base_dir / "a5_species_distribution_cc_vs_no_cc.csv")
+data = pd.read_csv(base_dir / "species_distribution_cc_vs_no_cc.csv")
 
 species_counts = data.groupby(["Scenario", "Year", "ForestID", "SpeciesPool",
                                "SpeciesID", "Height"]).size().reset_index(name='Count')
@@ -519,12 +524,10 @@ for metric in metrics:
     plt.show()
  
 # Save processed data
-div.to_csv(base_dir / "a5_vertical_diversity_cc_vs_no_cc.csv")
-div_peak.to_csv(base_dir / "a5_vertical_diversity_peak_cc_vs_no_cc.csv")
+div.to_csv(base_dir / "vertical_diversity_cc_vs_no_cc.csv")
+div_peak.to_csv(base_dir / "vertical_diversity_peak_cc_vs_no_cc.csv")
 
 # ------ Overall summary ------ #
-
-div_peak = pd.read_csv(base_dir / "a5_vertical_diversity_peak_cc_vs_no_cc.csv")
 
 overall_peak = div_peak.groupby(["Scenario", "level_5", "Year"]).agg(
         mean_div=("Count", "mean"),
@@ -533,7 +536,7 @@ overall_peak = div_peak.groupby(["Scenario", "level_5", "Year"]).agg(
         sem_div_hgt = ("Height", "sem")
     ).reset_index()
 
-overall_peak[overall_peak["Year"] == 2050]
+print(overall_peak[overall_peak["Year"] == 2050])
 
 # ------ Compute percent change in 2050 ------ #
 
@@ -572,9 +575,7 @@ print(f"Average percent change in peak height (2050): {avg_pct_change_height:.1f
 
 # ------ Overall vertical div all replicates in one ------ #
 
-div = pd.read_csv(base_dir / "a5_vertical_diversity_cc_vs_no_cc.csv")
-
-# - Step 2: compute across-forest mean + CI ---
+# - Compute across-forest mean + CI ---
 div2030 = div[(div['Year'] == 2030)  & (div['SpeciesPool'] == 3) & (div['ForestID'] == 0)]
 summary = (
     div2030.groupby(["Scenario", "level_5", "Height"])

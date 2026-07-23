@@ -13,7 +13,6 @@ dir.create(base_dir_new, showWarnings = FALSE)
 
 for (pool in 1:10) {
   cat("Processing Species Pool", pool, "\n")
-  # TODO update path with zenodo path
   sp <- read_csv(file.path(zenodo_base_dir, "species_pools", paste0("SpeciesPool", pool, ".csv")))
 
   sp_filtered <- shift_species_q75 %>%

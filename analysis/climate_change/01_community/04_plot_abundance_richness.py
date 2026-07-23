@@ -1,3 +1,6 @@
+# -----
+# Visualize species richness and abundance comparing climate change and baseline
+
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -12,12 +15,15 @@ matplotlib.use("MacOSX")
 # Set overall font scale
 sns.set_context("talk", font_scale=1.2)
 
+# Directories
 scenarios = ["climdata_era5_cmip6_1981-2100_ssp245_no_cc", "climdata_era5_cmip6_1981-2100_ssp245"]
-base_dir = Path("/Users/johanna/Uni/masterarbeit/data/modve_output/regua") # /a5/forest0/
-DirectoryPlots = Path("../../figs/a5_plots_test/cc_vs_no_cc")
+base_dir = Path("../modve_data_zenodo/modve_output/regua") # /a5/forest0/
+DirectoryPlots = Path("../modve_figs/climate_change")
+
+DirectoryPlots.mkdir(exist_ok=True)
 
 # Load data
-data = pd.read_csv(base_dir / "a5_species_distribution_cc_vs_no_cc.csv")
+data = pd.read_csv(base_dir / "species_distribution_cc_vs_no_cc.csv")
 
 # Compute abundance and richness
 div = (
@@ -29,11 +35,9 @@ div = (
     .reset_index()
 )
 
-div.to_csv(base_dir / "a5_diversity_cc_vs_no_cc.csv")
+div.to_csv(base_dir / "diversity_cc_vs_no_cc.csv")
 
 # ---- Plot all replicates in one ----
-
-div = pd.read_csv(base_dir / "a5_diversity_cc_vs_no_cc.csv")
 
 # boxplot for 2030
 plt.figure(figsize=(4, 6))
@@ -79,7 +83,7 @@ plt.grid(alpha=0.3)
 for spine in plt.gca().spines.values(): spine.set_visible(False)
 plt.savefig(DirectoryPlots / f"abundance_2050_boxplot.png", dpi=700)
 
-# Ts summary
+# --- Ts summary
 
 summary = (
     div.groupby(["Year", "Scenario"])
@@ -411,7 +415,6 @@ axes[-1].set_xlabel("Year")
 plt.tight_layout()
 plt.savefig(DirectoryPlots / "abundance_mean_across_species_pools_CI.pdf")
 plt.show()
-
 
 ### Richness ###
 

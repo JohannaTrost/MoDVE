@@ -1,31 +1,37 @@
-import pandas as pd
+# -----
+# Visualize demography of species pools over time (mortality, recruitment)
+
 import numpy as np
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
+
 matplotlib.use("MacOSX")
 
+# Directories
 scenarios = ["climdata_era5_cmip6_1981-2100_ssp245_no_cc", "climdata_era5_cmip6_1981-2100_ssp245"]
-base_dir = Path("/Users/johanna/Uni/masterarbeit/data/modve_output/regua") # /a5/forest0/
-DirectoryPlots = Path("../../figs/a5_plots_test/cc_vs_no_cc")
+base_dir = Path("../modve_data_zenodo/modve_output/regua") # /a5/forest0/
+DirectoryPlots = Path("../modve_figs/climate_change")
 
 DirectoryPlots.mkdir(exist_ok=True)
 
+# Parameters
 forests = np.arange(3)
 species_pools = np.arange(1, 11)
 rep = 1
 ts_start = 100
 ts_end = 199
-
 vars = ['timeStep', 'Recruits', 'MortalityBranchFall', 'MortalityLight', 'MortalityCompetition',
         'MortalityNatural', 'MortalityHum', 'MortalityTemp']
 
+# Load and merge community demography data
 community = None
 for scenario in scenarios:
     for forest in forests:
         for sp in species_pools:
-            path = base_dir / scenario / "a5" / f"forest{forest}" / f"ID_SpeciesP_{sp}_Rep_{rep}" / "CommunitySummary.csv"
+            path = (base_dir / scenario / "communities" / f"forest{forest}" / f"ID_SpeciesP_{sp}_Rep_{rep}" /
+                    "CommunitySummary.csv")
             curr_community = pd.read_csv(path, usecols=vars)
             curr_community["Scenario"] = "CC" if scenario == "climdata_era5_cmip6_1981-2100_ssp245" else "No CC"
             curr_community["ForestID"] = forest
@@ -36,7 +42,8 @@ for scenario in scenarios:
 # Map time steps from 80-199 to 1981-2100
 community["Year"] = community["timeStep"] + 1901
 
-community.to_csv(base_dir / "a5_demography_cc_vs_no_cc.csv", index=False)
+# Save the resulting merged dataset
+community.to_csv(base_dir / "demography_cc_vs_no_cc.csv", index=False)
 
 # --- Plot on forest level for each scenario
 
@@ -119,6 +126,3 @@ for scenario in scenarios_str:
     plt.tight_layout()
     plt.show()
     plt.savefig(DirectoryPlots / f"demography_species_pools_{scenario}.pdf")
-
-# TODO optional Compare scenarios over last 10 time steps (boxplots)
-
