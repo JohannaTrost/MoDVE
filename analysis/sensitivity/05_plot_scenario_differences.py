@@ -1,3 +1,6 @@
+# -----
+# Visual comparison of species position, range, and richness across MC steepness scenarios
+
 import pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -7,16 +10,18 @@ import matplotlib.ticker as mticker
 
 matplotlib.use("MacOSX")
 
-DirectoryPlots = Path("/Users/johanna/Uni/masterarbeit/figs/sensitivity_analysis/")
-DirectoryModelResults = Path("/Users/johanna/Uni/masterarbeit/data/modve_output/pirineus/scenarios")
+DirectoryPlots = Path("../modve_figs/sensitivity_analysis")
+DirectoryModelResults = Path("../modve_data/modve_output/pirineus/scenarios")
 
 # ----- Species distribution ----- #
 
-fileName = "a5_Rep_1_climdata_era5_cmip6_1906-2024_ssp245_119ts_SpeciesVertical_mcGradients.csv"
+fileName = "SpeciesVertical_Rep_1_climdata_era5_cmip6_1906-2024_ssp245_119ts_mcGradients.csv"
 verticalDistr = pd.read_csv(DirectoryModelResults / fileName)
 
+# Look into final 10 years of the simulation
 filtered_distr = verticalDistr[(verticalDistr["timeStep"] >= 187) & (verticalDistr["timeStep"] <= 197)]
 
+# Get species height and IQR
 agg_distr = (
     filtered_distr
         .groupby(["speciesPool", "SpeciesID", "scenario"])
@@ -27,22 +32,22 @@ agg_distr = (
         .reset_index()
 )
 
-#steepness_map = {1.0: "1.0", 0.5: "0.5", 0.0: "0.0", 1.5: "1.5"}
+# Mapping of steepness senario names
 steepness_map = {1.0: "1.0", 0.5: "0.5", 0.0: "0.0", 1.5: "1.5"}
 agg_distr["Steepness (s)"] = agg_distr["scenario"].map(steepness_map)
 
 # ----- Diversity data ----- #
 
-agg_richness = pd.read_csv(DirectoryModelResults / "a5_vertical_richness_steepness.csv")
+agg_richness = pd.read_csv(DirectoryModelResults / "vertical_richness_steepness.csv")
 
 # Use names for scenarios instead of numbers
 agg_richness["Steepness (s)"] = agg_richness["Scenario"].map(steepness_map)
 
 cols = {
-    "1.0": "#D4DDE0",  # move first
-    "0.0":     "#E3E9EA",
-    "0.5":  "#C5D2D5",
-    "1.5":    '#88A2AA'
+    "1.0": "#D4DDE0", # Baseline is original MC steepness
+    "0.0": "#E3E9EA",
+    "0.5": "#C5D2D5",
+    "1.5": '#88A2AA'
 }
 order = ["1.0", "0.0", "0.5", "1.5"]
 

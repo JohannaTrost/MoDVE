@@ -1,17 +1,19 @@
+# -----
+# Analyse relative changes in species position, range and richness across MC gradinet steepness scenarios
+
 library(dplyr)
 library(readr)
 library(tidyverse)
 
-###############################################################################################
-#                                        Diversity data                                       #
-###############################################################################################
+base_dir <- file.path("../modve_data/modve_output/pirineus/scenarios")
+maxRichness <- read_csv(file.path(base_dir, "vertical_richness_steepness.csv"))
 
-DirectoryModelResults <- file.path("/Users/johanna/Uni/masterarbeit/data/modve_output/pirineus/scenarios")
-maxRichness <- read_csv(file.path(DirectoryModelResults, "a5_vertical_richness_steepness.csv"))
+if (!file.exists(file.path(base_dir, "vertical_richness_steepness.csv"))) {
+  stop(file.path(base_dir, "vertical_richness_steepness.csv"), " missing. Compute vertical richness for sensitivity ",
+       "analysis using the script analysis/sensitivity/02_compute_richness.py")
+}
 
-# - Compute relative changes compared to gradient scenarios
-
-############# Richness peak position #############
+# ------------------------------------ Richness peak position ------------------------------------ #
 
 relative_change_richness <- maxRichness %>%
   # Reshape so each scenario has its own column for maxZ
@@ -41,7 +43,7 @@ relative_change_richness_summary <- relative_change_richness %>%
         sdRelChange_1.5   = sd(relChange_1.5, na.rm = TRUE),
         nVoxels           = n()
     )
-relative_change_richness_summary
+print(relative_change_richness_summary)
 
 # Compute mean and sd of relative changes across species pools
 relative_change_richness_summary %>%
@@ -73,7 +75,7 @@ relative_change_richness_summary %>%
     overallp5RelChange   = overallp5
   )
 
-############# Richness peak value #############
+# ------------------------------------ Richness peak value ------------------------------------ #
 
 relative_change_max_richness <- maxRichness %>%
   rename(maxR = maxRichness) %>%
@@ -104,7 +106,7 @@ relative_change_max_richness_summary <- relative_change_max_richness %>%
         sdRelChange_1.5   = sd(relChange_1.5, na.rm = TRUE),
         nVoxels           = n()
     )
-relative_change_max_richness_summary
+print(relative_change_max_richness_summary)
 
 # Compute mean and sd of relative changes across species pools
 relative_change_max_richness_summary %>%
@@ -136,74 +138,10 @@ relative_change_max_richness_summary %>%
     overallp95RelChange   = overallp95
   )
 
-############### Shannon diversity peak position #############
+# ------------------------------------ Species Position ------------------------------------ #
 
-relative_change_div <- maxShannon %>%
-  # Reshape so each scenario has its own column for maxZ
-  select(X, Y, speciesPool, timeStep, scenario, maxZ) %>%
-  tidyr::pivot_wider(
-    names_from = scenario,
-    values_from = maxZ,
-    names_prefix = "scenario_"
-  ) %>%
-  # Compute relative change compared to baseline scenario==1
-  mutate(
-    relChange_0   = (scenario_0   - scenario_1) / scenario_1,
-    relChange_0.5 = (scenario_0.5 - scenario_1) / scenario_1,
-    relChange_1.5 = (scenario_1.5 - scenario_1) / scenario_1
-  )
-
-# - Summarize relative changes across space and time
-
-relative_change_div_summary <- relative_change_div %>%
-  filter(timeStep >= 187 & timeStep <= 197) %>%
-  group_by(speciesPool) %>%
-    summarise(
-        meanRelChange_0   = mean(relChange_0, na.rm = TRUE),
-        meanRelChange_0.5 = mean(relChange_0.5, na.rm = TRUE),
-        meanRelChange_1.5 = mean(relChange_1.5, na.rm = TRUE),
-        sdRelChange_0     = sd(relChange_0, na.rm = TRUE),
-        sdRelChange_0.5   = sd(relChange_0.5, na.rm = TRUE),
-        sdRelChange_1.5   = sd(relChange_1.5, na.rm = TRUE),
-        nVoxels           = n()
-    )
-relative_change_div_summary
-
-# Compute mean and sd of relative changes across species pools
-relative_change_div_summary %>%
-  summarise(
-    across(
-      starts_with("meanRelChange_"),
-      ~mean(.x, na.rm = TRUE),
-      .names = "overallMean_{.col}"
-    ),
-    across(
-      starts_with("meanRelChange_"),
-      ~sd(.x, na.rm = TRUE),
-      .names = "overallSd_{.col}"
-    )
-  ) %>%
-  pivot_longer(
-    cols = everything(),
-    names_to = c(".value", "Scenario"),
-    names_pattern = "(overallMean|overallSd)_meanRelChange_(.*)"
-  ) %>%
-  rename(
-    overallMeanRelChange = overallMean,
-    overallSdRelChange   = overallSd
-  )
-
-###############################################################################################
-#                             Species distribution data                                       #
-###############################################################################################
-
-DirectoryModelResults <- file.path("/Users/johanna/Uni/masterarbeit/data/modve_output/pirineus/scenarios")
-
-fileName <- "a5_Rep_1_climdata_era5_cmip6_1906-2024_ssp245_119ts_SpeciesVertical_mcGradients.csv"
-
-verticalDistr <- read_csv(file.path(DirectoryModelResults, fileName), show_col_types = FALSE)
-
-############### Species Position #############
+fileName <- "SpeciesVertical_Rep_1_climdata_era5_cmip6_1906-2024_ssp245_119ts_mcGradients.csv"
+verticalDistr <- read_csv(file.path(base_dir, fileName), show_col_types = FALSE)
 
 relative_change_distr <- verticalDistr %>%
   # Reshape so each scenario has its own column for meanHeight
@@ -220,7 +158,7 @@ relative_change_distr <- verticalDistr %>%
     relChange_1.5 = 100*((scenario_1.5 - scenario_1) / scenario_1)
   )
 
-# Check if notmal
+# Check if normal
 shapiro.test(sample(relative_change_distr$scenario_0, 1000))
 shapiro.test(sample(relative_change_distr$scenario_0.5, 1000))
 shapiro.test(sample(relative_change_distr$scenario_1.5, 1000))
@@ -240,7 +178,7 @@ relative_change_distr_summary <- relative_change_distr %>%
         sdRelChange_1.5   = sd(relChange_1.5, na.rm = TRUE)* 1.96,
         nVoxels           = n()
     )
-relative_change_distr_summary
+print(relative_change_distr_summary)
 
 # Compute mean and sd of relative changes across species pools
 relative_change_distr_summary %>%
@@ -272,7 +210,7 @@ relative_change_distr_summary %>%
     overallp95RelChange   = overallp95
   )
 
-############### Species range (Variance) #############
+# ------------------------------------ Species range (Variance) ------------------------------------ #
 
 relative_change_range <- verticalDistr %>%
   # Reshape so each scenario has its own column for meanHeight
@@ -303,7 +241,7 @@ relative_change_range_summary <- relative_change_range %>%
         sdRelChange_1.5   = sd(relChange_1.5, na.rm = TRUE),
         nVoxels           = n()
     )
-relative_change_range_summary
+print(relative_change_range_summary)
 
 # Compute mean and sd of relative changes across species pools
 relative_change_range_summary %>%
@@ -330,8 +268,7 @@ relative_change_range_summary %>%
     overallSdRelChange   = overallSd
   )
 
-
-############### Species range (IQR) #############
+# ------------------------------------ Species range (IQR) ------------------------------------ #
 
 relative_change_iqr <- verticalDistr %>%
   # Reshape so each scenario has its own column for meanHeight
@@ -368,7 +305,7 @@ relative_change_iqr_summary <- relative_change_iqr %>%
         sdRelChange_1.5   = sd(relChange_1.5, na.rm = TRUE),
         nVoxels           = n()
     )
-relative_change_iqr_summary
+print(relative_change_iqr_summary)
 
 # Compute mean and sd of relative changes across species pools
 relative_change_iqr_summary %>%
