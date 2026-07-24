@@ -1,3 +1,8 @@
+# -----
+# Fit mixed-effects model (MEM) for species position
+# 1. Find minimum model structure with species pool and random forest as random effects
+# 2. Model diagnostics (plots)
+
 library(readr)
 library(lme4)
 library(nlme)
@@ -7,7 +12,7 @@ library(merTools)
 library(DHARMa)
 library(lattice)
 library(ggplot2)
-library(patchwork)  # for combining plots
+library(patchwork)
 library(glmmTMB)
 library(lattice)
 library(DHARMa)
@@ -16,25 +21,19 @@ library(performance)
 library(tidyr)
 library(purrr)
 
-# Repsonse vars:
-# - Avg. species position
-# - Species range size
-# - Species richness (peak)
-# - Species abundance (peak)
-# - Species diversity (peak)
+base_dir <- file.path("../modve_data/modve_output/regua")
+species_distr <- read_csv(file.path(base_dir, "species_distribution_cc_vs_no_cc.csv"))
 
-base_dir <- file.path("/Users/johanna/Uni/masterarbeit/data/modve_output/regua")
-species_distr <- read_csv(file.path(base_dir, "a5_species_distribution_cc_vs_no_cc.csv"))
+DirectoryPlots <- file.path("../modve_figs/climate_change/mem/position")
 
-DirectoryPlots <- file.path("../../figs/a5_plots_test/cc_vs_no_cc")
+if(!dir.exists(DirectoryPlots)) {
+  dir.create(DirectoryPlots, recursive = TRUE)
+}
 
 # Get stats
 species_distr_stats <- species_distr %>%
   group_by(Scenario, SpeciesPool, SpeciesID, ForestID, TimeStep, Year) %>%
   summarize(Position = mean(Height, na.rm = TRUE),
-            Mass = mean(Mass, na.rm = TRUE),
-            IQR = IQR(Height, na.rm = TRUE),
-            Range = max(Height, na.rm = TRUE) - min(Height, na.rm = TRUE),
             .groups = "drop")
 
 # Scale Year
@@ -52,8 +51,6 @@ dev.off()
 # #################################################################################################
 #                               Mixed effects model for position                                  #
 # #################################################################################################
-
-DirectoryPlots <- file.path("../../figs/a5_plots_test/cc_vs_no_cc/Position/Diagnostics")
 
 # Try glmer
 mem_pos <- glmer(Position ~ Scenario * Year_c + (1 | SpeciesPool) + (1 | ForestID),
@@ -98,15 +95,6 @@ df <- data.frame(
   Scenario = mf$Scenario,
   SpeciesPool = mf$SpeciesPool,
   ForestID = mf$ForestID
-)
-
-mf <- model.frame(mem_iqr)            # model frame used to fit mem_iqr
-df <- data.frame(
-  resid        = resid(mem_iqr, type = "pearson"),
-  fitted       = fitted(mem_iqr),
-  Scenario     = mf$Scenario,
-  SpeciesPool  = mf$SpeciesPool,
-  ForestID     = mf$ForestID
 )
 
 # Named vectors for clean relabeling
@@ -176,9 +164,9 @@ dev.off()
 shapiro.test(species_pool)
 shapiro.test(forest_id)
 
-# Variance partitioning
+# -- Variance partitioning
 
-icc(mem_pos) # -> random effects explain <1% of variance
+cat(icc(mem_pos)) # -> random effects explain <1% of variance
 
 # Variance components
 sp_var <- 0.0003057
@@ -190,7 +178,7 @@ frst_vc <- 100*(frst_var / total_var)
 print(paste0("Species pool variance component: ", round(sp_vc, 4)))
 print(paste0("Forest ID variance component: ", round(frst_vc, 4)))
 
-
+# Compute ICC and R2
 r2 <- performance::r2_nakagawa(mem_pos)
 icc <- performance::icc(mem_pos)
 icc_unadj <- icc$ICC_unadjusted * 100
