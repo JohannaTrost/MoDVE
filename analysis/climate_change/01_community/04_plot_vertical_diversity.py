@@ -58,7 +58,7 @@ def apply_savgol_filter(group, window_length=5, polyorder=2,
 
 
 scenarios = ["climdata_era5_cmip6_1981-2100_ssp245_no_cc", "climdata_era5_cmip6_1981-2100_ssp245"]
-base_dir = Path("/Users/johanna/Uni/masterarbeit/data/modve_output/regua") # /a5/forest0/
+base_dir = Path("../modve_data/modve_output/regua") # /a5/forest0/
 DirectoryPlots = Path("../../figs/a5_plots_test/cc_vs_no_cc")
 
 # Load data
