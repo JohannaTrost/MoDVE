@@ -2,8 +2,8 @@
 A simulation pipline for agent-based mechanistic modeling of epiphyte demography in a neotropical lowland forest. The repository includes a step by step pipeline, for simulating microclimate with Micropoint (Maclean, 2025), integrating forest structure and light conditions from forest model outputs of MoF3D (Petter et al., 2021a). It builds upon the epiphyte model by Petter et al. (2021b) introducing temperature and humidity niche axes.
 
 Key components: 
-* Modeling pipline
-* TODO
+* Modeling pipline (MoDVE, Micropoint)
+* Analyses 
 
 ## Overview
 This project aims at providing insights into vascular epiphyte community dynamics in response to changes in relative humidity and temperature. Comparing a non-climate-change with the SSP2-4.5 scenario sheds light on a potential future pathway for canopy-dwelling species in terms of species richness and species distribution along the vertical forest profile, which can provide relatively steep relative humidity and temperature gradients. 
@@ -41,6 +41,7 @@ pip install . -r requirements.txt
 ### Model pipeline walkthrough
 
 Here, we demonstrate how to use the model pipeline using the example of simulating epiphytes over 20 years at the forest site REGUA using the SSP2-4.5 climate scenario based on CMIP6 data.
+To reproduce all simulations conducted for the publication, please use the configuration files provided in `modve_data_zenodo/cfgs`. 
 
 #### 0. Download input data from Zenodo
 First, download the necessary input data from Zenodo: 
@@ -62,41 +63,94 @@ In the following scripts, any configurable variables and parameters can be found
 
 ##### 2.1 Climate input
 
-1. Download CMIP6 data:
+1. <ins>Download CMIP6 data:</ins>
    * Register at the CEDA Archive ![https://catalogue.ceda.ac.uk/uuid/c107618f1db34801bb88a1e927b82317/](https://catalogue.ceda.ac.uk/uuid/c107618f1db34801bb88a1e927b82317/)
    * Generate an access token
    * Execute CMIP6 downloader for historical and SSP2-4.5 data:
   ```bash
   cd model_pipeline/02_simulate_microclimate/01_climate_inputs
   python 01_cmip6_downloader.py --help
-  python 01_cmip6_downloader.py -f 1981 -l 2014 -o ../modve_data/mc_input/climate/cmip6_ceda --scenario historical --token-file <path/to/token.txt>
-  python 01_cmip6_downloader.py -f 2015 -l 2100 -o ../modve_data/mc_input/climate/cmip6_ceda --scenario ssp245 --token <your token>
+  python 01_cmip6_downloader.py -f 1981 -l 2014 -o ../../../../modve_data/mc_input/climate/cmip6_ceda --scenario historical --token-file <path/to/token.txt>
+  python 01_cmip6_downloader.py -f 2015 -l 2100 -o ../../../../modve_data/mc_input/climate/cmip6_ceda --scenario ssp245 --token <your token>
   ```
 This will produce the files `baf_ensemble_day_<scenario>_<year>.nc` and `baf_<var>_<scenario>_<year>.nc` with `year` 1981-2100, `scenario` either historical or ssp245, and `var` including daily precipitation (pr_day), wind (sfcWind), relative humidity (hurs), pressure (ps_day), and temperature (tas).
 
-2. Download ERA5 data:
+2. <ins>Download ERA5 data:</ins>
 ```bash
 for year in {1981..2025}; do
-  Rscript 02_era5_downloader.R ../modve_data/mc_input/climate/era5_raw year
+  Rscript 02_era5_downloader.R ../../../../modve_data/mc_input/climate/era5_raw year
 end
 ```
-3. Process ERA5 data:
+3. <ins>Process ERA5 data:</ins>
 ```bash
-Rscript 03_prepro_era5.R ../modve_data/mc_input/climate/era5_raw ../modve_data/mc_input/climate/era5_processed $(seq 1981 2025)
+Rscript 03_prepro_era5.R ../../../../modve_data/mc_input/climate/era5_raw ../../../../modve_data/mc_input/climate/era5_processed $(seq 1981 2025)
 ```
-4. Execute R scripts step by step to select a subregion and merge ERA5 and CMIP6 data for complete hourly variables (`04_subset_region_and_merge.R`), detrend the climate change data (SSP2-4.5) for a baseline scenario (`05_generate_baseline_climate.R`) and clean the resulting data sets (`06_clean_data.R`). Note that any configurable variables will be listed after loading required libraries. 
+4. Execute R scripts step by step to select a subregion and merge ERA5 and CMIP6 data for complete hourly variables (`04_subset_region_and_merge.R`), detrend the climate change data (SSP2-4.5) for a baseline scenario (`05_generate_baseline_climate.R`) and clean the resulting data sets (`06_clean_data.R`). Note that any configurable variables will be listed after loading required libraries.
+5. Go back to the project folder directory:
+   ```bash
+   cd ../../../
+   ```
 
 ##### 2.2 Vegetatation, soil, and albedo
 
-1. Vegetation:
+1. <ins>Vegetation:</ins>
   * Generate a Google Earth Enginge (GEE) project, initialize it and configure the respective variables in the script `model_pipeline/02_simulate_microclimate/02_surface_inputs/01_vegetation.R`
   * Walk through the script downloading landcover and vegetation height with GEE and generating vegeation inputs.
-2. Albedo: Use the script `model_pipeline/02_simulate_microclimate/02_surface_inputs/02_albedo.R` to download and visualize MODIS RGB and CIR data stored in `../modve_data/mc_input/albedo` and `../modve_figs`.
-3. Soil: Generate soil and leaf reflectance data and rasters with soil parameters with `model_pipeline/02_simulate_microclimate/02_surface_inputs/03_soil.R`
+2. <ins>Albedo:</ins> Use the script `model_pipeline/02_simulate_microclimate/02_surface_inputs/02_albedo.R` to download and visualize MODIS RGB and CIR data stored in `../modve_data/mc_input/albedo` and `../modve_figs`.
+3. <ins>Soil:</ins> Generate soil and leaf reflectance data and rasters with soil parameters with `model_pipeline/02_simulate_microclimate/02_surface_inputs/03_soil.R`
 4. Crop soil and vegetation to 50 m x 50 m rasters for either the REGUA or Pirineus forest stand in the Atlatnic forest and process list of rasters to specific format required by Micropoint with `model_pipeline/02_simulate_microclimate/02_surface_inputs/04_format_subregion.R`
 5. Replace vegetation height and PAI with data from MoF3D simulations with `model_pipeline/02_simulate_microclimate/02_surface_inputs/05_mc_input_mof3d.R` 
 
 ##### 2.3 Simulation with Micropoint 
+
+1. Simulate microclimate for each year (in this example 1981-2000, for SSP2-4.5) processing a chunk of 50 cells at a time (for a total of 2500 cells):
+```bash
+#!/bin/bash
+
+# Change directory to simulation folder
+cd model_pipeline/02_simulate_microclimate/03_simulation
+
+# Path to simulation config file
+cfg="../../../../modve_data_zenodo/cfgs/mc_sim.toml"
+
+# Loop over cells in steps of 50 (2500 cells, 50 cells in parallel)
+for chunk in $(seq 1 50 2501); do
+  # Loop over years to simulate
+  for year in {1981..2000}; do
+    # Get time step corresponding to MoF3D simulation steps
+    t=$((year - 1901))
+
+    # Run the simulation script
+    Rscript 01_simulate_mc.R --config $cfg --year "$year" --timestep "$t" --chunk "$chunk"
+  done
+done
+```
+2. Merge all cells into a microclimate matrix:
+```bash
+# Path to config file
+cfg="../../../../modve_data_zenodo/cfgs/mc_process.toml"
+
+# Loop over years to simulate
+for year in {1981..2000}; do
+  # Get time step corresponding to MoF3D simulation steps
+  t=$((year - 1901))
+
+  # Run the simulation script
+  Rscript 02_merge_cells.R --config $cfg --year "$year" --timestep "$t"
+done
+```
+
+##### 2.4 Visualize and validate microclimate simulations
+
+The following scripts in `model_pipeline/02_simulate_microclimate/04_diagnostics` can be used to reproduce the comparison between simulated and measured microclimate including computing errors, correlations and plotting time series and vertical profiles. For this, make sure that the project data have been downloaded from Zenodo (see step 0.) and copied into the parent directory of the project root or adjust paths manually in the respective scripts. 
+
+```bash
+└── 04_diagnostics
+    ├── validate_mc_empirical_2024.R
+    ├── validate_mc_gradient_empirical_2025.R
+    ├── visualize_mc_pirineus_1906-2024_era5.R
+    └── visualize_mc_regua_1981-2100_ssp245_no_cc.R
+```
 
 #### 3. Add microclimate to microhabitat matrices
 Add the simulated microclimate variables to the microhabitat matrices or find the corresponding files in `../modve_data_zenodo/microhabitat_mc`.
