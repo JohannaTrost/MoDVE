@@ -8,7 +8,7 @@ library(tibble)
 library(randomForest)
 library(patchwork)
 
-base_dir <- file.path("/Users/johanna/Uni/masterarbeit/data/modve_output/regua")
+base_dir <- file.path("../modve_data/modve_output/regua")
 
 # Get species niches
 niches <- NULL
@@ -78,7 +78,7 @@ dev.off()
 
 # --- Species survival categories
 
-species_distr <- read_csv(file.path(base_dir, "a5_species_distribution_cc_vs_no_cc.csv"))
+species_distr <- read_csv(file.path(base_dir, "species_distribution_cc_vs_no_cc.csv"))
 
 # Get stats
 species_distr_stats <- species_distr %>%
@@ -129,39 +129,6 @@ pca_data_surv <- pca_data %>%
 survived_idx <- which(pca_data_surv$survival != "none")
 pca_data_surv$survival_filtered <- pca_data_surv$survival
 pca_data_surv$survival_filtered[-survived_idx] <- NA
-
-pdf(file.path(DirectoryPlots, "trait_pca_biplot_survival_v2.pdf"))
-fviz_pca_biplot(res.pca,
-                label = "var",
-                labelsize = 3,
-             select.ind = list(ind = survived_idx),
-             habillage = pca_data_surv$survival_filtered,
-             palette = c("#00AFBB", "#FC4E07", "#EFD2CB", "#241623"),
-             addEllipses = TRUE,
-             ellipse.type = "confidence",
-             legend.title = "Survival Groups",
-             repel = TRUE)
-dev.off()
-
-# --- Boxplots of traits by survival category
-
-vars <- c("GrowthRate", "OptimumHum", "RangeTemp")
-
-plt_data <- left_join(species_survival_cat, niches, by = c("SpeciesPool", "SpeciesID"))
-plt_data$RangeTemp <- plt_data$MaxTemp - plt_data$MinTemp
-
-for (var in vars) {
-  pdf(file.path(DirectoryPlots, paste0("trait_boxplot_", var, "_survival.pdf")), width = 6, height = 4)
-  print(
-    ggplot(plt_data, aes_string(x = "survival", y = var, fill = "survival")) +
-      geom_boxplot(notch = TRUE) +
-      scale_fill_manual(values = c("#00AFBB", "#FC4E07", "#EFD2CB", "#241623")) +
-      labs(x = "Survival Category", y = var) +
-      theme_minimal(base_size = 13) +
-      theme(legend.position = "none")
-  )
-  dev.off()
-}
 
 # --- 1. RF model data ---------------------------------
 
