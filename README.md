@@ -112,22 +112,25 @@ In the following scripts, any configurable variables and parameters can be found
    * Generate an access token
    * Execute CMIP6 downloader for historical and SSP2-4.5 data:
   ```bash
-  cd model_pipeline/02_simulate_microclimate/01_climate_inputs
-  python 01_cmip6_downloader.py --help
-  python 01_cmip6_downloader.py -f 1981 -l 2014 -o ../../../../modve_data/mc_input/climate/cmip6_ceda --scenario historical --token-file <path/to/token.txt>
-  python 01_cmip6_downloader.py -f 2015 -l 2100 -o ../../../../modve_data/mc_input/climate/cmip6_ceda --scenario ssp245 --token <your token>
+cd model_pipeline/02_simulate_microclimate/01_climate_inputs
+OUTDIR="../../../../modve_data/mc_input/climate/cmip6_ceda"
+
+python 01_cmip6_downloader.py --help
+python 01_cmip6_downloader.py -f 1981 -l 2014 -o $OUTDIR --scenario historical --token-file <path/to/token.txt>
+python 01_cmip6_downloader.py -f 2015 -l 2100 -o $OUTDIR --scenario ssp245 --token <your token>
   ```
 This will produce the files `baf_ensemble_day_<scenario>_<year>.nc` and `baf_<var>_<scenario>_<year>.nc` with `year` 1981-2100, `scenario` either historical or ssp245, and `var` including daily precipitation (pr_day), wind (sfcWind), relative humidity (hurs), pressure (ps_day), and temperature (tas).
 
 2. <ins>Download ERA5 data:</ins>
 ```bash
+CLIMDIR="../../../../modve_data/mc_input/climate"
 for year in {1981..2025}; do
-  Rscript 02_era5_downloader.R ../../../../modve_data/mc_input/climate/era5_raw year
+  Rscript 02_era5_downloader.R $CLIMDIR/era5_raw year
 end
 ```
 3. <ins>Process ERA5 data:</ins>
 ```bash
-Rscript 03_prepro_era5.R ../../../../modve_data/mc_input/climate/era5_raw ../../../../modve_data/mc_input/climate/era5_processed $(seq 1981 2025)
+Rscript 03_prepro_era5.R $CLIMDIR/era5_raw $CLIMDIR/era5_processed $(seq 1981 2025)
 ```
 4. <ins>Execute R scripts</ins> step by step to select a subregion and merge ERA5 and CMIP6 data for complete hourly variables (`04_subset_region_and_merge.R`), detrend the climate change data (SSP2-4.5) for a baseline scenario (`05_generate_baseline_climate.R`) and clean the resulting data sets (`06_clean_data.R`). Note that any configurable variables will be listed after loading required libraries.
 5. Go back to the project folder directory:
