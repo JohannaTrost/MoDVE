@@ -1,6 +1,8 @@
+# -----
+# Useful functions for modeling pipeline
+
 library("optparse")
 library("configr")
-
 
 parse_config <- function() {
     # Parse command line arguments
