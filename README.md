@@ -1,23 +1,23 @@
 # MoDVE: An integrated approach to modeling microclimate niches of vascular epiphytes
-A simulation pipline for agent-based mechanistic modeling of epiphyte demography in a neotropical lowland forest. The repository includes a step by step pipeline, for simulating microclimate with Micropoint (Maclean, 2025), integrating forest structure and light conditions from forest model outputs of MoF3D (Petter et al., 2021a). It builds upon the epiphyte model by Petter et al. (2021b) introducing temperature and humidity niche axes.
+A simulation pipeline for agent-based mechanistic modeling of epiphyte demography in a neotropical lowland forest. The repository includes a step by step pipeline, for simulating microclimate with Micropoint (Maclean, 2025), integrating forest structure and light conditions from forest model outputs of MoF3D (Petter et al., 2021a). It builds upon the epiphyte model by Petter et al. (2021b) introducing temperature and humidity niche axes.
 
 Key components: 
-* Modeling pipline (MoDVE, Micropoint)
+* Modeling pipeline (MoDVE, Micropoint)
 * Analyses 
 
 ## Overview
 This project aims at providing insights into vascular epiphyte community dynamics in response to changes in relative humidity and temperature. Comparing a non-climate-change with the SSP2-4.5 scenario sheds light on a potential future pathway for canopy-dwelling species in terms of species richness and species distribution along the vertical forest profile, which can provide relatively steep relative humidity and temperature gradients. 
 
-This repository provides a full modeling pipeline and the following post-hoc analyses and experiments: 
+This repository provides a full model pipeline and the following simulation analyses and experiments: 
 * Degenerate sensitivity analysis
-* Comparison to the mid-domain effect expecation of species richness
+* Comparison to the mid-domain effect expectation of species richness
 * Comparison between a non-climate-change and climate change scenario
 * Analysis of interspecific competition effects along the forest profile.
 
 ## Table of Contents
 - [Installation](#installation)
+- [Project Structure](#project-structure)
 - [Usage](#usage)
-- [Contributing](#contributing)
 - [License](#license)
 
 ## Installation
@@ -31,10 +31,54 @@ For downloading CMIP6 data and for several post-simulation scripts python >= 3.1
 install.packages("devtools")
 devtools::install_deps(".")
 ```
-4. Open a terminal and install Python packages (if needed):
+4. Open a terminal and install Python packages:
 ```bash
 pip install . -r requirements.txt
 ```
+
+## Project Structure
+
+```bash
+MoDVE/
+├── DESCRIPTION
+├── README.md
+├── analysis # Simulation analyses
+│   ├── climate_change
+│   └── sensitivity
+├── model_pipeline # Core simulation pipeline (run sequentially)
+│   ├── 01_generate_microhabitat.R
+│   ├── 02_simulate_microclimate
+│   ├── 03_add_microclimate_dimensions.R
+│   ├── 04_create_species_pools.R
+│   ├── 05_compute_env_suitability.R
+│   ├── 06_create_initial_distributions.R
+│   ├── 07_run_model.R
+│   ├── 08_replicate_diagnostic.R # Evaluate the no. replicates
+│   └── utils.R
+└── requirements.txt
+```
+
+The `model_pipeline/` scripts are designed to be executed sequentially as a command-line workflow (see [Usage](#usage)). Shared utility functions used across the pipeline are provided in `model_pipeline/utils.R`.
+
+The `analysis/` folder contains multiple simulation analysis scripts requiring outputs from `model_pipeline/07_run_model.R`. They are divided into two branches:
+
+#### Sensitivity analysis (`analysis/sensitivity/`)
+
+A degenerate sensitivity analysis examining how varying microclimate gradients affect simulated diversity and vertical distribution patterns. Scripts proceed from varying input gradients (`01_vary_mc_gradients.R`), computing richness and species distribution metrics (`02_compute_richness.py`, `03_compute_species_distribution.R`) from model outputs, to calculating relative changes across scenarios (`04_relative_changes.R`) and visualizing differences (`05_plot_scenario_differences.py`).
+
+#### Climate change analysis (`analysis/climate_change/`)
+
+Compares the non-climate-change baseline against the SSP2-4.5 scenario across five modules:
+
+| Folder | Content |
+|---|---|
+| `01_community/` | Community-level visualizations: demographics, vertical distribution shifts, abundance, and species richness |
+| `02_mixed_effect_models/` | Mixed-effect models for position, range, and vertical richness and abundance responses |
+| `03_traits_and_niches/` | Functional trait and niche analyses including changes in realized and potential niches, environmental limits, and niche filling figures |
+| `04_mid_domain_effect/` | Comparison of simulated richness patterns against mid-domain effect expectations |
+| `05_experiment_upward_shift/` | Mechanistic experiment isolating upward-shifting species: filtering, distribution setup, and visualization of resulting position shifts |
+
+Note that scripts in folders `02` to `05` may depend on files generated in `01`. 
 
 ## Usage
 
@@ -85,7 +129,7 @@ end
 ```bash
 Rscript 03_prepro_era5.R ../../../../modve_data/mc_input/climate/era5_raw ../../../../modve_data/mc_input/climate/era5_processed $(seq 1981 2025)
 ```
-4. Execute R scripts step by step to select a subregion and merge ERA5 and CMIP6 data for complete hourly variables (`04_subset_region_and_merge.R`), detrend the climate change data (SSP2-4.5) for a baseline scenario (`05_generate_baseline_climate.R`) and clean the resulting data sets (`06_clean_data.R`). Note that any configurable variables will be listed after loading required libraries.
+4. <ins>Execute R scripts</ins> step by step to select a subregion and merge ERA5 and CMIP6 data for complete hourly variables (`04_subset_region_and_merge.R`), detrend the climate change data (SSP2-4.5) for a baseline scenario (`05_generate_baseline_climate.R`) and clean the resulting data sets (`06_clean_data.R`). Note that any configurable variables will be listed after loading required libraries.
 5. Go back to the project folder directory:
    ```bash
    cd ../../../
@@ -149,7 +193,8 @@ The following scripts in `model_pipeline/02_simulate_microclimate/04_diagnostics
     ├── validate_mc_empirical_2024.R
     ├── validate_mc_gradient_empirical_2025.R
     ├── visualize_mc_pirineus_1906-2024_era5.R
-    └── visualize_mc_regua_1981-2100_ssp245_no_cc.R
+    ├── visualize_mc_regua_1981-2100_ssp245_no_cc.R
+    └── visualize_vertical_mc_regua_ssp245_no_cc.rmd
 ```
 
 #### 3. Add microclimate to microhabitat matrices
