@@ -11,13 +11,13 @@
 #'
 #' Directorymicrohabitat = "/path/to/microhabitat_mc/" # Directory containing microhabitat matrices
 #' DirectorySpeciesPools = "/path/to/species_pools/"    # Directory containing species pool CSV files
-#' DirectoryModelMain = "/path/to/model/distributions/" # Directory containing initial epiphyte distributions
+#' DirectoryModelMain = "/path/to/model/distribution/" # Directory containing initial epiphyte distributions
 #' DirectoryModelResults = "/path/to/model/communities/" # Directory to save model results
 #' DirectoryEnvScores = "/path/to/EnvSuitability/"    # Directory containing environmental suitability scores
 #' microhabitatType = 1                                # {1, 2, 3} 1: dynamic forest, 2: static forest, 3: uniform forest
 #' timeSteps = 100                                     # Number of timesteps to simulate
 #' StopCriterionHa = 3000000                           # Individuals per hectare to stop simulation
-#' numSpeciesPools = c(1, 10)                          # Range of species pool IDs to process
+#' numSpeciesPools = [1, 10]                           # Range of species pool IDs to process
 #' replicatePerSpeciesPool = 3                         # Number of replicates per species pool
 #' SurfaceBiomassScaling = 100                         # Scaling factor for surface area (cm^2 per m^2)
 #' Imax = 900                                          # Maximum light intensity for scaling

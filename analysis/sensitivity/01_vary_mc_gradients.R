@@ -12,9 +12,9 @@ end_ts <- 198
 # Gradient steepness control
 grad_weight <- 1.5 # 0: no gradient, 1: full gradient -> done for 0, 0.5 and 1.5
 # "/path/to/<region>/microhabitat/rep<rep>/microhabitatMatrix<ts>.rds" -> output of 03_add_microclimate_dimensions.R
-indir <- file.path("../modve_data/modve_output/regua/scenarios/climdata_era5_cmip6_1906-2024_ssp245_119ts/microhabitat_mc/rep0")
+indir <- file.path("../modve_data/modve_output/regua/climdata_era5_cmip6_1906-2024_ssp245_119ts/microhabitat_mc/rep0")
 scenario <- paste0("climdata_era5_cmip6_1906-2024_ssp245_119ts_", grad_weight, "_mc_grad")
-outdir <- file.path("../modve_data/modve_output/regua/scenarios", scenario, "microhabitat_mc", "rep0")
+outdir <- file.path("../modve_data/modve_output/regua", scenario, "microhabitat_mc", "rep0")
 
 # -----
 

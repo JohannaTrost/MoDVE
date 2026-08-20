@@ -14,7 +14,7 @@ library(patchwork)
 library(permute)
 
 # Directories
-base_dir <- file.path("../modve_data_zenodo/modve_output/regua")
+base_dir <- file.path("../modve_output/regua")
 figs_dir <- file.path("../modve_figs/climdata_era5_cmip6_1981-2100_ssp245")
 
 # Parameters
@@ -40,7 +40,7 @@ for (forestId in forestIDs) {
   print(paste0("Processing Forest: ", forestId))
 
   DirectoryModelResults <- file.path(
-    base_dir, "climdata_era5_cmip6_1981-2100_ssp245", "distribution", paste0("forest", forestId)
+    base_dir, "climdata_era5_cmip6_1981-2100_ssp245", "communities", paste0("forest", forestId)
   )
 
   for (rep in seq_len(replicatePerSpeciesPool)) {

@@ -13,12 +13,12 @@
 #'
 #' Directorymicrohabitat = "/path/to/microhabitat_mc/" # Directory containing microhabitat matrices
 #' DirectorySpeciesPools = "/path/to/species_pools/"    # Directory containing species pool CSV files
-#' DirectoryOutput = "/path/to/EnvSuitability/"        # Directory to save suitability scores
+#' DirectoryOutput = "/path/to/suitability_scores/forest0/"  # Directory to save suitability scores
 #' timeSteps = 10                                      # Number of timesteps to simulate
 #' InitialTimeStep = 1                                 # First timestep to process
 #' numSpeciesPools = c(1, 10)                          # Range of species pool IDs to process
 #' LightResponseFct = "Parabolic"                      # Light response function ("Parabolic" or "Yan and Hunt")
-#' Imax = 1000                                         # Maximum light intensity for scaling
+#' Imax = 900                                          # Maximum light intensity for scaling
 #' LightNicheOpt = 1                                   # {0, 1} Include light niche in suitability calculation
 #' HumNicheOpt = 1                                     # {0, 1} Include humidity niche in suitability calculation
 #' TempNicheOpt = 1                                    # {0, 1} Include temperature niche in suitability calculation

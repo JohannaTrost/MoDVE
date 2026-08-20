@@ -6,7 +6,7 @@
 #' The output is saved as CSV files containing the initial epiphyte matrix for each species pool and replicate.
 #'
 #' @details
-#' Usage: Rscript model_pipeline/06_generate_initial_distribution.R --config config.toml
+#' Usage: Rscript model_pipeline/06_create_initial_distributions.R --config config.toml
 #'
 #' Example config.toml
 #'

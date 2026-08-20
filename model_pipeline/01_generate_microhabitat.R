@@ -17,9 +17,10 @@
 #' LightNicheOpt = 1                               # {0, 1} include light condidions
 #' AverageWeightedAngles = 0                       # {0, 1} include weighted angle averages
 #' DirectoryGroIMP = "/path/to/groimp/"            # with MoF3D output "Results/" and "Model/"
-#' DirectorySaveMain = "/path/to/output/directory" # e.g. "../modve_data/modve_output/microhabitat"
+#' DirectorySaveMain = "/path/to/output/directory" # e.g. "../modve_output/regua/microhabitat"
 #' ReplicateForest = 0                             # forest replicate {0, 1, 2}
 #' timeStepStart = 1                               # first simulation timestep
+#' timeStepEnd = 3                                 # last simulation timestep
 #' timeStepEnd = 3                                 # last simulation timestep
 #'
 #' Output:

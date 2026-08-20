@@ -275,7 +275,7 @@ grndparams <- extract_params(soilc_reg, lon, lat)
 vegparams$h <- 22
 
 # Get PAI
-microhab_file <- file.path(mh_dir, paste0("rep", forst), paste0("microhabitatMatrix", ts, ".rds")) # Regua
+microhab_file <- file.path(mh_dir, paste0("forest", forst), paste0("MicrohabitatMatrix", ts, ".rds")) # Regua
 pai <- readRDS(microhab_file)[,,,1]
 paii <- apply(pai[,,1:max(vegparams$h, 0.5)], c(3), mean, na.rm = TRUE)
 vegparams$pai <- sum(paii)

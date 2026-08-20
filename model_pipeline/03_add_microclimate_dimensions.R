@@ -12,9 +12,9 @@
 #' timeStepEnd = 3                                 # last simulation timestep
 #' yearStart = 1980                                # starting calendar year
 #' region = "DE"                                   # region identifier for microclimate files
-#' Directorymicrohabitat = "/path/to/microhabitat/"    # input microhabitat directory
-#' Directorymicroclimate = "/path/to/microhabitat_mc/" # input microclimate directory
-#' Directorynew_microhabitat = "/path/to/output/"  # output directory
+#' Directorymicrohabitat = "/path/to/microhabitat/rep<n>"    # input microhabitat directory
+#' Directorymicroclimate = "/path/to/microhabitat_mc/rep<n>" # input microclimate directory
+#' Directorynew_microhabitat = "/path/to/output/rep<n>"  # output directory
 #' TotalSurfaceAreaOpt = 1                         # {0, 1} include total surface area
 #' SurfaceAreaLossOpt = 1                          # {0, 1} include surface area loss
 #' LightNicheOpt = 1                               # {0, 1} include light niche variables
@@ -24,7 +24,7 @@
 #' WindNicheOpt = 1                                # {0, 1} include wind niche
 #'
 #' Output:
-#' [microhabitatMatrix<timeStepStart>.rds, ..., microhabitatMatrix<timeStepEnd>.rds]
+#' [MicrohabitatMatrix<timeStepStart>.rds, ..., MicrohabitatMatrix<timeStepEnd>.rds]
 #' With matrices xDim X yDim X zDim X nVariables (including microclimate variables)
 #' Forest parameter files (Forest_param_global.txt, Forest_param_pass0.txt, dimPlot.rds)
 #' are copied to the output directory.
@@ -212,7 +212,7 @@ add_microclimate_to_microhabitat <- function(config) {
   for (TimeStep in int_seq(from=timeStepStart, to=timeStepEnd, by=1)) {
 
     # Load  microhabitat matrix
-    microhabitat_fname <- paste("microhabitatMatrix", TimeStep, ".rds", sep="")
+    microhabitat_fname <- paste("MicrohabitatMatrix", TimeStep, ".rds", sep="")
     FileMatrix <- file.path(Directorymicrohabitat, microhabitat_fname)
     if (!file.exists(FileMatrix)) {
       stop("Microhabitat file not found: ", FileMatrix)

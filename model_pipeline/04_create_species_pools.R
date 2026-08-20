@@ -5,7 +5,7 @@
 #' The output is saved as CSV files for each species pool.
 #'
 #' @details
-#' Usage: Rscript model_pipeline/04_generate_species_matrices.R --config config.toml
+#' Usage: Rscript model_pipeline/04_create_species_pools.R --config config.toml
 #'
 #' Example config.toml
 #'
@@ -14,8 +14,6 @@
 #' Directorymicrohabitat = "/path/to/microhabitat_mc/" # Directory containing microhabitat matrices
 #' numSpeciesPools = 1                            # Number of species pools to generate
 #' NumberOfSpecies = 10                           # Number of species per pool
-#' initialTimeStep = 1                            # First simulation timestep
-#' timeSteps = 10                                 # Total number of timesteps
 #' CorrelationMassRecruitment = 1                 # {0, 1} Correlation between mass and recruitment
 #' InterceptAgeMaturity = 2                     # Intercept for age-maturity relationship
 #' ScalingAgeMaturity = 0.25                      # Scaling factor for age-maturity (metabolic theory)
@@ -162,10 +160,6 @@ Directorymicrohabitat <- config$Directorymicrohabitat
 # Define number of species in species pool and total number of species pools to be created
 numSpeciesPools <- config$numSpeciesPools
 NumberOfSpecies <- config$NumberOfSpecies
-
-# Time steps
-initialTimeStep <- config$initialTimeStep
-timeSteps <- config$timeSteps
 
 # The following option defines if correlations between traits are consider or not
 # CorrelationMassAgeOfMaturity <- 1  # Correlation between the mass and the age of maturity (this also influences the growth rate)
