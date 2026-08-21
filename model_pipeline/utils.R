@@ -16,17 +16,17 @@ parse_config <- function() {
     opt <- parse_args(parser)
 
     # Check that input file is provided
-    if (is.na(opt$input)) {
-        stop("Input parameter must be provided. See script usage (--help)")
+    if (is.na(opt$config)) {
+        stop("Config file must be provided. See script usage (--help)")
     } else {
-        filepath <- file.path(opt$input)
+        filepath <- file.path(opt$config)
     }
 
     # Check whether provided input file exists and is in TOML format
     if (!(file.exists(filepath) && !dir.exists(filepath))) {
-        stop("Input file doesn't exist")
-    } else if (!is.toml.file(file=opt$input)) {
-        stop("Input file isn't in TOML format")
+        stop("Config file doesn't exist")
+    } else if (!is.toml.file(file=opt$config)) {
+        stop("Config file isn't in TOML format")
     } else {
         config <- read.config(file=filepath)
     }
