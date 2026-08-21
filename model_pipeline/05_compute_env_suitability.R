@@ -38,7 +38,7 @@ options(digits.secs=3)  # 3 decimal digits for seconds
 
 # Epiphte IBM - Model
 # This model simulates the development of the entire epiphyte community
-source("utils.R")
+source("model_pipeline/utils.R")
 
 library("doRNG")
 library("foreach")

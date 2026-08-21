@@ -8,7 +8,7 @@ parse_config <- function() {
     # Parse command line arguments
     parser <- OptionParser()
     parser <- add_option(parser,
-        c("-i", "--input"),
+        c("-c", "--config"),
         type="character",
         default=NA,
         metavar="PATH_TO_TOML",

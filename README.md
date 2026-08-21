@@ -24,7 +24,7 @@ This repository provides a full model pipeline and the following simulation anal
 For running the modeling pipline an R version >= 4.3.1 is required. 
 For downloading CMIP6 data and for several post-simulation scripts python >= 3.11 is required. 
 
-1. Clone the repository: git clone https://github.com/JohannaTrost/MoDVE.git
+1. Clone the repository: `git clone https://github.com/01zc/MoDVE.git`
 2. Then navigate to the repository folder: cd MoDVE
 3. Open a R console and install required R libraries:
 ```r   
@@ -33,7 +33,7 @@ devtools::install_deps(".")
 ```
 4. Open a terminal and install Python packages:
 ```bash
-pip install . -r requirements.txt
+pip install -r requirements.txt
 ```
 
 ## Project Structure
@@ -97,7 +97,9 @@ TODO
 Then, generate the microhabitat matrices from the MoF3D forest output or find the corresponding files in `../modve_data_zenodo/modve_output/regua/microhabitat`.
 Open a terminal and `cd` into the project folder (MoDVE). Then, execute the script:
 ```bash
-Rscript model_pipeline/01_generate_microhabitat.R --config ../modve_data_zenodo/cfgs/01_config.toml
+cd model_pipeline
+Rscript 01_generate_microhabitat.R --config ../modve_data_zenodo/cfgs/01_config.toml
+cd ..
 ```
 This produces 4D matrices (xDim X yDim X zDim X nVariables) for each time step in `../modve_output/regua/microhabitat`: `microhabitatMatrix80.rds`, ..., `microhabitatMatrix100.rds`, and forest parameter files (`Forest_param_global.txt`, `Forest_param_pass0.txt`, `dimPlot.rds`).
 

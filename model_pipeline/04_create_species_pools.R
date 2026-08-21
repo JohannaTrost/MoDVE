@@ -48,7 +48,7 @@
 #'
 NULL
 
-source("utils.R")
+source("model_pipeline/utils.R")
 
 library("dplyr")
 

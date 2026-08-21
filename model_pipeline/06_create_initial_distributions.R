@@ -31,7 +31,7 @@
 #'
 NULL
 
-source("utils.R")
+source("model_pipeline/utils.R")
 
 #' Identify suitable voxels for a species
 #'
