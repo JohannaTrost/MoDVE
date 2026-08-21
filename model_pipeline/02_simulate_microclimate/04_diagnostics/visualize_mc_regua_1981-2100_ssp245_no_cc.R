@@ -8,7 +8,7 @@ library(patchwork)  # for arranging plots vertically
 
 # CONFIGURE directories
 # /path/to/<year>_<region>_mc_matrix.rds
-indir <- "../modve_data_zenodo/mc_output/regua/scenarios/climdata_era5_cmip6_1981-2100_ssp245_no_cc/rep1/mc_matrices"
+indir <- "../modve_data_zenodo/mc_output/regua/scenarios/climdata_era5_cmip6_1981-2100_ssp245_no_cc/rep1"
 veg_path <- "../modve_data_zenodo/mc_input/regua/rep1"
 out_file <- "../modve_figs/mc_output/temp_rh_by_height_1981–2100_no_cc_regua.pdf"
 

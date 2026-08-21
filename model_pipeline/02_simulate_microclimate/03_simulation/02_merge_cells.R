@@ -45,6 +45,7 @@ if (is.null(opt$config)) {
   quit(status = 1)
 }
 
+
 year <- if (!is.null(opt$year)) opt$year else stop("Error: 'year' must be provided in opt.")
 # Conversion from year to corresponding ts: year - 1900 - 1 (e.g. year=1981 -> ts=80)
 ts <- if (!is.null(opt$timestep)) opt$timestep else stop("Error: 'timestep' must be provided in opt.")
@@ -66,21 +67,20 @@ mc_dir    <- config$mc_dir
 veg_dir <- config$veg_dir
 region <- config$region
 rep <- config$rep
-year <- config$year
-ts   <- config$ts
 
 # ----------------------------
 # Define directories
 # ----------------------------
-
-mc_in_dir <- if (!is.na(rep)) file.path(mc_dir, region, paste0("rep", rep), year)
-                 else file.path(mc_dir, region, year)
+mc_in_dir <- (if (!is.na(rep)) file.path(mc_dir, paste0("rep", rep), year)
+                 else file.path(mc_dir, year))
 
 # ----------------------------
 # Extract maximum vegetation height
 # ----------------------------
-vegp_path <- if (!is.na(rep)) file.path(veg_dir, region, paste0("rep", rep), paste0("vegp_mof3d_ptm_", ts, ".RDS"))
-                 else file.path(veg_dir, region, paste0("vegp_mof3d_ptm_", ts, ".RDS"))
+vegp_path <- (if (!is.na(rep)) file.path(veg_dir, region, paste0("rep", rep), paste0("vegp_mof3d_ptm_", ts, ".RDS"))
+                 else file.path(veg_dir, region, paste0("vegp_mof3d_ptm_", ts, ".RDS")))
+print("ts")
+print(ts)
 vegp_reg  <- readRDS(vegp_path)
 max_hgt   <- max(terra::values(terra::unwrap(vegp_reg$h)), na.rm = TRUE) + 1
 
@@ -135,7 +135,7 @@ cat("Average time per cell:", round(total_time / successful_cells, 3), "seconds\
 # ----------------------------
 # Save result
 # ----------------------------
-out_file <- file.path(mc_dir, paste(year, region, "mc_matrix.rds", sep = "_"))
+out_file <- file.path(mc_dir, paste0("rep", rep), paste(year, region, "mc_matrix.rds", sep = "_"))
 saveRDS(mc_matrix, out_file)
 
 cat("Saved result to:", out_file, "\n")
