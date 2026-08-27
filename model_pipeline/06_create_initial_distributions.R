@@ -273,7 +273,6 @@ if (SingleSpeciesModel == 1) {
                 SuitableVoxels <- ComputeSuitableVoxels(
                   microhabitat,
                   microhabitat_index_list,
-                  microhabitat_var_names,
                   SpeciesPool,
                   numSpecies
                 )
@@ -399,7 +398,6 @@ if (SingleSpeciesModel == 0) {
                 SuitableVoxels <- ComputeSuitableVoxels(
                   microhabitat,
                   microhabitat_index_list,
-                  microhabitat_var_names,
                   SpeciesPool,
                   numSpecies
                 )
