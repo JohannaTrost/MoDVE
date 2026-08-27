@@ -204,7 +204,7 @@ main <- function() {
             microhabitat <- readRDS(FileNamemicrohabitat)
 
             # Scale light
-            microhabitat[, , , Inds["LightNicheOpt"]] <- Imax * microhabitat[, , , Inds["LightNicheOpt"]]
+            microhabitat[, , , microhabitat_index_list["LightNicheOpt"]] <- Imax * microhabitat[, , , microhabitat_index_list["LightNicheOpt"]]
 
             SuitabilityScoresT <- array(NA, dim=c(dimPlot, nrow(SpeciesPool), length(allEnvVarsIdx)))
 
