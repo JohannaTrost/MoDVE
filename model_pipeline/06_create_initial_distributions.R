@@ -56,7 +56,6 @@ source("model_pipeline/utils.R")
 #'
 ComputeSuitableVoxels <- function(microhabitat,
                                   microhabitat_index_list,
-                                  microhabitat_var_names,
                                   SpeciesPool,
                                   numSpecies) {
 
@@ -64,7 +63,7 @@ ComputeSuitableVoxels <- function(microhabitat,
   SuitableMask <- microhabitat_index_list["TotalSurfaceAreaOpt"] > 0
 
   # ---- Light ----
-  if ("LightNicheOpt" %in% microhabitat_var_names) {
+  if ("LightNicheOpt" %in% names(microhabitat_index_list)) {
     LightIdx <- microhabitat_index_list[["LightNicheOpt"]]
     SuitableMask <- SuitableMask &
       microhabitat[, , , LightIdx] >= SpeciesPool$MinLight[numSpecies] &
@@ -72,7 +71,7 @@ ComputeSuitableVoxels <- function(microhabitat,
   }
 
   # ---- Humidity ----
-  if ("HumNicheOpt" %in% microhabitat_var_names) {
+  if ("HumNicheOpt" %in% names(microhabitat_index_list)) {
     HumIdx <- microhabitat_index_list[["HumNicheOpt"]]
     SuitableMask <- SuitableMask &
       microhabitat[, , , HumIdx] >= SpeciesPool$MinHum[numSpecies] &
@@ -80,7 +79,7 @@ ComputeSuitableVoxels <- function(microhabitat,
   }
 
   # ---- Temperature ----
-  if ("TempNicheOpt" %in% microhabitat_var_names) {
+  if ("TempNicheOpt" %in% names(microhabitat_index_list)) {
     TempIdx <- microhabitat_index_list[["TempNicheOpt"]]
     SuitableMask <- SuitableMask &
       microhabitat[, , , TempIdx] >= SpeciesPool$MinTemp[numSpecies] &
@@ -88,7 +87,7 @@ ComputeSuitableVoxels <- function(microhabitat,
   }
 
   # ---- Wind ----
-  if ("WindNicheOpt" %in% microhabitat_var_names) {
+  if ("WindNicheOpt" %in% names(microhabitat_index_list)) {
     WindIdx <- microhabitat_index_list[["WindNicheOpt"]]
     SuitableMask <- SuitableMask &
       microhabitat[, , , WindIdx] >= SpeciesPool$MinWind[numSpecies] &
