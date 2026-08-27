@@ -349,7 +349,7 @@ if (SingleSpeciesModel == 0) {
             IntitalEpiphyteMatrix <- array(rep(0, TotalIndividuals * (SizeSpeciesPool[2] + 8)), dim=c(TotalIndividuals, SizeSpeciesPool[2] + 8))
 
             # Initialize Available surface area
-            AvailableSurfaceArea <- microhabitat[, , , Indices["TotalSurfaceAreaOpt"]]  # Matrix to trace the still available surface area per voxel
+            AvailableSurfaceArea <- microhabitat[, , , microhabitat_index_list["TotalSurfaceAreaOpt"]]  # Matrix to trace the still available surface area per voxel
 
             # Fill InitialEpiphyteMatrix with species trait informations and the
             # initial size of each individual
