@@ -147,7 +147,7 @@ mean_diurnal_temp_vectorized <- function(tair_matrix, timestamps) {
   dates <- as.Date(timestamps)
   unique_dates <- unique(dates)
 
-  # Pre-alloimmediateMessagee results
+  # Pre-allo results
   n_dates <- length(unique_dates)
   n_heights <- nrow(tair_matrix)
   daily_ranges <- matrix(NA, nrow = n_heights, ncol = n_dates)
@@ -505,12 +505,12 @@ ts <- if (!is.null(opt$timestep)) opt$timestep else stop("Error: 'timestep' must
 # Processing parameters
 chunk <- if (!is.null(opt$chunk)) opt$chunk else 1
 chunk_size <- if (!is.null(config$processing$chunk_size)) config$processing$chunk_size else 2
-cores_config <- if (!is.null(config$processing$cores)) config$processing$cores
-                    else stop("Error: 'cores' must be provided in config$processing.")
+cores_config <- (if (!is.null(config$processing$cores)) config$processing$cores
+                    else stop("Error: 'cores' must be provided in config$processing."))
 
 # Path parameters
-region <- if (!is.null(config$paths$region)) config$paths$region
-              else stop("Error: 'region' must be provided in config$paths.")
+region <- (if (!is.null(config$paths$region)) config$paths$region
+              else stop("Error: 'region' must be provided in config$paths."))
 rep <- if (!is.null(config$paths$replicate)) config$paths$replicate else NA
 
 # verbosity
@@ -522,8 +522,8 @@ verbose <- opt$verbose || (!is.null(config$output$verbose) && config$output$verb
 
 veg_indir_base <- if (!is.null(config$paths$veg_indir)) config$paths$veg_indir else file.path("..", "modve_output")
 indir_base <- if (!is.null(config$paths$in_dir)) config$paths$in_dir else file.path("..", "modve_data", "mc_input")
-climdata_path <- if (!is.null(config$paths$clim_path)) config$paths$clim_path
-                     else stop("Error: 'clim_path' must be provided in config$paths.")
+climdata_path <- (if (!is.null(config$paths$clim_path)) config$paths$clim_path
+                     else stop("Error: 'clim_path' must be provided in config$paths."))
 outdir_base <- if (!is.null(config$paths$outdir)) config$paths$outdir else file.path("..", "modve_data", "mc_output")
 
 # Check if paths exist (except outdir_base)
@@ -541,11 +541,11 @@ for (path_name in names(paths_to_check)) {
 }
 
 # Define full directory paths
-veg_indir <- if (!is.na(rep)) file.path(veg_indir_base, region, "microhabitat", paste0("rep", rep))
-                 else file.path(veg_indir_base, region, "microhabitat")
+veg_indir <- (if (!is.na(rep)) file.path(veg_indir_base, region, "microhabitat", paste0("rep", rep))
+                 else file.path(veg_indir_base, region, "microhabitat"))
 indir <- file.path(indir_base, region)
-outdir <- if (!is.na(rep)) file.path(outdir_base, region, paste0("rep", rep), year)
-              else file.path(outdir_base, region, year)
+outdir <- (if (!is.na(rep)) file.path(outdir_base, region, paste0("rep", rep), year)
+              else file.path(outdir_base, region, year))
 
 if (verbose) {
   immediateMessage("Configuration loaded from:", opt$config, "\n")
@@ -572,8 +572,8 @@ if (!dir.exists(outdir)) {
 
 # Define file paths
 microhab_path <- file.path(veg_indir, paste0("microhabitatMatrix", ts, ".rds"))
-vegp_path <- if (!is.na(rep)) file.path(indir, paste0("rep", rep), paste0("vegp_mof3d_ptm_", ts, ".RDS"))
-                 else file.path(indir, paste0("vegp_mof3d_ptm_", ts, ".RDS"))
+vegp_path <- (if (!is.na(rep)) file.path(indir, paste0("rep", rep), paste0("vegp_mof3d_ptm_", ts, ".RDS"))
+                 else file.path(indir, paste0("vegp_mof3d_ptm_", ts, ".RDS")))
 soilc_path <- file.path(indir, "soil.RDS")
 
 # Validate input files exist

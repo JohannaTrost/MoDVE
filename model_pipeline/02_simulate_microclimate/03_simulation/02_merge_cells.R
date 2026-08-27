@@ -25,6 +25,20 @@ suppressPackageStartupMessages({
   library(terra)
 })
 
+immediateMessage <- function(..., domain = NULL, appendLF = TRUE) {
+  msg <- .makeMessage(..., domain = domain, appendLF = appendLF)
+  call <- sys.call()
+  m <- simpleMessage(msg, call)
+
+  cls <- class(m)
+  cls <- setdiff(cls, "condition")
+  cls <- c(cls, "immediateCondition", "condition")
+  class(m) <- cls
+
+  message(m)
+  invisible(m)
+}
+
 # ----------------------------
 # CLI argument parsing
 # ----------------------------

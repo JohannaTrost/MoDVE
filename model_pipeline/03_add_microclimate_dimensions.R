@@ -64,7 +64,7 @@ add_microclimate_dimensions <- function(microhab_dims,
   newD4 <- microhab_dims[4] + microclim_dims[4]
 
   # Assert that newD4 matches length of microhabitat_index_list otherwise throw an error
-  if (newD4 != length(microhabitat_index_list)) {
+  if (newD4 != length(microhabitat_index_list) + 1) { # PLus 1 because of PAI
       stop("Mismatch between expected new variable dimension and provided index list.")
   }
 
@@ -256,6 +256,7 @@ add_microclimate_to_microhabitat <- function(config) {
     }
 
     # 3. Insert microclimate into microhabitat matrix
+
     microhabitat_with_climate <- add_microclimate_dimensions(
       microhab_dims,
       microclim_dims,

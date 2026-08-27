@@ -114,7 +114,6 @@ In the following scripts, any configurable variables and parameters can be found
   ```bash
 cd model_pipeline/02_simulate_microclimate/01_climate_inputs
 OUTDIR="../../../../modve_data/mc_input/climate/cmip6_ceda"
-
 python 01_cmip6_downloader.py --help
 python 01_cmip6_downloader.py -f 1981 -l 2014 -o $OUTDIR --scenario historical --token-file <path/to/token.txt>
 python 01_cmip6_downloader.py -f 2015 -l 2100 -o $OUTDIR --scenario ssp245 --token <your token>
@@ -185,6 +184,8 @@ for year in {1981..2000}; do
   # Run the simulation script
   Rscript 02_merge_cells.R --config $cfg --year "$year" --timestep "$t"
 done
+
+cd ../../..
 ```
 
 ##### 2.4 Visualize and validate microclimate simulations
