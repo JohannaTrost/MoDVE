@@ -188,10 +188,10 @@ main <- function() {
 
         if (!is.na(singleStep)) {
 
-            print(paste0("Computing suitability scores for species pool ", numPool, "for each variable ..."))
+            print(paste0("Computing suitability scores for species pool ", numPool, " for each variable ..."))
 
             t <- singleStep
-            print(paste0("Time step", t))
+            print(paste0("Time step ", t))
 
             savePath <- file.path(DirectoryOutputSpeciesPool,
                                   paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5"))
@@ -313,7 +313,6 @@ main <- function() {
             for (step in 0:timeSteps) {
                 t <- InitialTimeStep + step
 
-                # MEMORY FIX 4: Fixed the typo here (double numPool)
                 inFile <- file.path(
                     DirectoryOutputSpeciesPool,
                     paste0("ID_SpeciesP_", numPool, "_TimeStep", t, ".h5")  # Fixed typo
@@ -373,7 +372,7 @@ main <- function() {
                     EnvSuitScors <- h5read(outFile, "ScaledSuitabilityScores")
 
                     # Delete input file after successful processing
-                    #file.remove(inFile)
+                    file.remove(inFile)
                     writeLines(paste0("✅ Successfully processed and saved: ", outFile))
 
                 }, error = function(e) {

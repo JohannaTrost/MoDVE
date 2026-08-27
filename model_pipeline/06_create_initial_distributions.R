@@ -201,7 +201,7 @@ FileInitalMatrix <- file.path(DirectorymicrohabitatMain, microhabitat_filename)
 microhabitat <- readRDS(FileInitalMatrix)
 
 # Set real light values (in microhabitat, relative light values are saved)
-microhabitat[, , , Indices["LightNicheOpt"]] <- microhabitat[, , , Indices["LightNicheOpt"]] * Imax
+microhabitat[, , , microhabitat_index_list["LightNicheOpt"]] <- microhabitat[, , , microhabitat_index_list["LightNicheOpt"]] * Imax
 
 ###############################################################################
 # Main loop for Single Species Model
@@ -225,7 +225,7 @@ if (SingleSpeciesModel == 1) {
 
             # Initialize Available surface area
             # - Matrix to trace the still available surface area per voxel
-            AvailableSurfaceArea <- microhabitat[, , , Indices["TotalSurfaceAreaOpt"]]
+            AvailableSurfaceArea <- microhabitat[, , , microhabitat_index_list["TotalSurfaceAreaOpt"]]
 
             # Fill InitialEpiphyteMatrix with species trait informations and the
             # initial size of each individual

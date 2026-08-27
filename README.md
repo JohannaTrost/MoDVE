@@ -219,16 +219,16 @@ Rscript model_pipeline/04_create_species_pools.R --config ../modve_data_zenodo/c
 First, compute environmental suitability scores (0-1) for each scenario, species, voxel, forest and time step: 
 
 ```bash
-Rscript model_pipeline/05_compute_env_suitability.R --config ../modve_data_zenodo/cfgs/05_config.toml
+for singleStep in {80..200}; do
+  Rscript model_pipeline/05_compute_env_suitability.R ../modve_data_zenodo/cfgs/05_config.toml $singleStep
+done
 ```
 
 Suitability scores will be stored in `../modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/suitability_scores/forest0/EnvSuitability/ID_SpeciesP_<pool>_TimeStep<t>.h5` (with `t` = time step, `pool` = no. species pool).
 Second, scale the suitability scores across space, time, scenario, and forest for each time step (using the additional `singleStep` argument):
 
 ```bash
-for singleStep in {80..100}; do
-  Rscript model_pipeline/05_compute_env_suitability.R --config ../modve_data_zenodo/cfgs/05_config.toml *singleStep*
-end
+Rscript model_pipeline/05_compute_env_suitability.R ../modve_data_zenodo/cfgs/05_config.toml
 ```
 
 This will first compute the global maximum suitabilities for each species and species pool and save it in `../modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/suitability_scores/forest0/EnvSuitability/GlobalMaxSuitability_<pool>.h5`. Then, the suitability scores will be scaled for the given time step (`singleStep`) and written to `../modve_output/regua/climdata_era5_cmip6_1981-2100_ssp245/suitability_scores/forest0/EnvSuitability/ScaledSuitability_<pool>TimeStep<t>.h5`. The corresponding file with unscaled scores will be deleted thereafter.
